@@ -84,7 +84,23 @@ Commit this change with a message like:
 close request #<id>: <title>
 ```
 
-### 6. Open a pull request
+### 6. Update the changelog (if present)
+
+Check whether the repo has a changelog file at the root:
+
+```bash
+ls CHANGELOG.md 2>/dev/null || ls changelog.md 2>/dev/null
+```
+
+If a changelog file exists, prepend a new entry for this change under the
+appropriate `## [Unreleased]` section (or create one if absent), following the
+[Keep a Changelog](https://keepachangelog.com) format. Summarise what was
+added, changed, or fixed — one bullet per logical change. Commit the update
+together with or immediately after the implementation commits.
+
+If no changelog file exists, skip this step silently.
+
+### 7. Open a pull request
 
 Push the branch and open a PR against the default branch (typically `main`):
 
@@ -106,10 +122,11 @@ or `gh pr create`. Use:
   This ties the PR to the Kix Request so reviewers can trace implementation
   back to the original ask.
 
-### 7. Confirm
+### 8. Confirm
 
 Report:
 - The branch name.
 - The commits created.
 - The PR URL.
 - That the Request was moved to `closed/`.
+- Whether the changelog was updated.
