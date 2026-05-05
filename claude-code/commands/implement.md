@@ -34,13 +34,13 @@ Read the file's front-matter (`title`, `id`) and body.
 
 - Extract the **slug** from the filename (the part after `<id>-`, before
   `.md`).
-- Branch name: `kix/implement-<id>-<slug>`
-  (e.g. `kix/implement-18-implement-request-skill`).
+- Branch name: `kix/<id>-<slug>`
+  (e.g. `kix/18-implement-request-skill`).
 
 ### 3. Create and switch to the branch
 
 ```bash
-git checkout -b kix/implement-<id>-<slug>
+git checkout -b kix/<id>-<slug>
 ```
 
 If the branch already exists, check it out with `git checkout` and warn the
@@ -89,7 +89,7 @@ close request #<id>: <title>
 Push the branch and open a PR against the default branch (typically `main`):
 
 ```bash
-git push -u origin kix/implement-<id>-<slug>
+git push -u origin kix/<id>-<slug>
 ```
 
 Then create the PR using the GitHub MCP tool (`mcp__github__create_pull_request`)
