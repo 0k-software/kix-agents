@@ -1,5 +1,6 @@
 ---
-description: Capture a new Kix Request in .kix/requests/ (alias for kix:create-request)
+description:
+  Capture a new Kix Request in .kix/requests/ (alias for kix:create-request)
 argument-hint: [brief description of what to capture]
 ---
 
