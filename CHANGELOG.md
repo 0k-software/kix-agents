@@ -13,6 +13,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `kix/<id>-<slug>` branch, implements the request across logical commits,
   updates the changelog if present, closes the Request by moving it to
   `closed/`, and opens a PR linked back to the Request file.
+- `kix:create-request` skill (`claude-code/commands/create-request.md`) —
+  canonical name for capturing a new Request, consistent with the
+  `kix:create-pitch` naming pattern.
+- `kix:capture` alias (`claude-code/commands/capture.md`) — short verb-form
+  alias for `kix:create-request` ("capture a request").
+- `kix:request` alias (`claude-code/commands/request.md`) — short verb-form
+  alias for `kix:create-request` ("request something").
+- `kix:pitch` alias (`claude-code/commands/pitch.md`) — short verb-form alias
+  for `kix:create-pitch` ("pitch an idea").
 
 ## [0.1.0] — 2026-05-05
 
