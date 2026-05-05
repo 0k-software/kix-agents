@@ -28,8 +28,16 @@ Parse `$ARGUMENTS` to determine the mode and target branch:
 1. Verify the working tree is clean (`git status --porcelain`). If dirty, abort
    and tell the user to commit or stash first.
 2. Fetch the latest from origin: `git fetch origin {target}`.
-3. Count commits to rebase: `git log --oneline origin/{target}..HEAD`. Display
-   them so the user knows what will be rebased.
+3. List the commits to rebase: `git log --oneline origin/{target}..HEAD`.
+   Display them so the user knows what will be rebased.
+4. Seed the todo list with TodoWrite — one todo per commit from step 3, in the
+   order the rebase will apply them (oldest first). Use the commit subject as
+   `content` and the short SHA as a prefix so the user can spot it (e.g.
+   `content: "abc1234 — feat: add foo"`,
+   `activeForm: "Applying abc1234 — feat: add foo"`). The todo list is the
+   live progress view for Step 2: flip a todo to `in_progress` when its commit
+   is being applied and to `completed` once that commit has landed (cleanly,
+   after a hook fix, or after conflict resolution — see Step 2).
 
 ## Step 2 — Start the rebase
 
@@ -44,9 +52,22 @@ outcomes are possible per commit:
 
 ### A) Commit applies cleanly and hook passes
 
-Nothing to do — rebase continues automatically.
+Nothing to do — rebase continues automatically. Mark the matching todo
+`completed`.
 
-### B) Conflict occurs
+### B) Pre-commit hook fails
+
+When the pre-commit hook fails after a commit is applied:
+
+1. Read the hook output to understand what failed.
+2. Fix the issues (formatting, linting, etc.).
+3. Stage the fixes and amend the commit: `git commit --amend --no-edit`.
+4. If the fix changes the commit's semantics, update the commit message to
+   reflect what changed.
+5. Run `git rebase --continue`.
+6. Mark the matching todo `completed`.
+
+### C) Conflict occurs
 
 1. Run `git diff` to see the conflict markers.
 2. Read the conflicting files to understand the full context.
@@ -82,22 +103,12 @@ Nothing to do — rebase continues automatically.
 **Then, in both modes:**
 
 5. Apply the resolution, stage the files, and run `git rebase --continue`.
-
-### C) Pre-commit hook fails
-
-When the pre-commit hook fails after a commit is applied:
-
-1. Read the hook output to understand what failed.
-2. Fix the issues (formatting, linting, etc.).
-3. Stage the fixes and amend the commit: `git commit --amend --no-edit`.
-4. If the fix changes the commit's semantics, update the commit message to
-   reflect what changed.
-5. Run `git rebase --continue`.
+6. Mark the matching todo `completed`.
 
 ## Step 3 — Repeat
 
-Continue handling conflicts and hook failures until the rebase completes
-successfully.
+Continue handling hook failures and conflicts until the rebase completes
+successfully — every todo from Step 1 should end up `completed`.
 
 ## Step 4 — Report
 
