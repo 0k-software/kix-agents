@@ -1,19 +1,43 @@
-# Kix Run
+# Kix Agents
 
-**Purpose:** Execute work via coding agents.
+**Purpose:** Open-source library of agents, skills, and prompts.
 
-Where [Kix Flow](kix-flow.md) owns _process state_ and
-[Kix Checkpoint](kix-checkpoint.md) owns _human decisions_, Kix Run owns _agent
-execution_. It is the part of Kix App that makes coding agents (Claude Code,
-Codex, etc.) actually do the work.
+Kix Agents is a separate, public repository
+([`kix-agents`](https://github.com/0k-software/kix-agents)) that ships the
+canonical agents, skills, and prompts authored for the Kix workflow. It serves
+two roles:
 
-Kix Run is **BYO agent**: it does not ship its own coding agent or LLM. It
+- the **source of defaults** that Kix Run compiles and invokes, and that Kix
+  Flow wires into phase transitions
+- a **direct interface to Kix from a coding agent prompt** — slash commands and
+  prompt skills that capture and move work without going through the App, e.g.
+  creating Requests, promoting them to Pitches, creating Tasks, and advancing
+  Pitches or Tasks across phases
+
+The second role is what makes Kix usable on day one, before any Kix App or
+`kix_elixir` exists: a plain Claude Code (or Codex) setup with Kix Agents
+installed can already record `.kix/requests/`, `.kix/pitches/`, and
+`.kix/tasks/` against the same file layout the App later picks up.
+
+It is deliberately **not** part of Kix App:
+
+- the App is a Phoenix-based local UI; Kix Agents is plain repo content
+- decoupling them lets the open-source skill catalog evolve, version, and ship
+  on its own cadence
+- on day one (MVP 1) Kix Agents is the only practical interface — the App
+  doesn't exist yet, so skills do all the work themselves
+
+> **Defaults are open-sourced. Customization is local.**
+
+## BYO agent
+
+Kix Agents is **BYO agent**: it does not ship its own coding agent or LLM. It
 wires up the agents you already use — Claude Code, Codex, or any CLI-driven
 agent — by feeding them Kix's skills, invoking them at the right phase, and
 capturing their sessions. Kix has opinions about the _workflow_, not about
 which agent runs inside it.
 
-Kix Run covers four concerns:
+The agent layer covers four concerns:
 
 - **Skills** — what agents can do (per-agent assets: slash commands, prompts,
   hooks)
@@ -23,28 +47,87 @@ Kix Run covers four concerns:
   recommendations
 - **Sessions** — capturing what each run produced and how
 
-## Skills
+## Skills are stochastic; Kix App is deterministic
 
-Skills are the assets that let coding agents participate in the Kix workflow:
-slash commands, prompts, hooks, and the small bits of glue that turn a generic
-agent into a Kix-aware one.
+Today, the [Kix-invocation skills](#what-it-ships) below do the work
+themselves: a slash command for "create a Pitch" reads templates, allocates an
+ID, writes the folder, and updates state — all driven by an LLM following the
+skill's prompt. That is **stochastic**: it works, but it can drift, miscount
+IDs, or skip a hygiene rule when the model has a bad day.
 
-Skills are **shipped as templates inside Kix App** and **copied into each
-project** when Kix App initializes (or syncs) the repo. They follow the same
-principle as specs and plans:
+The long-term direction is that as Kix App matures it provides **deterministic
+tooling** — typed CLI commands and library calls that own ID allocation, file
+layout, hygiene checks, and state transitions. The same skills then shrink to
+thin wrappers that **invoke those App commands** instead of reproducing the
+logic themselves. The stochastic surface stays at the "what did the human
+mean?" boundary; the structural moves become deterministic.
 
-> **Markdown files are canonical memory. Git is history.**
+Implication: standalone Kix Agents (no App installed) is best understood as the
+**day-one entry point**, not a permanent steady state. Once the App is
+available, the same skills lean on it. A workspace running an old Kix Agents
+build against a new App still works; running a new Kix Agents build that
+expects the App without it installed will become a degraded path over time.
 
-By living in the repo, skills are:
+## What it ships
 
-- versioned with the project
-- reviewable in PRs
-- reproducible from `git clone` alone (no Kix App required to run them)
-- already discoverable by agents that read repo paths (`.claude/`, `.codex/`,
-  `AGENTS.md`, etc.)
+- **Agents configuration** — definitions for each coding agent harness Kix
+  supports (Claude Code, Codex, …) including the manifest each harness expects
+- **Skills** — the canonical, agent-agnostic source for slash commands,
+  prompts, and hooks (the same source Kix Run compiles into per-agent native
+  layouts — see
+  [Agent-agnostic source, per-agent build output](#agent-agnostic-source-per-agent-build-output)),
+  split across two purposes:
+  - **Kix-invocation skills** — directly drive Kix from a prompt: create a
+    Request, promote it to a Pitch, create a Task under a Pitch, move a Pitch
+    or Task to the next phase. These are what make MVP 1 useful before the App
+    exists. They start by doing the work themselves and shrink to App
+    delegations as Kix App matures (see
+    [Skills are stochastic; Kix App is deterministic](#skills-are-stochastic-kix-app-is-deterministic)).
+  - **Phase-execution skills** — the per-phase work agents run inside the flow:
+    refinement, planning, implementation, review, …
+- **Prompts** — the per-phase prompts referenced by `flow.yaml` defaults
 
-Trade-off accepted: bug fixes and improvements do not propagate automatically.
-This is solved by `kix skills.sync` (see "Sync" below).
+By living in the repo, skills are versioned with the project, reviewable in
+PRs, reproducible from `git clone` alone (no Kix App required to run them), and
+already discoverable by agents that read repo paths (`.claude/`, `.codex/`,
+`AGENTS.md`, etc.).
+
+## Install without Kix App
+
+The repo declares itself as a Claude Code marketplace via
+`.claude-plugin/marketplace.json`. From any plain Claude Code setup:
+
+```text
+/plugin marketplace add 0k-software/kix-agents
+/plugin install kix@kix-agents
+```
+
+Codex and other harnesses each have their own equivalent, served from the same
+repo. A user can adopt the Kix workflow on a project without ever installing
+Kix App — the App layers Flow, Checkpoint, and a UI on top of the same skills.
+
+The same plugin-shaped output also gets produced **per workspace**: each Kix
+workspace compiles its own `.kix/skills/` (defaults plus project-local forks)
+into a Claude Code (or Codex) layout and ships a marketplace declaration
+alongside, so a fresh clone or remote checkout of a project picks up exactly
+the skills that project committed — no Kix App needed at install time.
+
+This works fully today because Kix Agents skills implement the moves
+themselves. As the App matures and skills delegate the deterministic work to
+it, "no App installed" becomes a progressively more limited path — see
+[Skills are stochastic; Kix App is deterministic](#skills-are-stochastic-kix-app-is-deterministic).
+
+## How Run and Flow consume it
+
+- **Kix Run** treats Kix Agents as the upstream for default skills. On init,
+  Kix App pulls the canonical sources from Kix Agents into the workspace's
+  `.kix/skills/`, then compiles them into each agent's native layout.
+  `kix skills.sync` re-pulls upstream defaults; user-forked skills under
+  `.kix/skills/` are never touched. (See [Sync](#sync).)
+- **Kix Flow** references agents from Kix Agents in its default `flow.yaml`
+  per-phase wirings. Each Pitch or Task phase that runs an agent picks one out
+  of this catalog by name. Projects can override the wiring per Pitch or Task,
+  or fork a skill and point the wiring at the fork.
 
 ## Agent-agnostic source, per-agent build output
 
@@ -73,44 +156,13 @@ Kix sidesteps that by treating skills the way a build system treats source:
 renders each canonical skill into the plugin shape each agent natively reads:
 
 ```text
-agents/claude-code/commands/refinement.md   ← generated from .kix/skills/refinement.md (Claude Code)
-agents/codex/prompts/refinement.md          ← generated from the same source (Codex)
+claude-code/commands/refinement.md   ← generated for Claude Code
+codex/prompts/refinement.md          ← generated from the same source for Codex
 ```
-
-Each per-agent plugin lives under `agents/<agent>/` so the repo root stays the
-project root, not a single plugin's root. Inside `agents/claude-code/` the
-layout follows Claude Code's spec: `.claude-plugin/plugin.json` (the manifest)
-plus top-level dirs (`commands/`, `skills/`, `hooks/`, …) at the plugin root.
-Codex's layout differs but the principle is the same.
 
 The compiled plugin files are **never hand-edited** — they are reproducible
 artifacts. Switching from Claude Code to Codex (or running both) is
 `kix skills.compile --agent codex`, not a manual re-authoring pass.
-
-## Plugin-shaped output: both the Kix App repo and every workspace
-
-Compiling into each agent's native plugin layout is deliberate: it makes the
-output **directly installable by the agent's own plugin system**, with no Kix
-App required at install time.
-
-This applies in two places:
-
-- **Kix App's own repo** ships its built-in defaults under
-  `agents/claude-code/` (and siblings) and declares itself as a Claude Code
-  marketplace via `.claude-plugin/marketplace.json` at the repo root. Any plain
-  Claude Code setup — local or remote (Codespaces, CI runners, ephemeral
-  sandboxes) — can run `/plugin marketplace add 0k-software/kix` followed by
-  `/plugin install kix@kix` to get the default skills without installing Kix
-  App itself.
-- **Each Kix workspace** also produces an `agents/claude-code/` layout from its
-  own `.kix/skills/` — defaults plus any project-local forks — and ships a
-  marketplace declaration alongside. The workspace is self-installable the same
-  way, so a fresh clone or remote checkout of a project picks up exactly the
-  skills that project committed.
-
-The Kix App is still the thing that authors and compiles skills. But once
-compiled, the artifact is a standard Claude Code (or Codex) plugin, runnable
-anywhere that agent runs.
 
 ## Skill format and harness divergence
 
@@ -137,30 +189,27 @@ that has no Codex analogue — the skill declares `agents: [claude-code]` and th
 compiler skips harnesses that can't host it. **Common case is portable;
 divergence is explicit, not silent duplication.**
 
-## Read-only defaults, fork to customize
+## Customization: fork, don't edit
 
-Default skills shipped by Kix App are **not editable in place**.
+Default skills shipped from Kix Agents are **not editable in place** inside a
+workspace.
 
 Rationale:
 
 > If users edit defaults directly, `kix skills.sync` cannot safely upgrade them
 > without losing customization or requiring a 3-way merge for every file.
 
-Instead, customization happens by **forking**:
+Users customize by **forking**:
 
 ```text
 kix skills.fork <skill-name> [--as <new-name>]
 ```
 
-This:
-
-- copies the default canonical skill into a sibling user-owned skill under
-  `.kix/skills/`
-- registers it as a project-local skill
-- leaves the default untouched and still managed by sync
-
-The user's fork is theirs to edit freely. The default keeps tracking upstream.
-The next compile re-renders both into the agent-native dirs.
+This copies the default canonical skill into a sibling user-owned skill under
+`.kix/skills/`, registers it as a project-local skill, and leaves the default
+untouched and still managed by sync. The default keeps tracking upstream Kix
+Agents, so future syncs upgrade it without losing the user's customization. The
+next compile re-renders both into the agent-native dirs.
 
 ## Sync
 
@@ -171,7 +220,7 @@ kix skills.sync
 Sync operates on the canonical source under `.kix/skills/`, then triggers a
 re-compile so the agent-native dirs match:
 
-- default canonical skills are replaced with the latest version from Kix App
+- default canonical skills are replaced with the latest version from Kix Agents
 - user-forked skills under `.kix/skills/` are never touched
 - each agent's plugin layout (Claude Code, Codex, …) is **regenerated** from
   the new source — any manual edits there are overwritten (they shouldn't have
@@ -296,12 +345,30 @@ sessions/
 Sessions are part of the canonical Markdown record. Like specs and plans, they
 are versioned in Git and survive without the cache.
 
-## Roadmap alignment
+## Repo layout
 
-Kix Run customization mirrors the [Customization Roadmap](roadmap.md):
+```text
+.claude-plugin/marketplace.json   ← marketplace declaration
+claude-code/                      ← Claude Code plugin (manifest + commands + …)
+  .claude-plugin/plugin.json
+  commands/
+  templates/
+codex/                            ← Codex layout (analogous)
+docs/                             ← Run-specific implementation docs
+```
+
+The same skill is authored once at canonical source and compiled into each
+harness's native layout — see
+[Agent-agnostic source, per-agent build output](#agent-agnostic-source-per-agent-build-output).
+
+## Versioning and roadmap
+
+Kix Agents customization mirrors the Customization Roadmap:
 
 - **V1** — default skills only, copied on init, sync overwrites; no fork
 - **V2** — fork command available; project-local skills supported; per-phase
   agent overrides
 - **V3+** — UI for managing forks, sharing forked skills across projects,
   custom orchestration rules
+
+See [Roadmap](roadmap.md) for the full picture.

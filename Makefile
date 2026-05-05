@@ -1,4 +1,4 @@
-.PHONY: all setup autofix check bump_plugin
+.PHONY: all setup autofix check bump
 
 PART ?= patch
 
@@ -14,5 +14,5 @@ autofix:
 check:
 	npx prettier --check .
 
-bump_plugin:
+bump:
 	@node scripts/bump-plugin.js $(PART)

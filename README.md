@@ -2,29 +2,13 @@
 
 Kix skills for every coding agent.
 
-This repo holds Kix's BYO-agent layer: the canonical skills, the per-agent
-plugin builds, and the marketplace declaration that makes them installable
-without the Kix App.
+This repo is the open-source library of agents, skills, and prompts authored
+for the Kix workflow. It ships the canonical defaults that Kix App later
+compiles and invokes, and it doubles as a **direct interface to Kix from a
+coding agent prompt** — slash commands and prompt skills that capture and move
+work without going through the App.
 
-## Purpose
-
-Where [Kix Flow](docs/kix-run.md) owns _process state_ and Kix Checkpoint owns
-_human decisions_, **Kix Run** owns _agent execution_. It is the part of Kix
-that makes coding agents (Claude Code, Codex, etc.) actually do the work.
-
-Kix Run is **BYO agent**: it does not ship its own coding agent or LLM. It
-wires up the agents you already use by feeding them Kix's skills, invoking them
-at the right phase, and capturing their sessions. Kix has opinions about the
-_workflow_, not about which agent runs inside it.
-
-Kix Run covers four concerns:
-
-- **Skills** — what agents can do (per-agent assets: slash commands, prompts,
-  hooks)
-- **Invocation** — how agents are kicked off
-- **Orchestration** — coordinating multiple agents, parallel steps, and
-  recommendations
-- **Sessions** — capturing what each run produced and how
+See [docs/kix-agents.md](docs/kix-agents.md) for the full picture.
 
 ## Install (Claude Code)
 
@@ -47,14 +31,15 @@ claude-code/                      ← Claude Code plugin (manifest + commands + 
   commands/
   templates/
 docs/
-  kix-run.md                      ← full Kix Run details
+  kix-agents.md                   ← what this repo is and how it fits in Kix
   roadmap.md                      ← MVP + Customization roadmaps
 scripts/bump-plugin.js            ← bump plugin.json version
-Makefile                          ← setup, autofix, check, bump_plugin
+Makefile                          ← setup, autofix, check, bump
 ```
 
 ## Documentation
 
-- [Kix Run](docs/kix-run.md) — skills, invocation, orchestration, sessions
+- [Kix Agents](docs/kix-agents.md) — purpose, what it ships, install,
+  fork-don't-edit, how Run and Flow consume it
 - [Roadmap](docs/roadmap.md) — MVP Roadmap (MVP 1 → MVP 8) and Customization
   Roadmap (V1 → V5)
