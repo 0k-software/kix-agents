@@ -96,8 +96,15 @@ Then create the PR using the GitHub MCP tool (`mcp__github__create_pull_request`
 or `gh pr create`. Use:
 
 - **Title:** `implement request #<id>: <title>`
-- **Body:** a short summary of what was implemented and a reference to the
-  Request file path.
+- **Body:** a short summary of what was implemented, followed by a link back to
+  the Request:
+
+  ```
+  Implements .kix/requests/closed/<id>-<slug>.md
+  ```
+
+  This ties the PR to the Kix Request so reviewers can trace implementation
+  back to the original ask.
 
 ### 7. Confirm
 
