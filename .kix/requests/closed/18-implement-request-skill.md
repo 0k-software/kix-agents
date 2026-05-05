@@ -5,7 +5,7 @@ type: request
 linked_to: null
 created_by: noreply@anthropic.com
 created_at: 2026-05-05T17:52:14Z
-updated_at: 2026-05-05T17:52:14Z
+updated_at: 2026-05-05T18:03:14Z
 ---
 
 Add a new skill (`kix:implement` or similar) that automates the implementation
