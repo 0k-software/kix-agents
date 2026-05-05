@@ -1,0 +1,14 @@
+{
+  "name": "kix-agents",
+  "owner": {
+    "name": "0k Software",
+    "url": "https://github.com/0k-software"
+  },
+  "plugins": [
+    {
+      "name": "kix",
+      "source": "./claude-code",
+      "description": "Kix skills plugin"
+    }
+  ]
+}
