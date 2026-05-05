@@ -4,7 +4,8 @@
       "files": "*.md",
       "options": {
         "printWidth": 79,
-        "proseWrap": "always"
+        "proseWrap": "always",
+        "embeddedLanguageFormatting": "off"
       }
     }
   ]
