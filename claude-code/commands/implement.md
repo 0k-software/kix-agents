@@ -1,6 +1,6 @@
 ---
 description: Implement a Kix Request on a branch and open a PR
-argument-hint: <request-id>
+argument-hint: <request-id> [extra context]
 ---
 
 You are implementing a Kix Request end-to-end: branch, implement, close the
@@ -13,6 +13,11 @@ The user's argument: $ARGUMENTS
 Parse `$ARGUMENTS` for a single **request id** — a bare integer (`18`),
 hash-prefixed (`#18`), or a file path containing an `<id>-` segment
 (`.kix/requests/inbox/18-foo.md`). Extract the integer id.
+
+Any remaining text after the id is **supplemental context** — extra framing,
+constraints, or instructions from the user that should guide the implementation
+(e.g. `18 keep it minimal` or `#18 also update the README`). Carry this
+context into Step 4 and let it shape the work.
 
 If `$ARGUMENTS` is empty or no id can be parsed, ask the user for the request
 id and wait for their reply before continuing.
@@ -32,24 +37,32 @@ Read the file's front-matter (`title`, `id`) and body.
 
 ### 2. Derive the branch name
 
-- Extract the **slug** from the filename (the part after `<id>-`, before
-  `.md`).
-- Branch name: `kix/<id>-<slug>`
-  (e.g. `kix/18-implement-request-skill`).
+Strip `.md` from the Request filename and prefix with `kix/`:
+
+```
+kix/<filename-without-extension>
+```
+
+For example, `18-implement-request-skill.md` → `kix/18-implement-request-skill`.
 
 ### 3. Create and switch to the branch
 
 ```bash
-git checkout -b kix/<id>-<slug>
+git checkout -b kix/<filename-without-extension>
 ```
 
 If the branch already exists, check it out with `git checkout` and warn the
 user that work may already exist on this branch.
 
+> **Note:** A future improvement is to use `git worktree add` here instead of
+> checking out in the current directory, so the implementation runs in an
+> isolated worktree and leaves the working tree clean.
+
 ### 4. Implement the Request
 
-Read the Request body carefully. It is raw input — a bug report, an idea, a
-task. Understand what is being asked and implement it directly in the codebase.
+Read the Request body carefully, and factor in any supplemental context from
+`$ARGUMENTS`. The Request is raw input — a bug report, an idea, a task.
+Understand what is being asked and implement it directly in the codebase.
 
 **Commit discipline:**
 
@@ -71,12 +84,24 @@ subfolder and update its `updated_at` timestamp:
 
 ```bash
 mkdir -p .kix/requests/closed
-git mv .kix/requests/<current-subfolder>/<id>-<slug>.md .kix/requests/closed/
+git mv .kix/requests/<current-subfolder>/<filename> .kix/requests/closed/
 ```
 
-Then update the `updated_at` field in the moved file to the current UTC
-timestamp (`date -u +%Y-%m-%dT%H:%M:%SZ`). Do not change any other
-front-matter fields or the body.
+Update the `updated_at` field in the moved file to the current UTC timestamp
+(`date -u +%Y-%m-%dT%H:%M:%SZ`).
+
+Then append a `## Resolution` section to the end of the file body:
+
+```markdown
+## Resolution
+
+Implemented on branch `kix/<filename-without-extension>`. <one-sentence summary
+of what was done.> PR: <pr-url> (or "PR pending" if not yet opened).
+```
+
+If you know the commit SHAs at this point, list them; otherwise the PR link
+alone is sufficient. Update this section after opening the PR if the URL
+wasn't available yet.
 
 Commit this change with a message like:
 
@@ -105,22 +130,50 @@ If no changelog file exists, skip this step silently.
 Push the branch and open a PR against the default branch (typically `main`):
 
 ```bash
-git push -u origin kix/<id>-<slug>
+git push -u origin kix/<filename-without-extension>
 ```
 
-Then create the PR using the GitHub MCP tool (`mcp__github__create_pull_request`)
-or `gh pr create`. Use:
+Then create the PR using one of the following methods, tried in order:
+
+1. **GitHub MCP tool** — `mcp__github__create_pull_request` if available.
+2. **`gh` CLI** — `gh pr create` if the `gh` binary is present.
+3. **curl fallback** — if neither is available but `GITHUB_TOKEN` or
+   `GH_TOKEN` is set in the environment, create the PR via the GitHub REST API:
+
+   ```bash
+   curl -s -X POST \
+     -H "Authorization: token ${GITHUB_TOKEN:-$GH_TOKEN}" \
+     -H "Accept: application/vnd.github+json" \
+     https://api.github.com/repos/<owner>/<repo>/pulls \
+     -d '{
+       "title": "implement request #<id>: <title>",
+       "head": "kix/<filename-without-extension>",
+       "base": "main",
+       "body": "<body>"
+     }'
+   ```
+
+   Determine `<owner>/<repo>` from `git remote get-url origin`.
+
+If none of these methods succeed, report the failure clearly and ask the user
+to open the PR manually.
+
+**PR content:**
 
 - **Title:** `implement request #<id>: <title>`
 - **Body:** a short summary of what was implemented, followed by a link back to
   the Request:
 
   ```
-  Implements .kix/requests/closed/<id>-<slug>.md
+  Implements .kix/requests/closed/<filename>
   ```
 
   This ties the PR to the Kix Request so reviewers can trace implementation
   back to the original ask.
+
+Once the PR URL is known, go back and fill it into the `## Resolution` section
+of the closed Request file (if you wrote "PR pending" earlier) and amend or
+add a follow-up commit.
 
 ### 8. Confirm
 
@@ -128,5 +181,5 @@ Report:
 - The branch name.
 - The commits created.
 - The PR URL.
-- That the Request was moved to `closed/`.
+- That the Request was moved to `closed/` and the Resolution section was added.
 - Whether the changelog was updated.
