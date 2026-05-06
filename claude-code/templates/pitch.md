@@ -1,6 +1,5 @@
 ---
 id: ${id}
-title: ${title}
 phase: ideas
 requests: ${request_ids}
 created_by: ${email}
