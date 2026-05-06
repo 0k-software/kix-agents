@@ -39,18 +39,3 @@ _What actually happens?_
 ## Expected Behavior
 
 _What should happen instead?_
-
-## Investigation Plan
-
-_Where should we look first? What are the hypotheses about root cause?_
-
-## Alternatives
-
-_Other investigation strategies considered but not chosen first — useful
-fallbacks if the primary plan doesn't pan out._
-
-**{Decision point}:**
-
-- Option A: ...
-- Option B: ...
-- ✅ Chosen: Option A — because ...
