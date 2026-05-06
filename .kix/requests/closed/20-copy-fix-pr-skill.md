@@ -29,4 +29,4 @@ Shipped in:
   fix-pr
 - ce62906 — docs: changelog entry for fix-pr and aliases
 
-PR: PR pending.
+PR: https://github.com/0k-software/kix-agents/pull/13
