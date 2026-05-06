@@ -27,7 +27,11 @@ Parse `$ARGUMENTS` into three parts:
 - **Request ids** (zero or more) — same formats as above. Each Request id must
   come **after** the Pitch id token in the argument string.
 - **Framing** — any remaining free text after removing the Pitch id and Request
-  id tokens. This is the user's description of what the Task is about.
+  id tokens. This is the user's description of what the Task is about. The
+  framing **may** start with an explicit `<kind>:` prefix (`feature:`,
+  `chore:`, `bug:`, or `enhancement:`, case-insensitive) to pin the Task kind
+  directly; if present, strip the prefix from the framing and remember the kind
+  for step 6.
 
 Determine the Task shape:
 
@@ -103,11 +107,10 @@ reply before continuing.
    - `created_at` and `updated_at`: the same ISO 8601 UTC timestamp. Use
      `date -u +%Y-%m-%dT%H:%M:%SZ`.
 
-6. **Infer the Task kind.**
+6. **Pick the Task kind.**
 
-   Pick which per-kind template to stamp out by inferring the Task's `kind`
-   from the user's context. There are four kinds, each with its own template
-   under `claude-code/templates/`:
+   Decide which per-kind template to stamp out. There are four kinds, each with
+   its own template under `claude-code/templates/`:
    - `feature` — new functionality, capability, or product surface
      (`task-feature.md`)
    - `chore` — infrastructure, migration, setup, dependency upgrade, or other
@@ -116,7 +119,12 @@ reply before continuing.
    - `enhancement` — improvement, polish, refactor, performance, or DevX change
      to existing functionality (`task-enhancement.md`)
 
-   Use these signals, in order of priority:
+   **Explicit kind takes priority over inference.** If the user pinned the kind
+   via a `<kind>:` prefix in the framing (captured during argument parsing),
+   use that kind directly — do **not** override it with inference, even if the
+   rest of the framing seems to suggest a different kind.
+
+   Otherwise, infer the kind from these signals, in order of priority:
    1. **Framing text from `$ARGUMENTS`.** Cues like "fix", "broken",
       "regression", "crash", "doesn't work" → `bug`. Cues like "speed up",
       "improve", "polish", "refactor", "DX", "tighten" → `enhancement`. Cues
@@ -129,8 +137,9 @@ reply before continuing.
    3. **The seed Requests' titles and bodies** for Solo and Grouped Tasks.
       Apply the same word-level cues as above.
 
-   If no signal points to a clear kind, fall back to `chore`. Echo the inferred
-   kind in the confirmation output (step 10) so the user can correct it.
+   If no signal points to a clear kind, fall back to `chore`. Echo the chosen
+   kind in the confirmation output (step 10) — and note whether it was set
+   explicitly or inferred — so the user can correct it.
 
 7. **Instantiate the Task template via `envsubst`.**
    - The template at `claude-code/templates/task-<kind>.md` (selected from
