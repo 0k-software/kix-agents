@@ -96,9 +96,9 @@ Append a `## Resolution` section to the body:
 ```markdown
 ## Resolution
 
-Closed during triage. <reason text from $ARGUMENTS, lightly cleaned. If no
-reason was given, write a short one-liner like "no further action needed" — do
-not invent a reason the user did not state.>
+Closed. <reason text from $ARGUMENTS, lightly cleaned. If no reason was
+given, write a short one-liner like "no further action needed" — do not
+invent a reason the user did not state.>
 ```
 
 #### Pitch
