@@ -24,6 +24,16 @@ templates, copied verbatim in shape from the GitHub issue templates in
 Each rendered Task body should match what the corresponding GitHub issue
 template produces when submitted — same section labels, same default values.
 
-Add a `--kind <feature|chore|bug|enhancement>` flag to `kix:create-task` that
-selects which template to stamp out. Default kind to be decided (probably
-`chore`).
+`kix:create-task` should pick which of the four templates to stamp out by
+**inferring the kind from the user's context** rather than from an explicit
+flag. Two signals to consider, in order:
+
+1. The framing/free-text the user wrote after the command invocation (e.g. "fix
+   the flaky login test" → `bug`; "make the dashboard load faster" →
+   `enhancement`).
+2. The parent Pitch's title and Summary, when `--pitch <id>` is given (e.g. a
+   Pitch titled "Auth modernization" with feature-shaped Summary → `feature`).
+
+If both signals are absent or ambiguous, fall back to a sensible default
+(probably `chore`) and state the inferred kind in the confirmation output so
+the user can correct it.
