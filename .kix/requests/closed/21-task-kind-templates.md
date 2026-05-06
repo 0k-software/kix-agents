@@ -5,7 +5,7 @@ type: request
 linked_to: null
 created_by: noreply@anthropic.com
 created_at: 2026-05-06T10:29:06Z
-updated_at: 2026-05-06T10:29:06Z
+updated_at: 2026-05-06T10:48:50Z
 ---
 
 Replace the single `claude-code/templates/task.md` with four per-kind Task body
@@ -37,3 +37,13 @@ flag. Two signals to consider, in order:
 If both signals are absent or ambiguous, fall back to a sensible default
 (probably `chore`) and state the inferred kind in the confirmation output so
 the user can correct it.
+
+## Resolution
+
+Implemented on branch `kix/21-task-kind-templates`. Added the four per-kind
+Task body templates (`task-feature.md`, `task-chore.md`, `task-bug.md`,
+`task-enhancement.md`) ported from `0k-software/.github`'s issue templates,
+removed the generic `task.md`, and extended `kix:create-task` with a new "Infer
+the Task kind" step that picks the template from framing text / parent Pitch /
+seed Requests with `chore` as the fallback and echoes the inferred kind in the
+confirmation. PR pending.
