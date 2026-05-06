@@ -20,10 +20,18 @@ The format is based on
   new Kix Task under `.kix/tasks/<id>-<slug>/task.md`, mirroring
   `kix:create-pitch`'s argument grammar (Solo, Grouped framed/unframed,
   Standalone) and adding a `--pitch <id>` flag to attach the Task to a parent
-  Pitch.
+  Pitch. Infers a `kind` (`feature`, `chore`, `bug`, or `enhancement`) from the
+  user's framing text, parent Pitch context, or seed Requests, falling back to
+  `chore`, and stamps out the matching per-kind template; echoes the inferred
+  kind in the confirmation so it can be corrected.
 - `kix:task` alias (`claude-code/commands/task.md`) — short verb-form alias for
   `kix:create-task`.
-- Task template at `claude-code/templates/task.md`.
+- Per-kind Task body templates at `claude-code/templates/task-feature.md`,
+  `task-chore.md`, `task-bug.md`, and `task-enhancement.md`, ported from the
+  GitHub issue templates in `0k-software/.github`. Each rendered Task body
+  matches what the corresponding GitHub issue form produces when submitted; the
+  YAML form's intro markdown block is replaced by the seeded `summary` so the
+  user's framing slots in at the top of the Task.
 - `kix:fix-pr` skill (`claude-code/commands/fix-pr.md`) — ported from kata;
   addresses unresolved review comments on a PR, verifying suggestions before
   implementing and routing commits through `kix:commit`.
