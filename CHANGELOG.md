@@ -28,6 +28,13 @@ The format is based on
   `kix:create-pitch`, and `kix:implement` skills, and migrated all existing
   Requests and Pitches to the new shape.
 
+### Removed
+
+- Redundant `type: request` field from Request front-matter — Requests are
+  identified by their location under `.kix/requests/`, so the field carried no
+  signal. Dropped from the `kix:create-request` skill template and stripped
+  from existing Request files.
+
 ## [0.2.0] — 2026-05-06
 
 ### Added
