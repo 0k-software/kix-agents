@@ -15,5 +15,5 @@ Add a `create-task` skill.
 Implemented on branch `claude/implement-feature-5-iPJjD`. Added the
 `kix:create-task` skill, the `kix:task` alias, and a Task template
 (`claude-code/templates/task.md`); the skill mirrors `kix:create-pitch` and
-adds a `--pitch <id>` flag to attach the new Task to a parent Pitch. PR
-pending.
+adds a `--pitch <id>` flag to attach the new Task to a parent Pitch. PR:
+https://github.com/0k-software/kix-agents/pull/18
