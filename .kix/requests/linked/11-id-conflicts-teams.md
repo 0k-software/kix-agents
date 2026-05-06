@@ -1,11 +1,12 @@
 ---
 id: 11
-title: ID conflicts when multiple people allocate IDs in parallel
 linked_to: 14
 created_by: kelvin.stinghen@me.com
 created_at: 2026-05-05T14:01:43Z
 updated_at: 2026-05-05T15:01:28Z
 ---
+
+# ID conflicts when multiple people allocate IDs in parallel
 
 The current ID allocator reads `.kix/.state/next-id` and increments it. In a
 team setting this collides: if I create a Request locally and don't push, and

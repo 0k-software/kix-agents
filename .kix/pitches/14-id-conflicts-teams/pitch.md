@@ -1,6 +1,5 @@
 ---
 id: 14
-title: ID conflicts when multiple people allocate IDs in parallel
 phase: ideas
 requests: [11]
 created_by: kelvin.stinghen@me.com

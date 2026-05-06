@@ -1,12 +1,13 @@
 ---
 id: 4
-title: `create-pitch` skill
 type: request
 linked_to: null
 created_by: kelvin.stinghen@me.com
 created_at: 2026-05-05T12:52:37Z
 updated_at: 2026-05-05T15:08:56Z
 ---
+
+# `create-pitch` skill
 
 Add a `create-pitch` skill that creates a Pitch from one or more existing
 Requests. Input: a Request id/link, multiple Request ids/links, or Request
