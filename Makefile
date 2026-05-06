@@ -22,10 +22,18 @@ release:
 	@test -n "$(PLUGIN_VERSION)" || { echo "error: could not read version from claude-code/.claude-plugin/plugin.json"; exit 1; }
 	@git diff --quiet && git diff --cached --quiet \
 		|| { echo "error: working tree is dirty — commit all changes first"; exit 1; }
-	@git tag -a "v$(PLUGIN_VERSION)" -m "v$(PLUGIN_VERSION)" 2>/dev/null \
-		|| { echo "error: tag v$(PLUGIN_VERSION) already exists"; exit 1; }
-	@git push origin "v$(PLUGIN_VERSION)"
-	@gh release create "v$(PLUGIN_VERSION)" \
-		--title "v$(PLUGIN_VERSION)" \
-		--generate-notes
-	@echo "Released v$(PLUGIN_VERSION)"
+	@set -e; \
+	TOKEN="$${GITHUB_TOKEN:-$${GH_TOKEN:-$$(gh auth token 2>/dev/null)}}"; \
+	test -n "$$TOKEN" || { echo "error: no GitHub token (set GITHUB_TOKEN or GH_TOKEN, or run 'gh auth login')"; exit 1; }; \
+	REPO=$$(git config --get remote.origin.url | sed -E 's#^.+[:/]([^:/]+/[^/]+)(\.git)?$$#\1#'); \
+	git tag -a "v$(PLUGIN_VERSION)" -m "v$(PLUGIN_VERSION)" 2>/dev/null \
+		|| { echo "error: tag v$(PLUGIN_VERSION) already exists"; exit 1; }; \
+	git push origin "v$(PLUGIN_VERSION)"; \
+	curl -fsSL -X POST \
+		-H "Authorization: Bearer $$TOKEN" \
+		-H "Accept: application/vnd.github+json" \
+		-H "X-GitHub-Api-Version: 2022-11-28" \
+		"https://api.github.com/repos/$$REPO/releases" \
+		-d "{\"tag_name\":\"v$(PLUGIN_VERSION)\",\"name\":\"v$(PLUGIN_VERSION)\",\"generate_release_notes\":true}" \
+		> /dev/null; \
+	echo "Released v$(PLUGIN_VERSION)"
