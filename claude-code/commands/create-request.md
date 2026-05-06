@@ -70,6 +70,18 @@ The user's brief: $ARGUMENTS
 7. **Update the ID counter.**
    - Write `<id + 1>` followed by a single newline to `.kix/.state/next-id`.
 
-8. **Confirm.**
+8. **Confirm — and warn if the body is vague.**
    - Print the path of the new Request file and its title so the user can see
      what was captured.
+   - **Vagueness check:** if the body is empty, a single short noun phrase, or
+     otherwise gives a future triager no hint of the area touched, the desired
+     outcome, or the motivation, also print a brief warning. The Request was
+     still created — the warning is a nudge, not a rejection. Request creation
+     stays friction-free.
+     - Vague (warn): `create-pitch skill`, `fix the thing`, `auth bug`.
+     - Useful (no warning):
+       `Add a create-pitch skill that creates a Pitch from one or more existing Requests.`,
+       `Login form crashes when the email contains a +`.
+     - The warning should suggest adding a sentence about the area touched, the
+       desired outcome, or the motivation, so future triagers can grasp what
+       the Request is about without re-deriving it from scratch.
