@@ -22,5 +22,5 @@ Shipped in:
   feat(kix): add /kix:rebase command, ported from kata
 
 The body was ported verbatim. Frontmatter was adapted from kata's
-`name`/`description` shape to kix-agents' `description`/`argument-hint`
-shape, and `/kata:rebase` references were renamed to `/kix:rebase`.
+`name`/`description` shape to kix-agents' `description`/`argument-hint` shape,
+and `/kata:rebase` references were renamed to `/kix:rebase`.

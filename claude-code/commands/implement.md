@@ -16,8 +16,8 @@ hash-prefixed (`#18`), or a file path containing an `<id>-` segment
 
 Any remaining text after the id is **supplemental context** — extra framing,
 constraints, or instructions from the user that should guide the implementation
-(e.g. `18 keep it minimal` or `#18 also update the README`). Carry this
-context into Step 4 and let it shape the work.
+(e.g. `18 keep it minimal` or `#18 also update the README`). Carry this context
+into Step 4 and let it shape the work.
 
 If `$ARGUMENTS` is empty or no id can be parsed, ask the user for the request
 id and wait for their reply before continuing.
@@ -43,7 +43,8 @@ Strip `.md` from the Request filename and prefix with `kix/`:
 kix/<filename-without-extension>
 ```
 
-For example, `18-implement-request-skill.md` → `kix/18-implement-request-skill`.
+For example, `18-implement-request-skill.md` →
+`kix/18-implement-request-skill`.
 
 ### 3. Create and switch to the branch
 
@@ -100,8 +101,8 @@ of what was done.> PR: <pr-url> (or "PR pending" if not yet opened).
 ```
 
 If you know the commit SHAs at this point, list them; otherwise the PR link
-alone is sufficient. Update this section after opening the PR if the URL
-wasn't available yet.
+alone is sufficient. Update this section after opening the PR if the URL wasn't
+available yet.
 
 Commit this change with a message like:
 
@@ -137,8 +138,8 @@ Then create the PR using one of the following methods, tried in order:
 
 1. **GitHub MCP tool** — `mcp__github__create_pull_request` if available.
 2. **`gh` CLI** — `gh pr create` if the `gh` binary is present.
-3. **curl fallback** — if neither is available but `GITHUB_TOKEN` or
-   `GH_TOKEN` is set in the environment, create the PR via the GitHub REST API:
+3. **curl fallback** — if neither is available but `GITHUB_TOKEN` or `GH_TOKEN`
+   is set in the environment, create the PR via the GitHub REST API:
 
    ```bash
    curl -s -X POST \
@@ -172,12 +173,13 @@ to open the PR manually.
   back to the original ask.
 
 Once the PR URL is known, go back and fill it into the `## Resolution` section
-of the closed Request file (if you wrote "PR pending" earlier) and amend or
-add a follow-up commit.
+of the closed Request file (if you wrote "PR pending" earlier) and amend or add
+a follow-up commit.
 
 ### 8. Confirm
 
 Report:
+
 - The branch name.
 - The commits created.
 - The PR URL.
