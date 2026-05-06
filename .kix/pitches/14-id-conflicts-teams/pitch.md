@@ -5,7 +5,7 @@ phase: ideas
 requests: [11]
 created_by: kelvin.stinghen@me.com
 created_at: 2026-05-05T15:01:28Z
-updated_at: 2026-05-06T01:59:46Z
+updated_at: 2026-05-06T02:02:14Z
 ---
 
 # ID conflicts when multiple people allocate IDs in parallel
@@ -19,11 +19,15 @@ accepts it silently. Duplicates land on `main` without any conflict ever
 being raised.
 
 The chosen direction: drop the counter entirely. Replace integer IDs with
-random 6-character hex hashes, prefixed by artifact type — `KR-a1b2c3` for
+6-character base36 hashes, prefixed by artifact type — `KR-a1b2c3` for
 Requests and `KP-a1b2c3` for Pitches. The scheme extends naturally to
 future types (e.g. Tasks → `KT-`), but those are out of scope here.
 Allocation is purely local, requires no coordination, and the collision
-probability is vanishingly small at any realistic Kix scale.
+probability is vanishingly small at any realistic Kix scale. The
+generation algorithm mirrors what Beads does in its `internal/idgen`
+package — we adopt the approach (deterministic SHA-256 hash of the
+artifact's metadata, base36-encoded, nonce-bumped on collision) without
+taking a dependency on Beads itself.
 
 ## The Problem
 
@@ -44,7 +48,7 @@ _Pick one: 1 week · 2 weeks · 3 weeks · 4 weeks · 5 weeks_
 
 ## The Solution
 
-**ID format:** `<prefix>-<6 hex chars>`, where the prefix marks the
+**ID format:** `<prefix>-<6 base36 chars>`, where the prefix marks the
 artifact type:
 
 - `KR-a1b2c3` — Request
@@ -54,15 +58,27 @@ The scheme extends to future types by adding a new prefix letter (Tasks
 would be `KT-`), but introducing those types is the job of a separate
 pitch — out of scope here.
 
-The 6 hex chars are random (24 bits = 16,777,216 values). At Kix's
-expected scale (hundreds of artifacts per type), the birthday-collision
-probability is well under 0.1%. Per-type prefixes mean a Request and a
-Pitch can share the same suffix without conflict — each type has its own
-16M-value space.
+Six base36 chars give `36⁶ = 2,176,782,336` values per type. The
+birthday-collision threshold (~1% probability) sits around 6,500
+artifacts of the same type — well past anything Kix is likely to see.
+Per-type prefixes mean a Request and a Pitch can share the same suffix
+without conflict; each type has its own 2.1B-value space.
 
-**Allocation:** purely local. Generate 3 random bytes, hex-encode, prepend
-the type prefix. No counter, no `.kix/.state/next-id`, no coordination,
-fully offline-safe. Parallel branches cannot collide in practice.
+**Allocation algorithm** (mirrors Beads' `internal/idgen/hash.go`):
+
+1. Compute `SHA-256(prefix | title | creator | timestamp | nonce)` where
+   `nonce` starts at 0.
+2. Take enough leading bytes to base36-encode into 6 chars, encode them.
+3. If the resulting ID already exists in `.kix/**`, increment the nonce
+   and retry. In practice this loop almost never trips at Kix's scale,
+   but it's a clean way to handle the edge case without ever asking the
+   user.
+
+The hash is **deterministic**: rerunning creation with identical inputs
+yields the same ID, which is useful for tests and for recomputing IDs
+during migration. No counter, no `.kix/.state/next-id`, no shared state,
+no coordination — fully offline-safe. Parallel branches cannot collide
+in practice.
 
 **Filenames:** `{prefix}-{hash}-{slug}.md` — e.g.
 `KR-a1b2c3-port-rebase-skill.md`. Glob-friendly per type (`KR-*` /
@@ -84,17 +100,18 @@ the design.
 - Option D: GitHub Issue-number-as-ID.
 - Option E: Date-slug filenames.
 - Option F: Beads as the underlying allocator.
-- ✅ Chosen: prefixed 6-hex-char random hashes (`KR-a1b2c3`). Inspired
-  by Beads' `bd-XXXX` but kept inside Kix so we don't take a dependency
-  on a young, churning external tool. A trades short memorability for
-  real machinery cost (CI gate, dedupe skill, branch-protection rules)
-  and stays vulnerable to misconfiguration. B doesn't scale beyond a
-  handful of authors and creates per-actor allocator state. C excludes
-  requests that never become PRs. D depends on GitHub availability,
-  which has been unreliable lately. E loses ID-style references
-  entirely. F adopts a moving external surface area we don't want to
-  track. The hash approach is offline, conflict-free by construction,
-  requires zero coordination, and `KR-a1b2c3` is short enough to say in
+- ✅ Chosen: prefixed 6-base36-char hashes (`KR-a1b2c3`). Algorithm
+  adopted from Beads' `internal/idgen/hash.go` (deterministic SHA-256 +
+  nonce), but kept inside Kix so we don't take a dependency on a young,
+  churning external tool. A trades short memorability for real machinery
+  cost (CI gate, dedupe skill, branch-protection rules) and stays
+  vulnerable to misconfiguration. B doesn't scale beyond a handful of
+  authors and creates per-actor allocator state. C excludes requests
+  that never become PRs. D depends on GitHub availability, which has
+  been unreliable lately. E loses ID-style references entirely. F
+  adopts a moving external surface area we don't want to track. The
+  hash approach is offline, conflict-free by construction, requires
+  zero coordination, and `KR-a1b2c3` is short enough to say in
   conversation.
 
 **Hash length:**
@@ -102,9 +119,18 @@ the design.
 - Option A: Progressive scaling (4 → 5 → 6 chars as the project grows,
   Beads-style).
 - Option B: Fixed 6 chars from day one.
-- ✅ Chosen: Option B — at Kix's expected scale, fixed 6 is "fine pretty
-  much forever." Progressive scaling adds rename complexity (every ID
-  changes length when a threshold trips) for no practical payoff.
+- ✅ Chosen: Option B — at Kix's expected scale, fixed 6 base36 chars
+  (~2.1B values per type) is "fine pretty much forever." Progressive
+  scaling adds rename complexity (every ID changes length when a
+  threshold trips) for no practical payoff.
+
+**Encoding:**
+
+- Option A: Hex (`0-9a-f`, 16 values per char).
+- Option B: Base36 (`0-9a-z`, 36 values per char).
+- ✅ Chosen: Option B — same algorithm as Beads, and at 6 chars base36
+  gives ~130× the address space of hex (2.1B vs 16.8M), which is what
+  makes "6 chars forever" actually true rather than borderline.
 
 **Prefix style:**
 
@@ -128,9 +154,17 @@ the design.
 - **Slug duplicates in filenames.** Two artifacts with the same slug
   but different hashes is fine — the hash disambiguates. The
   `kix:request` skill should not try to "deduplicate by slug."
-- **Random source.** Use a cryptographically-decent RNG (`crypto/rand`
-  in Go, `secrets.token_hex(3)` in Python) — not seeded `Math.random`
-  or anything time-based that could correlate across parallel runs.
+- **Hash inputs and timestamp granularity.** The deterministic hash
+  needs enough variability that two artifacts created back-to-back by
+  the same author with similar titles don't collide. Including a
+  millisecond-or-finer timestamp plus the nonce-bump-on-collision loop
+  handles this; using only second-granularity timestamps may cause more
+  nonce retries than necessary.
+- **Migrating IDs is a re-hash, not a re-roll.** Because the hash is
+  deterministic, the migration script can compute each artifact's new
+  ID directly from its existing frontmatter (`title`, `created_by`,
+  `created_at`) without any randomness — useful for review and for
+  reproducing the migration if it has to be re-run.
 
 ## The No-Gos
 
@@ -147,10 +181,13 @@ the design.
 
 Small change in code, larger change in data:
 
-1. Update the ID-allocation helper used by `kix:request` /
-   `kix:create-pitch` to emit hex hashes with the right prefix.
+1. Port the ID-generation algorithm from Beads' `internal/idgen/hash.go`
+   into Kix as a small helper (deterministic SHA-256 + base36 + nonce
+   retry). Wire it into the `kix:request` / `kix:create-pitch` skills.
 2. Execute the migration: rewrite every existing Request and Pitch
-   (including this one) to the new format in a single commit.
+   (including this one) to the new format in a single commit, with each
+   new ID computed deterministically from the artifact's existing
+   frontmatter.
 3. Delete `.kix/.state/next-id` (no longer needed).
 4. Add a small CI duplicate-ID check as a backstop.
 
@@ -164,8 +201,10 @@ Small change in code, larger change in data:
 
 ## The To-Dos
 
+- [ ] Port Beads' `internal/idgen/hash.go` algorithm (SHA-256 + base36
+      + nonce retry) into a Kix helper.
 - [ ] Update `kix:request` / `kix:create-pitch` skills to mint
-      `KR-XXXXXX` / `KP-XXXXXX` IDs.
+      `KR-XXXXXX` / `KP-XXXXXX` IDs via the helper.
 - [ ] Execute the full migration: rewrite filenames, frontmatter `id`,
       and all cross-references (`linked_to`, `requests: [...]`) for
       every existing Request and Pitch — including this pitch. The
