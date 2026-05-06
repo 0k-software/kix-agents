@@ -23,4 +23,4 @@ prints a warning alongside the file path. Creation itself stays friction-free â€
 the warning is a nudge, not a rejection. Added a matching `### Changed` entry
 to the Unreleased section of CHANGELOG.md.
 
-PR: PR pending
+PR: https://github.com/0k-software/kix-agents/pull/14
