@@ -9,6 +9,11 @@ The format is based on
 
 ### Added
 
+- `kix:close` skill (`claude-code/commands/close.md`) — polymorphic
+  `/close <id> [reason]` that infers the entity type from the id and applies
+  its terminal state: moves Requests to `closed/`, sets Pitches to
+  `phase: shipped`, sets Tasks to `phase: done`. Optional reason text is
+  captured into a `## Resolution` section.
 - `kix:fix-pr` skill (`claude-code/commands/fix-pr.md`) — ported from kata;
   addresses unresolved review comments on a PR, verifying suggestions before
   implementing and routing commits through `kix:commit`.
