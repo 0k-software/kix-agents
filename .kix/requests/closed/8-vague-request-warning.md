@@ -1,12 +1,13 @@
 ---
 id: 8
-title: Warn on vague Request bodies during creation
 type: request
 linked_to: null
 created_by: kelvin.stinghen@me.com
 created_at: 2026-05-05T13:02:20Z
 updated_at: 2026-05-06T03:46:58Z
 ---
+
+# Warn on vague Request bodies during creation
 
 Request creation should stay rough and friction-free, but very terse briefs can
 be hard to grasp later — see `.kix/requests/4-create-pitch-skill.md`, which

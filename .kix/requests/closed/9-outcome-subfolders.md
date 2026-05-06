@@ -1,12 +1,13 @@
 ---
 id: 9
-title: Outcome subfolders instead of front-matter field
 type: request
 linked_to: null
 created_by: kelvin.stinghen@me.com
 created_at: 2026-05-05T13:58:42Z
 updated_at: 2026-05-05T15:58:48Z
 ---
+
+# Outcome subfolders instead of front-matter field
 
 Instead of an `outcome` field in the Request front-matter, store the outcome by
 location: a subfolder per outcome. New Requests land in `inbox/`. Triage moves

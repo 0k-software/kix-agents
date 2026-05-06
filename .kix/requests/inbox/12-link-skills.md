@@ -1,12 +1,13 @@
 ---
 id: 12
-title: link-pitch and link-task skills for existing entities
 type: request
 linked_to: null
 created_by: kelvin.stinghen@me.com
 created_at: 2026-05-05T14:50:57Z
 updated_at: 2026-05-05T14:50:57Z
 ---
+
+# link-pitch and link-task skills for existing entities
 
 Add `link-pitch` and `link-task` skills that link an existing Request to an
 existing Pitch or Task — counterparts to `create-pitch` / `create-task`, which

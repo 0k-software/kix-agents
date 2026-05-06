@@ -1,12 +1,13 @@
 ---
 id: 13
-title: `/close` skill for Requests, Pitches, and Tasks
 type: request
 linked_to: null
 created_by: kelvin.stinghen@me.com
 created_at: 2026-05-05T14:51:47Z
 updated_at: 2026-05-05T14:51:47Z
 ---
+
+# `/close` skill for Requests, Pitches, and Tasks
 
 Add a `/close` skill that closes Requests, Pitches, and Tasks. Counterpart to
 the create/link skills — handles the third triage outcome (closed) for

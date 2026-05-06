@@ -1,12 +1,13 @@
 ---
 id: 3
-title: Import `commit` skill from Kata
 type: request
 linked_to: null
 created_by: kelvin.stinghen@me.com
 created_at: 2026-05-05T12:50:36Z
 updated_at: 2026-05-05T13:43:57Z
 ---
+
+# Import `commit` skill from Kata
 
 Import the `commit` skill from Kata into Kix.
 

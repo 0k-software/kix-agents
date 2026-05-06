@@ -1,12 +1,13 @@
 ---
 id: 18
-title: Skill to implement requests via branch and PR
 type: request
 linked_to: null
 created_by: noreply@anthropic.com
 created_at: 2026-05-05T17:52:14Z
 updated_at: 2026-05-05T18:03:14Z
 ---
+
+# Skill to implement requests via branch and PR
 
 Add a new skill (`kix:implement` or similar) that automates the implementation
 workflow for a plain request. The skill should:

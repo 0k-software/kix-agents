@@ -1,6 +1,5 @@
 ---
 id: 17
-title: Commands vs skills for Kix flows
 phase: ideas
 requests: [16, 2]
 created_by: kelvin.stinghen@me.com
