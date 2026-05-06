@@ -1,7 +1,7 @@
 ---
 id: ${id}
 phase: ideas
-requests: ${request_ids}
+requests: ${requests}
 created_by: ${email}
 created_at: ${now}
 updated_at: ${now}

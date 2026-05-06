@@ -152,9 +152,13 @@ reply before continuing.
      - `id` — the Task id from step 4.
      - `title` — the title from step 3.
      - `pitch_id` — the parent Pitch id from step 2.
-     - `request_ids` — YAML list literal of source Request ids in the order the
-       user provided them, e.g. `[3, 7, 12]`. Solo Task: a single-element list.
-       Bare Task: `[]`.
+     - `requests` — YAML list literal of source Request **id-slug** identifiers
+       in the order the user provided them, e.g.
+       `[3-create-pitch-skill, 7-creation-through-app]`. Each entry uses the
+       Request's `<id>-<slug>` form (the filename without the `.md` extension
+       and the outcome subfolder) so the list is readable on its own without
+       cross-referencing files. Solo Task: a single-element list. Bare Task:
+       `[]`.
      - `email` — value from step 5 (blank if `git config user.email` returned
        empty).
      - `now` — the timestamp from step 5.
@@ -180,8 +184,8 @@ reply before continuing.
 
      ```bash
      mkdir -p .kix/pitches/<pitch-folder>/tasks/<id>-<slug>
-     export id title pitch_id request_ids email now summary
-     envsubst '${id} ${title} ${pitch_id} ${request_ids} ${email} ${now} ${summary}' \
+     export id title pitch_id requests email now summary
+     envsubst '${id} ${title} ${pitch_id} ${requests} ${email} ${now} ${summary}' \
        < claude-code/templates/task-<kind>.md \
        > .kix/pitches/<pitch-folder>/tasks/<id>-<slug>/task.md
      ```
