@@ -1,6 +1,5 @@
 ---
 id: 18
-type: request
 linked_to: null
 created_by: noreply@anthropic.com
 created_at: 2026-05-05T17:52:14Z

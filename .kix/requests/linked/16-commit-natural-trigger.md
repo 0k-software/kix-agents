@@ -1,6 +1,5 @@
 ---
 id: 16
-type: request
 linked_to: 17
 created_by: kelvin.stinghen@me.com
 created_at: 2026-05-05T15:06:03Z
