@@ -5,7 +5,7 @@ phase: ideas
 requests: [11]
 created_by: kelvin.stinghen@me.com
 created_at: 2026-05-05T15:01:28Z
-updated_at: 2026-05-06T01:55:09Z
+updated_at: 2026-05-06T01:59:46Z
 ---
 
 # ID conflicts when multiple people allocate IDs in parallel
@@ -20,9 +20,10 @@ being raised.
 
 The chosen direction: drop the counter entirely. Replace integer IDs with
 random 6-character hex hashes, prefixed by artifact type — `KR-a1b2c3` for
-Requests, `KP-a1b2c3` for Pitches, `KT-a1b2c3` for Tasks. Allocation is
-purely local, requires no coordination, and the collision probability is
-vanishingly small at any realistic Kix scale.
+Requests and `KP-a1b2c3` for Pitches. The scheme extends naturally to
+future types (e.g. Tasks → `KT-`), but those are out of scope here.
+Allocation is purely local, requires no coordination, and the collision
+probability is vanishingly small at any realistic Kix scale.
 
 ## The Problem
 
@@ -48,7 +49,10 @@ artifact type:
 
 - `KR-a1b2c3` — Request
 - `KP-a1b2c3` — Pitch
-- `KT-a1b2c3` — Task (future)
+
+The scheme extends to future types by adding a new prefix letter (Tasks
+would be `KT-`), but introducing those types is the job of a separate
+pitch — out of scope here.
 
 The 6 hex chars are random (24 bits = 16,777,216 values). At Kix's
 expected scale (hundreds of artifacts per type), the birthday-collision
@@ -61,8 +65,8 @@ the type prefix. No counter, no `.kix/.state/next-id`, no coordination,
 fully offline-safe. Parallel branches cannot collide in practice.
 
 **Filenames:** `{prefix}-{hash}-{slug}.md` — e.g.
-`KR-a1b2c3-port-rebase-skill.md`. Glob-friendly per type
-(`KR-*` / `KP-*` / `KT-*`).
+`KR-a1b2c3-port-rebase-skill.md`. Glob-friendly per type (`KR-*` /
+`KP-*`).
 
 **Backstop CI check:** in the unlikely event of a real collision, or a
 hand-edit that introduces a duplicate, a tiny CI script walks `.kix/**`
@@ -104,8 +108,8 @@ the design.
 
 **Prefix style:**
 
-- Option A: Bare type letter (`R-a1b2c3`, `P-a1b2c3`, `T-a1b2c3`).
-- Option B: `K`-tagged prefix (`KR-a1b2c3`, `KP-a1b2c3`, `KT-a1b2c3`).
+- Option A: Bare type letter (`R-a1b2c3`, `P-a1b2c3`).
+- Option B: `K`-tagged prefix (`KR-a1b2c3`, `KP-a1b2c3`).
 - ✅ Chosen: Option B — the `K` clearly marks IDs as Kix-owned, makes
   them grep-friendly across mixed-source contexts, and avoids ambiguity
   if the same repo ever picks up another tool with single-letter IDs.
@@ -113,12 +117,11 @@ the design.
 ## The Rabbit Holes
 
 - **Migrating existing integer IDs.** All current artifacts (Requests
-  1–19, Pitches 14, 17) carry integer IDs. Either rewrite all of them
-  to the new format (and rewrite every reference: `linked_to`, pitch
-  `requests: [...]`, filenames, the existing `19` collision resolves
-  itself in the process), or leave existing ones grandfathered and only
-  mint new IDs in the new format. Mixed state is supportable but ugly;
-  full rewrite is cleaner but touches every artifact.
+  1–19, Pitches 14 and 17) get rewritten to the new format, including
+  this pitch itself — every `id` field, every filename, and every
+  cross-reference (`linked_to`, pitch `requests: [...]`) is updated in
+  one migration commit. The existing `id: 19` collision resolves
+  automatically since both colliding files get fresh `KR-XXXXXX` IDs.
 - **External references.** Commit messages, PR titles, branch names
   referencing old integer IDs will go stale after a rewrite. Mitigated
   by Kix being a solo repo today — blast radius is small.
@@ -146,8 +149,8 @@ Small change in code, larger change in data:
 
 1. Update the ID-allocation helper used by `kix:request` /
    `kix:create-pitch` to emit hex hashes with the right prefix.
-2. Decide and execute the migration of existing artifacts (full rewrite
-   vs grandfather).
+2. Execute the migration: rewrite every existing Request and Pitch
+   (including this one) to the new format in a single commit.
 3. Delete `.kix/.state/next-id` (no longer needed).
 4. Add a small CI duplicate-ID check as a backstop.
 
@@ -163,22 +166,15 @@ Small change in code, larger change in data:
 
 - [ ] Update `kix:request` / `kix:create-pitch` skills to mint
       `KR-XXXXXX` / `KP-XXXXXX` IDs.
-- [ ] Decide on migration strategy for existing artifacts (full rewrite
-      vs grandfather).
-- [ ] Execute migration: rewrite filenames, frontmatter `id`, and all
-      cross-references (`linked_to`, `requests: [...]`). The existing
-      `id: 19` collision resolves automatically — both get fresh
-      `KR-XXXXXX` IDs.
+- [ ] Execute the full migration: rewrite filenames, frontmatter `id`,
+      and all cross-references (`linked_to`, `requests: [...]`) for
+      every existing Request and Pitch — including this pitch. The
+      existing `id: 19` collision resolves automatically — both get
+      fresh `KR-XXXXXX` IDs.
 - [ ] Delete `.kix/.state/next-id`.
 - [ ] Add CI duplicate-ID check.
 - [ ] Update Kix docs to describe the new ID format.
 
 ## The Questions
 
-- Migration strategy: full rewrite of every existing artifact, or
-  grandfather integer IDs and only mint new format going forward?
-- Does pitch 14 itself migrate (becoming `KP-XXXXXX`), or is the
-  migration commit the cutover point that leaves this pitch as the
-  last integer-ID artifact?
-- Do we want to scaffold the `KT-` Task prefix in this pitch, or defer
-  it entirely to a future pitch that introduces the Task type?
+-
