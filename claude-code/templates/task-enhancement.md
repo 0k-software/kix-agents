@@ -26,6 +26,10 @@ _Why is this improvement worth doing? What pain does it reduce?_
 
 _What's the proposed solution? Describe how it should work._
 
+## Scope / Impact
+
+_Does this affect users, developers, performance, or maintainability?_
+
 ## Alternatives
 
 _Alternative approaches considered during design, with tradeoffs._
@@ -35,7 +39,3 @@ _Alternative approaches considered during design, with tradeoffs._
 - Option A: ...
 - Option B: ...
 - ✅ Chosen: Option A — because ...
-
-## Scope / Impact
-
-_Does this affect users, developers, performance, or maintainability?_
