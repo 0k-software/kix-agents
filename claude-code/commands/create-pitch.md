@@ -101,9 +101,13 @@ wait for their reply before continuing.
    - Compute each variable:
      - `id` — the Pitch id from step 3.
      - `title` — the title from step 2.
-     - `request_ids` — YAML list literal of source Request ids in the order the
-       user provided them, e.g. `[3, 7, 12]`. Solo Pitch: a single-element
-       list. Standalone Pitch: `[]`.
+     - `requests` — YAML list literal of source Request **id-slug** identifiers
+       in the order the user provided them, e.g.
+       `[3-create-pitch-skill, 7-creation-through-app]`. Each entry uses the
+       Request's `<id>-<slug>` form (the filename without the `.md` extension
+       and the outcome subfolder) so the list is readable on its own without
+       cross-referencing files. Solo Pitch: a single-element list. Standalone
+       Pitch: `[]`.
      - `email` — value from step 4 (blank if `git config user.email` returned
        empty).
      - `now` — the timestamp from step 4.
@@ -129,8 +133,8 @@ wait for their reply before continuing.
 
      ```bash
      mkdir -p .kix/pitches/<id>-<slug>
-     export id title request_ids email now summary
-     envsubst '${id} ${title} ${request_ids} ${email} ${now} ${summary}' \
+     export id title requests email now summary
+     envsubst '${id} ${title} ${requests} ${email} ${now} ${summary}' \
        < agents/claude-code/templates/pitch.md \
        > .kix/pitches/<id>-<slug>/pitch.md
      ```
