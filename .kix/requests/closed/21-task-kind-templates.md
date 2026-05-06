@@ -46,4 +46,4 @@ Task body templates (`task-feature.md`, `task-chore.md`, `task-bug.md`,
 removed the generic `task.md`, and extended `kix:create-task` with a new "Infer
 the Task kind" step that picks the template from framing text / parent Pitch /
 seed Requests with `chore` as the fallback and echoes the inferred kind in the
-confirmation. PR pending.
+confirmation. PR: https://github.com/0k-software/kix-agents/pull/20
