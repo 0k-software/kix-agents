@@ -19,4 +19,5 @@ create/triage skills accordingly.
 Implemented on branch `claude/implement-feature-15-XFSqe`. Dropped the `title:`
 field from the pitch template, the `kix:create-request`, `kix:create-pitch`,
 and `kix:implement` skills, and migrated all existing Requests and Pitches to
-carry the title as an H1 instead. PR pending.
+carry the title as an H1 instead. PR:
+https://github.com/0k-software/kix-agents/pull/15
