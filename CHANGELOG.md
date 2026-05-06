@@ -16,6 +16,13 @@ The format is based on
   (`claude-code/commands/fix.md`, `address.md`, `address-pr.md`) — short
   verb-form aliases for `kix:fix-pr`.
 
+### Changed
+
+- `kix:create-request` (`claude-code/commands/create-request.md`) — when the
+  derived body is too thin to infer the area, outcome, or motivation, the skill
+  now prints a soft warning alongside the confirmation. Request creation stays
+  friction-free; the nudge just helps future triagers.
+
 ## [0.2.0] — 2026-05-06
 
 ### Added
