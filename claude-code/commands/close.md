@@ -10,8 +10,11 @@ out.
 The terminal state differs by type:
 
 - **Request** — outcome `closed` (encoded as `.kix/requests/closed/`). Use this
-  when a Request is decided "no, won't do": superseded, duplicate, won't-fix,
-  no longer relevant. For Requests being closed because their work landed,
+  when a Request being triaged from `inbox/`, or re-triaged from `postponed/`,
+  is decided "no, won't do": superseded, duplicate, won't-fix, no longer
+  relevant. Linked Requests are already processed — once a Request is linked to
+  a Pitch or Task, the work continues there and the Request itself is done;
+  this skill does not close from `linked/`. For Requests whose work landed,
   prefer `kix:implement`, which closes the Request as part of opening the PR.
 - **Pitch** — phase `shipped`. The Pitch's work landed.
 - **Task** — phase `done`. The Task's work landed.
@@ -73,9 +76,11 @@ date -u +%Y-%m-%dT%H:%M:%SZ
 If the file is already in `.kix/requests/closed/`, warn the user that the
 Request is already closed and stop without making changes.
 
-If it is in `.kix/requests/linked/` (it has a `linked_to` Pitch or Task), warn
-the user that closing it will leave the link dangling, and ask whether to
-proceed before continuing.
+If it is in `.kix/requests/linked/`, abort with a clear message: a linked
+Request is already processed — the work has been promoted to a Pitch or Task
+and continues there. `/kix:close` only applies to Requests still in `inbox/` or
+`postponed/` (those whose triage decided against doing the work). To close the
+underlying work, close the Pitch or Task the Request is linked to.
 
 Move the file:
 
