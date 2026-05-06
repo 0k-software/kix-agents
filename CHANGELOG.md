@@ -16,6 +16,14 @@ The format is based on
   preserved (so you can see where in the process the work was cancelled).
   Cancellation is orthogonal to phase progression — for work that landed, this
   is not the right tool.
+- `kix:create-task` skill (`claude-code/commands/create-task.md`) — creates a
+  new Kix Task under `.kix/tasks/<id>-<slug>/task.md`, mirroring
+  `kix:create-pitch`'s argument grammar (Solo, Grouped framed/unframed,
+  Standalone) and adding a `--pitch <id>` flag to attach the Task to a parent
+  Pitch.
+- `kix:task` alias (`claude-code/commands/task.md`) — short verb-form alias for
+  `kix:create-task`.
+- Task template at `claude-code/templates/task.md`.
 - `kix:fix-pr` skill (`claude-code/commands/fix-pr.md`) — ported from kata;
   addresses unresolved review comments on a PR, verifying suggestions before
   implementing and routing commits through `kix:commit`.
