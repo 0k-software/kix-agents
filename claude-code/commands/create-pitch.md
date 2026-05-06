@@ -52,8 +52,10 @@ wait for their reply before continuing.
      Exactly one file should match.
    - If any id resolves to zero files, abort with a clear error naming the
      missing id(s). Do not create a partial Pitch.
-   - Read each Request's front-matter and body. You will need its `title`,
-     existing `slug` (from filename), current outcome subfolder, and body text.
+   - Read each Request's front-matter and body. You will need its title (the H1
+     at the top of the body — there is no `title:` front-matter field),
+     existing `slug` (from filename), current outcome subfolder, and body text
+     after the H1.
    - If any Request is already under `.kix/requests/linked/` (i.e. has
      `linked_to` set to an existing Pitch/Task id), warn the user and ask
      whether to proceed (re-linking) or abort. Wait for their reply.
