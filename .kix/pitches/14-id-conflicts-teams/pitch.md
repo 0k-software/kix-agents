@@ -5,33 +5,33 @@ phase: ideas
 requests: [11]
 created_by: kelvin.stinghen@me.com
 created_at: 2026-05-05T15:01:28Z
-updated_at: 2026-05-06T00:29:06Z
+updated_at: 2026-05-06T01:55:09Z
 ---
 
 # ID conflicts when multiple people allocate IDs in parallel
 
 ## Summary
 
-The current ID allocator reads `.kix/.state/next-id` and increments it. In a
-team setting — or even solo with parallel branches — this collides: two
-branches each read `next-id` at the same value, both allocate it, and both
-write the same `next-id + 1` back. Git's 3-way merge sees identical changes
-on both sides and accepts them silently, so duplicates land on `main`
-without a conflict ever being raised.
+The current ID allocator reads `.kix/.state/next-id` and increments it. Two
+parallel branches each read the same value, both allocate it, both write
+`+1` back — and git's 3-way merge sees the same change on both sides and
+accepts it silently. Duplicates land on `main` without any conflict ever
+being raised.
 
-The chosen direction: keep simple integer IDs and the existing allocator,
-treat `main` as the source of truth (its IDs are immutable), and add a CI
-dup-check plus a `kix dedupe` skill that renumbers colliding IDs on the
-branch when conflicts are detected.
+The chosen direction: drop the counter entirely. Replace integer IDs with
+random 6-character hex hashes, prefixed by artifact type — `KR-a1b2c3` for
+Requests, `KP-a1b2c3` for Pitches, `KT-a1b2c3` for Tasks. Allocation is
+purely local, requires no coordination, and the collision probability is
+vanishingly small at any realistic Kix scale.
 
 ## The Problem
 
 The allocator is a plain monotonic counter at `.kix/.state/next-id`. Two
 parallel branches each read it at, say, `19`, both allocate `19`, and both
-write `next-id = 20`. When the second branch merges, git's 3-way merge sees
-the same `19 → 20` change on both sides and accepts it silently — no
-conflict is raised. Two artifacts with the same ID land on `main`, breaking
-every reference to that ID.
+write `next-id = 20`. When the second branch merges, git's 3-way merge
+sees the same `19 → 20` change on both sides and accepts it silently — no
+conflict is raised. Two artifacts with the same ID land on `main`,
+breaking every reference to that ID.
 
 This already happened in this repo: `closed/19-port-rebase-skill.md` and
 `inbox/19-copy-fix-pr-skill.md` both carry `id: 19`, created on parallel
@@ -43,110 +43,142 @@ _Pick one: 1 week · 2 weeks · 3 weeks · 4 weeks · 5 weeks_
 
 ## The Solution
 
-Keep the current allocator. Defend correctness with two cheap layers:
+**ID format:** `<prefix>-<6 hex chars>`, where the prefix marks the
+artifact type:
 
-1. **CI dup-check.** A script walks `.kix/requests/**` and `.kix/pitches/**`,
-   groups by the `id` field in frontmatter, and fails if any group has more
-   than one entry (or if any missing/draft `id` reaches main). Required as a
-   merge gate, with branch protection's "branches must be up to date before
-   merge" enabled — without that flag, two PRs that each allocate the same
-   ID can both pass CI in isolation and silently collide on `main`.
-2. **`kix dedupe` skill.** When CI fails (or run preemptively before push),
-   the skill detects duplicate IDs between the current branch and `main`,
-   reallocates a fresh ID for the **branch's** artifact (never `main`'s),
-   and rewrites every internal reference: filename, frontmatter `id`,
-   `linked_to`, pitch `requests: [...]`, and any other cross-link. It also
-   bumps `.kix/.state/next-id` to `max(id) + 1`.
+- `KR-a1b2c3` — Request
+- `KP-a1b2c3` — Pitch
+- `KT-a1b2c3` — Task (future)
 
-The invariant is "**`main` is immutable; branches always lose**." Because CI
-blocks duplicates from landing, by induction `main` is always conflict-free,
-so renumbering only ever has to touch the branch's in-flight artifacts —
-never anything someone else might have already referenced externally.
+The 6 hex chars are random (24 bits = 16,777,216 values). At Kix's
+expected scale (hundreds of artifacts per type), the birthday-collision
+probability is well under 0.1%. Per-type prefixes mean a Request and a
+Pitch can share the same suffix without conflict — each type has its own
+16M-value space.
+
+**Allocation:** purely local. Generate 3 random bytes, hex-encode, prepend
+the type prefix. No counter, no `.kix/.state/next-id`, no coordination,
+fully offline-safe. Parallel branches cannot collide in practice.
+
+**Filenames:** `{prefix}-{hash}-{slug}.md` — e.g.
+`KR-a1b2c3-port-rebase-skill.md`. Glob-friendly per type
+(`KR-*` / `KP-*` / `KT-*`).
+
+**Backstop CI check:** in the unlikely event of a real collision, or a
+hand-edit that introduces a duplicate, a tiny CI script walks `.kix/**`
+and fails on duplicate IDs. Cheap insurance, not a load-bearing part of
+the design.
 
 ## The Alternatives
 
 **ID scheme:**
 
-- Option A: Random IDs / SHA of contents — offline-safe, never collide.
-- Option B: Per-author namespaces (`k19`, `b3`) — offline-safe, never collide.
-- Option C: PR-number-as-ID — uses GitHub's atomic counter.
-- Option D: GitHub Issue-number-as-ID — uses GitHub's atomic counter, works
-  even for requests that never become PRs.
-- Option E: Date-slug filenames (`2026-05-05-port-rebase-skill.md`) — no
-  allocator, no collisions.
-- ✅ Chosen: keep simple integer IDs + detect-and-repair — A/B/E sacrifice
-  memorability ("implement request 19" is the whole point); C excludes
-  requests that never get a PR; D introduces a hard dependency on GitHub
-  availability, which has been unreliable lately. Detect-and-repair keeps
-  the UX we want and makes collisions self-healing.
+- Option A: Sequential integers + detect-and-repair (CI dup-check +
+  dedupe skill, "main wins" tiebreaker).
+- Option B: Per-author namespaces (`k19`, `b3`).
+- Option C: PR-number-as-ID.
+- Option D: GitHub Issue-number-as-ID.
+- Option E: Date-slug filenames.
+- Option F: Beads as the underlying allocator.
+- ✅ Chosen: prefixed 6-hex-char random hashes (`KR-a1b2c3`). Inspired
+  by Beads' `bd-XXXX` but kept inside Kix so we don't take a dependency
+  on a young, churning external tool. A trades short memorability for
+  real machinery cost (CI gate, dedupe skill, branch-protection rules)
+  and stays vulnerable to misconfiguration. B doesn't scale beyond a
+  handful of authors and creates per-actor allocator state. C excludes
+  requests that never become PRs. D depends on GitHub availability,
+  which has been unreliable lately. E loses ID-style references
+  entirely. F adopts a moving external surface area we don't want to
+  track. The hash approach is offline, conflict-free by construction,
+  requires zero coordination, and `KR-a1b2c3` is short enough to say in
+  conversation.
 
-**Allocation timing:**
+**Hash length:**
 
-- Option A: Allocate at creation (today's behaviour).
-- Option B: Defer allocation until merge time.
-- ✅ Chosen: Option A — deferring shrinks the collision window but doesn't
-  close it (two branches deferring then both rebasing still hit the silent
-  3-way merge), and it removes the ability to reference an ID before merge,
-  which is the main reason we want short integers in the first place.
+- Option A: Progressive scaling (4 → 5 → 6 chars as the project grows,
+  Beads-style).
+- Option B: Fixed 6 chars from day one.
+- ✅ Chosen: Option B — at Kix's expected scale, fixed 6 is "fine pretty
+  much forever." Progressive scaling adds rename complexity (every ID
+  changes length when a threshold trips) for no practical payoff.
 
-**Tiebreaker when renumbering:**
+**Prefix style:**
 
-- Option A: Older `created_at` keeps the ID.
-- Option B: The artifact already on `main` keeps the ID; the branch loses.
-- ✅ Chosen: Option B — `main` is the only place external references
-  (commit messages, PR titles, chat) might already point to. Renumbering on
-  `main` would orphan those; renumbering a branch's in-flight artifact
-  doesn't.
+- Option A: Bare type letter (`R-a1b2c3`, `P-a1b2c3`, `T-a1b2c3`).
+- Option B: `K`-tagged prefix (`KR-a1b2c3`, `KP-a1b2c3`, `KT-a1b2c3`).
+- ✅ Chosen: Option B — the `K` clearly marks IDs as Kix-owned, makes
+  them grep-friendly across mixed-source contexts, and avoids ambiguity
+  if the same repo ever picks up another tool with single-letter IDs.
 
 ## The Rabbit Holes
 
-- **Reference rewriting.** `kix dedupe` has to update every internal
-  cross-reference, not just the file it renumbered. At minimum: filename,
-  frontmatter `id`, `linked_to` (in requests), and `requests: [...]` (in
-  pitches). Missing one silently breaks links.
-- **External references can't be rewritten.** Commit messages, PR titles,
-  chat, branch names referencing a since-renumbered ID will go stale. The
-  "main always wins" rule is what minimises this — branch IDs in flight
-  haven't escaped to the world yet.
-- **Branch-protection misconfiguration.** Without "branches must be up to
-  date before merge", two PRs can each pass CI individually and merge with
-  duplicate IDs. The rule has to actually be on for the gate to hold.
+- **Migrating existing integer IDs.** All current artifacts (Requests
+  1–19, Pitches 14, 17) carry integer IDs. Either rewrite all of them
+  to the new format (and rewrite every reference: `linked_to`, pitch
+  `requests: [...]`, filenames, the existing `19` collision resolves
+  itself in the process), or leave existing ones grandfathered and only
+  mint new IDs in the new format. Mixed state is supportable but ugly;
+  full rewrite is cleaner but touches every artifact.
+- **External references.** Commit messages, PR titles, branch names
+  referencing old integer IDs will go stale after a rewrite. Mitigated
+  by Kix being a solo repo today — blast radius is small.
+- **Slug duplicates in filenames.** Two artifacts with the same slug
+  but different hashes is fine — the hash disambiguates. The
+  `kix:request` skill should not try to "deduplicate by slug."
+- **Random source.** Use a cryptographically-decent RNG (`crypto/rand`
+  in Go, `secrets.token_hex(3)` in Python) — not seeded `Math.random`
+  or anything time-based that could correlate across parallel runs.
 
 ## The No-Gos
 
-- Changing IDs on `main` for any reason. Once an ID is on `main` it is
-  permanent.
-- Replacing integer IDs with hashes, dates, or other long strings —
-  memorability is the whole point.
-- Allocation paths that require network at creation time.
+- Re-introducing any global allocator state (`next-id`, registry file,
+  external service). The whole point is that allocation is stateless
+  and local.
+- Depending on Beads, GitHub, or any external coordination point for
+  ID generation.
+- Hashes longer than 6 chars or shorter than 4. Six is the chosen
+  sweet spot — long enough to be collision-safe at scale, short enough
+  to say out loud.
 
 ## The Delivery
 
-Small change: a CI script, a skill, and a one-time fix for the existing
-`19` collision. No data migration beyond renumbering one of the two `19`s.
-Branch-protection rule needs to be turned on at the GitHub side.
+Small change in code, larger change in data:
+
+1. Update the ID-allocation helper used by `kix:request` /
+   `kix:create-pitch` to emit hex hashes with the right prefix.
+2. Decide and execute the migration of existing artifacts (full rewrite
+   vs grandfather).
+3. Delete `.kix/.state/next-id` (no longer needed).
+4. Add a small CI duplicate-ID check as a backstop.
 
 ## The Validation
 
-- CI catches deliberate collisions injected via test branches.
-- Solo parallel-branch test: create two branches that both allocate the
-  same ID, merge one, attempt to merge the other → CI fails, `kix dedupe`
-  renumbers, second merge succeeds with the new ID and all references
-  intact.
+- Generate 100k IDs in a unit test, confirm zero collisions.
+- Create two artifacts on parallel branches with no coordination, merge
+  both — confirm no collision and no manual fixup needed.
+- After migration, verify every internal reference (`linked_to`,
+  `requests: [...]`) still resolves to a real file.
 
 ## The To-Dos
 
-- [ ] Resolve the existing `id: 19` collision (renumber one of the two).
-- [ ] Write the CI dup-check script + workflow.
-- [ ] Build the `kix dedupe` skill (renumber + rewrite all references +
-      bump `next-id`).
-- [ ] Enable "branches must be up to date before merge" on `main`.
-- [ ] Document the renumbering flow in the Kix docs.
+- [ ] Update `kix:request` / `kix:create-pitch` skills to mint
+      `KR-XXXXXX` / `KP-XXXXXX` IDs.
+- [ ] Decide on migration strategy for existing artifacts (full rewrite
+      vs grandfather).
+- [ ] Execute migration: rewrite filenames, frontmatter `id`, and all
+      cross-references (`linked_to`, `requests: [...]`). The existing
+      `id: 19` collision resolves automatically — both get fresh
+      `KR-XXXXXX` IDs.
+- [ ] Delete `.kix/.state/next-id`.
+- [ ] Add CI duplicate-ID check.
+- [ ] Update Kix docs to describe the new ID format.
 
 ## The Questions
 
-- Should `kix dedupe` run automatically on `kix:commit` / pre-push, or
-  stay an explicit skill the user invokes after CI fails?
-- What is the canonical list of "internal references to an ID" that the
-  dedupe skill must rewrite? (Today: filename, `id`, `linked_to`,
-  `requests: [...]`. Anything else as the schema grows?)
+- Migration strategy: full rewrite of every existing artifact, or
+  grandfather integer IDs and only mint new format going forward?
+- Does pitch 14 itself migrate (becoming `KP-XXXXXX`), or is the
+  migration commit the cutover point that leaves this pitch as the
+  last integer-ID artifact?
+- Do we want to scaffold the `KT-` Task prefix in this pitch, or defer
+  it entirely to a future pitch that introduces the Task type?
