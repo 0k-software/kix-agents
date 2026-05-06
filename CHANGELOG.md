@@ -22,6 +22,11 @@ The format is based on
   derived body is too thin to infer the area, outcome, or motivation, the skill
   now prints a soft warning alongside the confirmation. Request creation stays
   friction-free; the nudge just helps future triagers.
+- Drop the `title:` field from Request and Pitch front-matter; the H1 at the
+  top of the body is now the canonical title. Updated the pitch template
+  (`claude-code/templates/pitch.md`), the `kix:create-request`,
+  `kix:create-pitch`, and `kix:implement` skills, and migrated all existing
+  Requests and Pitches to the new shape.
 
 ## [0.2.0] — 2026-05-06
 
