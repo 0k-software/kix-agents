@@ -5,7 +5,7 @@ phase: ideas
 requests: [11]
 created_by: kelvin.stinghen@me.com
 created_at: 2026-05-05T15:01:28Z
-updated_at: 2026-05-06T02:08:00Z
+updated_at: 2026-05-06T02:08:14Z
 ---
 
 # ID conflicts when multiple people allocate IDs in parallel
@@ -219,4 +219,18 @@ Small change in code, larger change in data:
 
 ## The Questions
 
--
+_Resolved questions are kept here as a record. Open questions sit
+above resolved ones._
+
+- **Migration strategy: full rewrite of every existing artifact, or
+  grandfather integer IDs and only mint new format going forward?**
+  ✅ Full rewrite. Mixed state is too ugly to live with long-term;
+  one cohesive migration commit is cleaner.
+- **Does pitch 14 itself migrate (becoming `kp-XXXXXX`), or is the
+  migration commit the cutover point that leaves this pitch as the
+  last integer-ID artifact?** ✅ It migrates too — the cutover should
+  be total.
+- **Do we want to scaffold the `kt-` Task prefix in this pitch, or
+  defer it entirely to a future pitch that introduces the Task type?**
+  ✅ Defer. Tasks are out of scope here; only the prefix scheme is
+  noted as extensible.
