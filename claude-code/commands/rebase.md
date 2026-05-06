@@ -34,10 +34,10 @@ Parse `$ARGUMENTS` to determine the mode and target branch:
    order the rebase will apply them (oldest first). Use the commit subject as
    `content` and the short SHA as a prefix so the user can spot it (e.g.
    `content: "abc1234 — feat: add foo"`,
-   `activeForm: "Applying abc1234 — feat: add foo"`). The todo list is the
-   live progress view for Step 2: flip a todo to `in_progress` when its commit
-   is being applied and to `completed` once that commit has landed (cleanly,
-   after a hook fix, or after conflict resolution — see Step 2).
+   `activeForm: "Applying abc1234 — feat: add foo"`). The todo list is the live
+   progress view for Step 2: flip a todo to `in_progress` when its commit is
+   being applied and to `completed` once that commit has landed (cleanly, after
+   a hook fix, or after conflict resolution — see Step 2).
 
 ## Step 2 — Start the rebase
 
