@@ -5,7 +5,7 @@ phase: ideas
 requests: [11]
 created_by: kelvin.stinghen@me.com
 created_at: 2026-05-05T15:01:28Z
-updated_at: 2026-05-06T02:05:10Z
+updated_at: 2026-05-06T02:08:00Z
 ---
 
 # ID conflicts when multiple people allocate IDs in parallel
@@ -39,8 +39,10 @@ conflict is raised. Two artifacts with the same ID land on `main`,
 breaking every reference to that ID.
 
 This already happened in this repo: `closed/19-port-rebase-skill.md` and
-`inbox/19-copy-fix-pr-skill.md` both carry `id: 19`, created on parallel
-branches the same day.
+the (since-renumbered) `inbox/20-copy-fix-pr-skill.md` were both created
+on parallel branches the same day, both with `id: 19`. The collision
+was resolved by hand as a tactical fix; this pitch is the systemic
+fix.
 
 ## The Appetite
 
@@ -147,11 +149,10 @@ the design.
 ## The Rabbit Holes
 
 - **Migrating existing integer IDs.** All current artifacts (Requests
-  1–19, Pitches 14 and 17) get rewritten to the new format, including
+  1–20, Pitches 14 and 17) get rewritten to the new format, including
   this pitch itself — every `id` field, every filename, and every
   cross-reference (`linked_to`, pitch `requests: [...]`) is updated in
-  one migration commit. The existing `id: 19` collision resolves
-  automatically since both colliding files get fresh `kr-XXXXXX` IDs.
+  one migration commit.
 - **External references.** Commit messages, PR titles, branch names
   referencing old integer IDs will go stale after a rewrite. Mitigated
   by Kix being a solo repo today — blast radius is small.
@@ -211,9 +212,7 @@ Small change in code, larger change in data:
       `kr-XXXXXX` / `kp-XXXXXX` IDs via the helper.
 - [ ] Execute the full migration: rewrite filenames, frontmatter `id`,
       and all cross-references (`linked_to`, `requests: [...]`) for
-      every existing Request and Pitch — including this pitch. The
-      existing `id: 19` collision resolves automatically — both get
-      fresh `kr-XXXXXX` IDs.
+      every existing Request and Pitch — including this pitch.
 - [ ] Delete `.kix/.state/next-id`.
 - [ ] Add CI duplicate-ID check.
 - [ ] Update Kix docs to describe the new ID format.
