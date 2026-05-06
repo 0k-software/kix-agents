@@ -5,7 +5,7 @@ phase: ideas
 requests: [11]
 created_by: kelvin.stinghen@me.com
 created_at: 2026-05-05T15:01:28Z
-updated_at: 2026-05-06T02:04:26Z
+updated_at: 2026-05-06T02:05:10Z
 ---
 
 # ID conflicts when multiple people allocate IDs in parallel
@@ -44,7 +44,10 @@ branches the same day.
 
 ## The Appetite
 
-_Pick one: 1 week · 2 weeks · 3 weeks · 4 weeks · 5 weeks_
+**1 week.** The algorithm port is ~30 lines, the skill updates are
+small edits, and the migration is a one-shot script over ~20 files.
+The week's budget covers edge-case handling for the migration's
+reference rewriting and getting the CI check right.
 
 ## The Solution
 
