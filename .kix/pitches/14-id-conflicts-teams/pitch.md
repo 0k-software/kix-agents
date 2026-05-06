@@ -5,7 +5,7 @@ phase: ideas
 requests: [11]
 created_by: kelvin.stinghen@me.com
 created_at: 2026-05-05T15:01:28Z
-updated_at: 2026-05-06T02:02:14Z
+updated_at: 2026-05-06T02:04:26Z
 ---
 
 # ID conflicts when multiple people allocate IDs in parallel
@@ -19,9 +19,9 @@ accepts it silently. Duplicates land on `main` without any conflict ever
 being raised.
 
 The chosen direction: drop the counter entirely. Replace integer IDs with
-6-character base36 hashes, prefixed by artifact type — `KR-a1b2c3` for
-Requests and `KP-a1b2c3` for Pitches. The scheme extends naturally to
-future types (e.g. Tasks → `KT-`), but those are out of scope here.
+6-character base36 hashes, prefixed by artifact type — `kr-a1b2c3` for
+Requests and `kp-a1b2c3` for Pitches. The scheme extends naturally to
+future types (e.g. Tasks → `kt-`), but those are out of scope here.
 Allocation is purely local, requires no coordination, and the collision
 probability is vanishingly small at any realistic Kix scale. The
 generation algorithm mirrors what Beads does in its `internal/idgen`
@@ -51,11 +51,11 @@ _Pick one: 1 week · 2 weeks · 3 weeks · 4 weeks · 5 weeks_
 **ID format:** `<prefix>-<6 base36 chars>`, where the prefix marks the
 artifact type:
 
-- `KR-a1b2c3` — Request
-- `KP-a1b2c3` — Pitch
+- `kr-a1b2c3` — Request
+- `kp-a1b2c3` — Pitch
 
 The scheme extends to future types by adding a new prefix letter (Tasks
-would be `KT-`), but introducing those types is the job of a separate
+would be `kt-`), but introducing those types is the job of a separate
 pitch — out of scope here.
 
 Six base36 chars give `36⁶ = 2,176,782,336` values per type. The
@@ -81,8 +81,8 @@ no coordination — fully offline-safe. Parallel branches cannot collide
 in practice.
 
 **Filenames:** `{prefix}-{hash}-{slug}.md` — e.g.
-`KR-a1b2c3-port-rebase-skill.md`. Glob-friendly per type (`KR-*` /
-`KP-*`).
+`kr-a1b2c3-port-rebase-skill.md`. Glob-friendly per type (`kr-*` /
+`kp-*`).
 
 **Backstop CI check:** in the unlikely event of a real collision, or a
 hand-edit that introduces a duplicate, a tiny CI script walks `.kix/**`
@@ -100,7 +100,7 @@ the design.
 - Option D: GitHub Issue-number-as-ID.
 - Option E: Date-slug filenames.
 - Option F: Beads as the underlying allocator.
-- ✅ Chosen: prefixed 6-base36-char hashes (`KR-a1b2c3`). Algorithm
+- ✅ Chosen: prefixed 6-base36-char hashes (`kr-a1b2c3`). Algorithm
   adopted from Beads' `internal/idgen/hash.go` (deterministic SHA-256 +
   nonce), but kept inside Kix so we don't take a dependency on a young,
   churning external tool. A trades short memorability for real machinery
@@ -111,7 +111,7 @@ the design.
   been unreliable lately. E loses ID-style references entirely. F
   adopts a moving external surface area we don't want to track. The
   hash approach is offline, conflict-free by construction, requires
-  zero coordination, and `KR-a1b2c3` is short enough to say in
+  zero coordination, and `kr-a1b2c3` is short enough to say in
   conversation.
 
 **Hash length:**
@@ -134,11 +134,12 @@ the design.
 
 **Prefix style:**
 
-- Option A: Bare type letter (`R-a1b2c3`, `P-a1b2c3`).
-- Option B: `K`-tagged prefix (`KR-a1b2c3`, `KP-a1b2c3`).
-- ✅ Chosen: Option B — the `K` clearly marks IDs as Kix-owned, makes
-  them grep-friendly across mixed-source contexts, and avoids ambiguity
-  if the same repo ever picks up another tool with single-letter IDs.
+- Option A: Bare type letter (`r-a1b2c3`, `p-a1b2c3`).
+- Option B: `k`-tagged prefix (`kr-a1b2c3`, `kp-a1b2c3`).
+- ✅ Chosen: Option B — the leading `k` clearly marks IDs as Kix-owned,
+  makes them grep-friendly across mixed-source contexts, and avoids
+  ambiguity if the same repo ever picks up another tool with
+  single-letter IDs.
 
 ## The Rabbit Holes
 
@@ -147,7 +148,7 @@ the design.
   this pitch itself — every `id` field, every filename, and every
   cross-reference (`linked_to`, pitch `requests: [...]`) is updated in
   one migration commit. The existing `id: 19` collision resolves
-  automatically since both colliding files get fresh `KR-XXXXXX` IDs.
+  automatically since both colliding files get fresh `kr-XXXXXX` IDs.
 - **External references.** Commit messages, PR titles, branch names
   referencing old integer IDs will go stale after a rewrite. Mitigated
   by Kix being a solo repo today — blast radius is small.
@@ -204,12 +205,12 @@ Small change in code, larger change in data:
 - [ ] Port Beads' `internal/idgen/hash.go` algorithm (SHA-256 + base36
       + nonce retry) into a Kix helper.
 - [ ] Update `kix:request` / `kix:create-pitch` skills to mint
-      `KR-XXXXXX` / `KP-XXXXXX` IDs via the helper.
+      `kr-XXXXXX` / `kp-XXXXXX` IDs via the helper.
 - [ ] Execute the full migration: rewrite filenames, frontmatter `id`,
       and all cross-references (`linked_to`, `requests: [...]`) for
       every existing Request and Pitch — including this pitch. The
       existing `id: 19` collision resolves automatically — both get
-      fresh `KR-XXXXXX` IDs.
+      fresh `kr-XXXXXX` IDs.
 - [ ] Delete `.kix/.state/next-id`.
 - [ ] Add CI duplicate-ID check.
 - [ ] Update Kix docs to describe the new ID format.
