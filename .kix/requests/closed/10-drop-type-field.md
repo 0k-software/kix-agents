@@ -16,4 +16,5 @@ from the `/kix:request` skill template.
 
 Implemented on branch `claude/implement-feature-10-LhGDH`. Removed
 `type: request` from the `kix:create-request` skill template and stripped the
-field from existing Request files. PR pending.
+field from existing Request files. PR:
+https://github.com/0k-software/kix-agents/pull/16
