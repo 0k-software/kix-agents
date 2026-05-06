@@ -56,7 +56,6 @@ The user's brief: $ARGUMENTS
      ```yaml
      ---
      id: <id>
-     type: request
      linked_to: null
      created_by: <created_by>
      created_at: <timestamp>
