@@ -42,7 +42,7 @@ Resolve the id by globbing across all entity locations:
 ```bash
 ls .kix/requests/*/<id>-*.md 2>/dev/null
 ls -d .kix/pitches/<id>-*/ 2>/dev/null
-ls -d .kix/tasks/<id>-*/ 2>/dev/null
+ls -d .kix/pitches/*/tasks/<id>-*/ 2>/dev/null
 ```
 
 Exactly one location should match. If zero match, abort with a clear error
@@ -53,7 +53,8 @@ The matched location determines the entity type:
 
 - match under `.kix/requests/<subfolder>/<id>-<slug>.md` → **Request**
 - match `.kix/pitches/<id>-<slug>/` → **Pitch**
-- match `.kix/tasks/<id>-<slug>/` → **Task**
+- match `.kix/pitches/<pitch-slug>/tasks/<id>-<slug>/` → **Task** (Tasks live
+  in a `tasks/` subfolder of their parent Pitch)
 
 Read the entity's front-matter and body. You will need its title (the H1
 `# ...` at the top of the body — Requests and Pitches no longer carry a
@@ -120,7 +121,8 @@ given.>
 
 If `phase: done` already, warn the user and stop.
 
-Update the front-matter at `.kix/tasks/<id>-<slug>/task.md`:
+Update the front-matter at
+`.kix/pitches/<pitch-slug>/tasks/<id>-<slug>/task.md`:
 
 - `phase: done`
 - `updated_at: <new timestamp>`
