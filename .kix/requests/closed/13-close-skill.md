@@ -27,4 +27,4 @@ the type-specific terminal state: moves Requests to `closed/`, sets Pitches to
 `phase: shipped`, sets Tasks to `phase: done`. Optional `[reason]` text is
 captured into a `## Resolution` section. No cascade on linked Requests when a
 Pitch ships — they are reported in the confirmation so the user can decide. PR:
-PR pending.
+https://github.com/0k-software/kix-agents/pull/17
