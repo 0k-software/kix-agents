@@ -33,7 +33,9 @@ ls .kix/requests/*/<id>-*.md
 ```
 
 Exactly one file must match. If zero files match, abort with a clear error.
-Read the file's front-matter (`title`, `id`) and body.
+Read the file's front-matter (`id`) and body. The Request's title is the H1 at
+the top of the body (the first `# ...` line after the front-matter), not a
+front-matter field.
 
 ### 2. Derive the branch name
 
