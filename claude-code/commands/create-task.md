@@ -69,7 +69,7 @@ brief and wait for their reply before continuing.
      Exactly one folder should match.
    - If zero folders match, abort with a clear error naming the missing Pitch
      id. Do not create an orphaned Task pointing at a non-existent Pitch.
-   - Read the Pitch's `title` for the confirmation message in step 8.
+   - Read the Pitch's `title` for the confirmation message in step 10.
 
 3. **Derive the Task's `title` and `slug`.**
    - **Solo Task:** reuse the Request's title as a starting point. Title may be
@@ -95,20 +95,49 @@ brief and wait for their reply before continuing.
    - Read `.kix/.state/next-id`. If the file does not exist or is empty, treat
      the value as `1`.
    - The new Task's ID is the integer you read.
-   - You will write `id + 1` back to `.kix/.state/next-id` in step 7.
+   - You will write `id + 1` back to `.kix/.state/next-id` in step 9.
 
 5. **Capture creator and timestamps.**
    - `created_by`: run `git config user.email`. If empty, leave blank.
    - `created_at` and `updated_at`: the same ISO 8601 UTC timestamp. Use
      `date -u +%Y-%m-%dT%H:%M:%SZ`.
 
-6. **Instantiate the Task template via `envsubst`.**
-   - The template at `claude-code/templates/task.md` is the source of truth for
-     the Task shape. **Do not hand-write the Task body.** Run `envsubst`
-     against the template with these variables exported. The template's
-     `${...}` placeholders are the only things that get substituted; everything
-     else passes through untouched, regardless of which sections the template
-     currently carries.
+6. **Infer the Task kind.**
+
+   Pick which per-kind template to stamp out by inferring the Task's `kind`
+   from the user's context. There are four kinds, each with its own template
+   under `claude-code/templates/`:
+   - `feature` — new functionality, capability, or product surface
+     (`task-feature.md`)
+   - `chore` — infrastructure, migration, setup, dependency upgrade, or other
+     work with little to no product change (`task-chore.md`)
+   - `bug` — broken behaviour to fix or investigate (`task-bug.md`)
+   - `enhancement` — improvement, polish, refactor, performance, or DevX change
+     to existing functionality (`task-enhancement.md`)
+
+   Use these signals, in order of priority:
+   1. **Framing text from `$ARGUMENTS`.** Cues like "fix", "broken",
+      "regression", "crash", "doesn't work" → `bug`. Cues like "speed up",
+      "improve", "polish", "refactor", "DX", "tighten" → `enhancement`. Cues
+      like "add", "build", "introduce", "support", "ship" → `feature`. Cues
+      like "migrate", "upgrade dependency", "set up", "infrastructure",
+      "tooling" → `chore`.
+   2. **The parent Pitch's title and Summary**, when `--pitch <id>` was given
+      (loaded in step 2). If the Pitch is clearly a feature / bug / enhancement
+      initiative, inherit that kind unless the framing text contradicts it.
+   3. **The seed Requests' titles and bodies** for Solo and Grouped Tasks.
+      Apply the same word-level cues as above.
+
+   If no signal points to a clear kind, fall back to `chore`. Echo the inferred
+   kind in the confirmation output (step 10) so the user can correct it.
+
+7. **Instantiate the Task template via `envsubst`.**
+   - The template at `claude-code/templates/task-<kind>.md` (selected from
+     step 6) is the source of truth for the Task shape. **Do not hand-write the
+     Task body.** Run `envsubst` against the chosen template with these
+     variables exported. The template's `${...}` placeholders are the only
+     things that get substituted; everything else passes through untouched,
+     regardless of which sections the template currently carries.
    - Compute each variable:
      - `id` — the Task id from step 4.
      - `title` — the title from step 3.
@@ -144,15 +173,20 @@ brief and wait for their reply before continuing.
      mkdir -p .kix/tasks/<id>-<slug>
      export id title pitch_id request_ids email now summary
      envsubst '${id} ${title} ${pitch_id} ${request_ids} ${email} ${now} ${summary}' \
-       < claude-code/templates/task.md \
+       < claude-code/templates/task-<kind>.md \
        > .kix/tasks/<id>-<slug>/task.md
      ```
+
+     `<kind>` is the kind string from step 6 (`feature`, `chore`, `bug`, or
+     `enhancement`). Each per-kind template hard-codes its own `kind:`
+     front-matter value, so `kind` is not an envsubst variable — only the
+     template path varies.
 
      The explicit variable list passed to `envsubst` scopes substitution to the
      placeholders we control — any incidental `$...` in the template stays
      literal.
 
-7. **Link each source Request back to the Task** (skip for **Standalone
+8. **Link each source Request back to the Task** (skip for **Standalone
    Task**).
    - For every source Request file:
      - Move it into `.kix/requests/linked/` with `git mv` (e.g.
@@ -164,13 +198,15 @@ brief and wait for their reply before continuing.
        - `updated_at: <new timestamp>` (same one captured in step 5)
    - Do not modify the Request's body.
 
-8. **Update the ID counter.**
+9. **Update the ID counter.**
    - Write `<id + 1>` followed by a single newline to `.kix/.state/next-id`.
 
-9. **Confirm.**
-   - Print the path of the new Task file and its title.
-   - If a parent Pitch was given, state that the Task is attached to Pitch
-     `<pitch-id>: <pitch-title>`.
-   - If source Requests were used, list their ids and note that each was moved
-     to `.kix/requests/linked/` with `linked_to: <task_id>`. For a Standalone
-     Task, just state that no source Requests were attached.
+10. **Confirm.**
+    - Print the path of the new Task file and its title.
+    - **State the inferred kind** (`feature`, `chore`, `bug`, or `enhancement`)
+      so the user can correct it if the inference was wrong.
+    - If a parent Pitch was given, state that the Task is attached to Pitch
+      `<pitch-id>: <pitch-title>`.
+    - If source Requests were used, list their ids and note that each was moved
+      to `.kix/requests/linked/` with `linked_to: <task_id>`. For a Standalone
+      Task, just state that no source Requests were attached.
