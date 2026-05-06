@@ -7,6 +7,15 @@ The format is based on
 
 ## [Unreleased]
 
+### Added
+
+- `kix:fix-pr` skill (`claude-code/commands/fix-pr.md`) — ported from kata;
+  addresses unresolved review comments on a PR, verifying suggestions before
+  implementing and routing commits through `kix:commit`.
+- `kix:fix`, `kix:address`, and `kix:address-pr` aliases
+  (`claude-code/commands/fix.md`, `address.md`, `address-pr.md`) — short
+  verb-form aliases for `kix:fix-pr`.
+
 ## [0.2.0] — 2026-05-06
 
 ### Added
