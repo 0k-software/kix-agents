@@ -56,7 +56,6 @@ The user's brief: $ARGUMENTS
      ```yaml
      ---
      id: <id>
-     title: <title>
      type: request
      linked_to: null
      created_by: <created_by>
@@ -64,8 +63,10 @@ The user's brief: $ARGUMENTS
      updated_at: <timestamp>
      ---
      ```
-   - Body: the description you derived in step 2. Leave it empty if the brief
-     contained nothing beyond a one-line title.
+   - Body: an H1 carrying the title (`# <title>`), a blank line, then the
+     description you derived in step 2. The H1 is the canonical title — there
+     is no `title:` front-matter field. If the brief contained nothing beyond a
+     one-line title, the H1 alone is the body.
 
 7. **Update the ID counter.**
    - Write `<id + 1>` followed by a single newline to `.kix/.state/next-id`.
