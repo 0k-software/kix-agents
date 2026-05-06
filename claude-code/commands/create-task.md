@@ -10,8 +10,8 @@ or more existing Requests, or captured directly when someone already has a
 clear unit of work in mind.
 
 This skill is called during triage **and** ad-hoc capture. **Speed matters.**
-Do not refine, reword, or shape the Task content. Copy known info into a
-`Summary` section and stop. Refinement is a separate, later step.
+Do not refine, reword, or shape the Task content. Refinement is a separate,
+later step.
 
 The user's brief: $ARGUMENTS
 
