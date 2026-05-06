@@ -55,8 +55,10 @@ The matched location determines the entity type:
 - match `.kix/pitches/<id>-<slug>/` → **Pitch**
 - match `.kix/tasks/<id>-<slug>/` → **Task**
 
-Read the entity's front-matter and body. You will need its `title`, current
-location/phase, and any `linked_to` (Request) or `requests: [...]` (Pitch).
+Read the entity's front-matter and body. You will need its title (the H1
+`# ...` at the top of the body — Requests and Pitches no longer carry a
+`title:` field), current location/phase, and any `linked_to` (Request) or
+`requests: [...]` (Pitch).
 
 ### 2. Apply the type-specific close
 
