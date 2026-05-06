@@ -210,7 +210,22 @@ reply before continuing.
      - Update its front-matter at the new path:
        - `linked_to: <task_id>` (single integer — the Task id)
        - `updated_at: <new timestamp>` (same one captured in step 5)
-   - Do not modify the Request's body.
+     - **Append a `## Resolution` section** to the end of the Request's body
+       explaining the link, in the form:
+
+       ```markdown
+       ## Resolution
+
+       Linked to Task #<task-id> (<task-title>) on <timestamp>.
+       <one-sentence reason — drawn from the Task's Summary, framing, or
+       parent Pitch — that explains why this Request feeds into that
+       Task.>
+       ```
+
+       Keep the reason short and grounded in what's already known; do not
+       invent extra rationale. If the Request body already ends with a
+       `## Resolution` section from a previous link/close cycle, append a new
+       dated paragraph under it rather than duplicating the heading.
 
 9. **Update the ID counter.**
    - Write `<id + 1>` followed by a single newline to `.kix/.state/next-id`.
