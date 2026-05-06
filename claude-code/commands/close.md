@@ -141,14 +141,15 @@ Done. <reason / one-line summary.>
 
 ### 3. Commit
 
-Commit the change with a clear message:
+Route the commit through the `kix:commit` skill, passing the close as the
+context so the message follows the project's standard commit shape:
 
 ```
-close <type> #<id>: <title>
+/kix:commit closing <type> #<id> - <title>
 ```
 
-For example: `close request #7: flaky CI tests` or
-`close pitch #14: ID conflicts when multiple people allocate IDs in parallel`.
+For example: `/kix:commit closing request #7 - flaky CI tests` or
+`/kix:commit closing pitch #14 - ID conflicts when multiple people allocate IDs in parallel`.
 
 ### 4. Confirm
 
