@@ -5,6 +5,7 @@ phase: backlog
 kind: bug
 pitch: ${pitch_id}
 requests: ${request_ids}
+dependencies: []
 created_by: ${email}
 created_at: ${now}
 updated_at: ${now}
