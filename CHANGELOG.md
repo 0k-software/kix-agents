@@ -7,6 +7,8 @@ The format is based on
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-05-06
+
 ### Added
 
 - `kix:implement` skill (`claude-code/commands/implement.md`) — automates the
@@ -14,6 +16,8 @@ The format is based on
   `kix/<id>-<slug>` branch, implements the request across logical commits,
   updates the changelog if present, closes the Request by moving it to
   `closed/`, and opens a PR linked back to the Request file.
+- `kix:rebase` skill (`claude-code/commands/rebase.md`) — ported from kata;
+  rebases the current branch onto its base, resolving conflicts.
 - `kix:create-request` skill (`claude-code/commands/create-request.md`) —
   canonical name for capturing a new Request, consistent with the
   `kix:create-pitch` naming pattern.
@@ -23,6 +27,9 @@ The format is based on
   alias for `kix:create-request` ("request something").
 - `kix:pitch` alias (`claude-code/commands/pitch.md`) — short verb-form alias
   for `kix:create-pitch` ("pitch an idea").
+- Prettier check GitHub workflow (`.github/workflows/check.yml`) and
+  session-start hook setup (`make setup`) so format checks run in CI and hooks
+  install on session start.
 
 ## [0.1.0] — 2026-05-05
 
