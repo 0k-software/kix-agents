@@ -113,11 +113,14 @@ _Are there development / debugging helpers worth adding — REPL helpers,
 fixtures, seed data, debug commands? If not applicable, mark `N/A` and explain
 why; don't remove the section._
 
-## AGENTS.md updates _(optional)_
+## AI instructions updates _(optional)_
 
-_Does this introduce a pattern, convention, or constraint future agents should
-know about? If so, update `AGENTS.md` to capture it. Skip if nothing new for
-agents to learn._
+_Does this introduce a pattern, convention, or constraint future coding agents
+should know about? If so, update the project's AI-instruction files to capture
+it. The canonical entry point is `AGENTS.md`, but a project may also keep
+finer-grained guidance under a `rules/` directory (e.g. `rules/database.md`,
+`rules/auth.md`); update the right ones for the area this feature touches. If
+not applicable, mark `N/A` and explain why; don't remove the section._
 
 ## Observability
 
