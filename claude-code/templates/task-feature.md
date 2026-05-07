@@ -42,8 +42,22 @@ context/module/boundary, or does it require a new one?_
 
 ## Data model _(optional)_
 
-_Does this feature change persisted data — new tables, columns, relationships,
-or migrations? Skip if there are no data changes._
+_Does this feature change persisted data — new tables, columns, or
+relationships? If not applicable to this feature, mark this section `N/A` and
+explain why; don't remove it._
+
+## Data flow _(optional)_
+
+_How does data move through the system for this feature — entry points,
+transformations, persistence, where it ends up? Sequence-of-events view, not
+just storage shape. If not applicable, mark `N/A` and explain why._
+
+## Data migrations / Backfills _(optional)_
+
+_Are there one-off migrations or backfill jobs needed to ship this — schema
+changes, populating new columns from old data, reshaping existing rows? Note
+rollout order and whether the migration must run before code deploys. If not
+applicable, mark `N/A` and explain why._
 
 ## Authentication
 
