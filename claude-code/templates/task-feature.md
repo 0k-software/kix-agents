@@ -19,9 +19,21 @@ ${summary}
 
 _Why do we need this feature? What problem does it solve?_
 
-## Proposal
+## Architecture
 
-_What's the proposed solution? Describe how it should work._
+_How does this fit together at the system level? Boundaries, data ownership,
+integration points, request/response flow. The shape of the solution, not the
+line-by-line implementation._
+
+## Components
+
+_The concrete pieces — modules, services, schemas, endpoints, jobs, UI
+surfaces. What gets added, what gets touched, what stays out of scope._
+
+## Error handling
+
+_What can go wrong, and how the system responds. Failure modes, retries,
+fallbacks, user-visible error messages, partial-failure semantics._
 
 ## Boundary & context
 
