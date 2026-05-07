@@ -61,13 +61,16 @@ applicable, mark `N/A` and explain why._
 
 ## Authentication
 
-_Does this feature need authentication? If so, who can access it (logged-in
-users, specific roles, public)?_
+_Does the user need to be authenticated to use this feature at all, or is some
+part of it accessible to anonymous traffic? "Who they are" lives in
+Authorisation; this section is about whether identity is required._
 
 ## Authorisation
 
-_Does this feature affect existing actions or introduce new ones? Who can
-perform them?_
+_Once a user is identified, who is allowed to do what? Roles, scopes, ownership
+rules, the actions this feature introduces or affects, and the access boundary
+between them. Anonymous-allowed flows still spell out their authorisation rules
+here (e.g. "anyone can read, only owners can edit")._
 
 ## Admin surface _(optional)_
 
