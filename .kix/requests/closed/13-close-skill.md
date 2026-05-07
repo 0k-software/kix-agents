@@ -20,11 +20,16 @@ the type from the id.
 
 ## Resolution
 
-Implemented on branch `claude/implement-feature-13-Noa1M` as a single
-polymorphic `kix:close` skill (`claude-code/commands/close.md`). `/close <id>`
-identifies the entity by globbing `.kix/{requests,pitches,tasks}/` and applies
-the type-specific terminal state: moves Requests to `closed/`, sets Pitches to
-`phase: shipped`, sets Tasks to `phase: done`. Optional `[reason]` text is
-captured into a `## Resolution` section. No cascade on linked Requests when a
-Pitch ships — they are reported in the confirmation so the user can decide. PR:
+Implemented on branch `claude/implement-feature-13-Noa1M`. The skill landed as
+`kix:cancel` rather than `kix:close` after PR review — it turned out the
+operation is fundamentally about cancellation (discarding work), not about
+moving to a finished terminal state. `/cancel <id> [reason]`
+(`claude-code/commands/cancel.md`) identifies the entity by globbing
+`.kix/{requests,pitches/<id>-*/,pitches/*/tasks/<id>-*/}` and applies the
+type-specific cancellation: Requests move to `.kix/requests/closed/` with the
+reason in the `## Resolution` body; Pitches and Tasks get a `cancelled_at`
+timestamp added to front-matter while `phase:` is preserved (so the phase the
+work was in at cancellation is part of the record). Cancellation is orthogonal
+to phase progression. No cascade on linked Requests when a Pitch is cancelled —
+they are reported in the confirmation so the user can decide. PR:
 https://github.com/0k-software/kix-agents/pull/17
