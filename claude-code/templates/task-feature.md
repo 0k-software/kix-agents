@@ -95,6 +95,18 @@ _How will this be tested? Aim for a layered approach: unit tests covering the
 core logic in isolation, plus integration tests exercising the feature
 end-to-end._
 
+_Testing principles:_
+
+- _Test **observable behaviour**, not implementation details. If the test
+  breaks every time the internals are refactored without a real behaviour
+  change, it's coupled too tightly._
+- _Unit tests should pin down the contract of a single piece in isolation.
+  Integration tests should exercise the feature the way a real user (or
+  upstream system) does — through the public surface._
+- _Avoid mocks of code under your own control beyond what's needed to isolate;
+  prefer fakes or real wiring for collaborators that have meaningful logic of
+  their own._
+
 ## Dev helpers _(optional)_
 
 _Are there development / debugging helpers worth adding — REPL helpers,
