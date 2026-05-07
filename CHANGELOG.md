@@ -9,11 +9,13 @@ The format is based on
 
 ### Added
 
-- `kix:close` skill (`claude-code/commands/close.md`) — polymorphic
-  `/close <id> [reason]` that infers the entity type from the id and applies
-  its terminal state: moves Requests to `closed/`, sets Pitches to
-  `phase: shipped`, sets Tasks to `phase: done`. Optional reason text is
-  captured into a `## Resolution` section.
+- `kix:cancel` skill (`claude-code/commands/cancel.md`) — polymorphic
+  `/cancel <id> [reason]` that marks work as discarded. Requests move to
+  `closed/` with the cancellation reason in the body; Pitches and Tasks get a
+  `cancelled_at` timestamp added to their front-matter while their `phase:` is
+  preserved (so you can see where in the process the work was cancelled).
+  Cancellation is orthogonal to phase progression — for work that landed, this
+  is not the right tool.
 - `kix:fix-pr` skill (`claude-code/commands/fix-pr.md`) — ported from kata;
   addresses unresolved review comments on a PR, verifying suggestions before
   implementing and routing commits through `kix:commit`.
