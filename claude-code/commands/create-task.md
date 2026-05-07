@@ -20,18 +20,26 @@ The user's brief: $ARGUMENTS
 
 Parse `$ARGUMENTS` into three parts:
 
-- **Parent Pitch id** (required) — a bare integer (`7`), hash-prefixed (`#7`),
-  or a path/link containing the `<id>-` segment
-  (`.kix/pitches/7-foo/pitch.md`). The Pitch id is the **first** integer parsed
-  from `$ARGUMENTS`; subsequent integers are Request ids.
-- **Request ids** (zero or more) — same formats as above. Each Request id must
-  come **after** the Pitch id token in the argument string.
-- **Framing** — any remaining free text after removing the Pitch id and Request
-  id tokens. This is the user's description of what the Task is about. The
-  framing **may** start with an explicit `<kind>:` prefix (`feature:`,
-  `chore:`, `bug:`, or `enhancement:`, case-insensitive) to pin the Task kind
-  directly; if present, strip the prefix from the framing and remember the kind
-  for step 6.
+- **Numeric ids** — zero or more integers. Accept bare numbers (`7`),
+  hash-prefixed (`#7`), or paths/links containing an `<id>-` segment
+  (`.kix/pitches/7-foo/pitch.md`, `.kix/requests/inbox/4-bar.md`).
+- **Framing** — any remaining free text after removing the id tokens. This is
+  the user's description of what the Task is about. The framing **may** start
+  with an explicit `<kind>:` prefix (`feature:`, `chore:`, `bug:`, or
+  `enhancement:`, case-insensitive) to pin the Task kind directly; if present,
+  strip the prefix from the framing and remember the kind for step 6.
+
+**Categorise each numeric id by looking it up on disk** — order in `$ARGUMENTS`
+does not matter:
+
+- If the id matches a folder under `.kix/pitches/<id>-*/pitch.md`, it is the
+  **Parent Pitch id**. At most one Pitch id may appear in the arguments; if two
+  or more ids resolve to Pitches, abort with a clear error.
+- If the id matches a file under `.kix/requests/*/<id>-*.md`, it is a **Request
+  id** (zero or more allowed).
+- If the id matches **both** a Pitch and a Request (id collision, see the open
+  `id-conflicts-teams` Pitch) or **neither**, abort with a clear error naming
+  the offending id.
 
 Determine the Task shape:
 
@@ -42,11 +50,23 @@ Determine the Task shape:
 - **Bare Task** — Pitch id + framing only, no Request ids. The Summary is the
   framing text verbatim. The `requests:` front-matter list is empty.
 
-**No Pitch given.** If `$ARGUMENTS` does not contain a parseable Pitch id, ask
-the user which Pitch the Task should live under and wait for their reply.
-_TODO: once the project's "urgent / emergency" Pitch convention is decided,
-suggest it as the default for incident-style work — currently unresolved, see
-review thread on this point._
+**No Pitch given.** If none of the ids in `$ARGUMENTS` resolves to a Pitch,
+fall back to the project's **emergency Pitch** — slug `0-emergencies` (id `0`)
+— for urgent / incident-style work. The skill:
+
+1. Confirms with the user that this is correct: "No Pitch id given — treating
+   this as urgent / incident work and attaching to the emergency Pitch
+   (`0-emergencies`). Reply with a different Pitch id to override, or proceed."
+2. If the user supplies a different id, restart the categorisation step above
+   with that id added to the arguments.
+3. Otherwise, look up `.kix/pitches/0-emergencies/pitch.md`. If the folder
+   exists, use it as the Parent Pitch. If it does not exist, abort with a clear
+   error telling the user to either supply a Pitch id or create the emergency
+   Pitch first.
+
+_(The `0-emergencies` slug is a placeholder convention while id-conflict
+handling is being designed; a future change will switch to a richer identifier
+such as `kp-000000-emergencies`.)_
 
 If `$ARGUMENTS` is entirely empty, ask the user for a brief and wait for their
 reply before continuing.
