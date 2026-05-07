@@ -75,7 +75,8 @@ here (e.g. "anyone can read, only owners can edit")._
 ## Admin surface _(optional)_
 
 _Does this feature need an admin / back-office surface — listing, editing, or
-managing the new resources? Skip if there is nothing for admins to manage._
+managing the new resources? If not applicable, mark `N/A` and explain why;
+don't remove the section._
 
 ## Release strategy
 
@@ -85,7 +86,8 @@ big bang, off by default? If no special rollout is needed, say so._
 ## Background jobs _(optional)_
 
 _Does any work run in the background — queued, deferred, retried? If so, which
-queue and what backoff/retry behaviour? Skip if everything runs inline._
+queue and what backoff/retry behaviour? If not applicable, mark `N/A` and
+explain why; don't remove the section._
 
 ## Tests
 
@@ -96,7 +98,8 @@ end-to-end._
 ## Dev helpers _(optional)_
 
 _Are there development / debugging helpers worth adding — REPL helpers,
-fixtures, seed data, debug commands? Skip if nothing extra is needed._
+fixtures, seed data, debug commands? If not applicable, mark `N/A` and explain
+why; don't remove the section._
 
 ## AGENTS.md updates _(optional)_
 
