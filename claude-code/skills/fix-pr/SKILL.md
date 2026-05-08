@@ -366,9 +366,10 @@ multiple groups into one commit.
 
 **4a — Commit loop (repeat for every group)**
 
-Before starting this loop, use `TodoWrite` to create **one task per group** (in
-order), so the full work queue is visible upfront. This queue must be fully
-completed before moving on to step 4b.
+Before starting this loop, list every group in your text output (in order), so
+the full work queue is visible upfront. Work through the queue end-to-end
+before moving on to step 4b, calling out which group is currently in progress
+and noting each group as completed when its commit lands.
 
 For each group of related change requests, in order:
 
@@ -379,8 +380,8 @@ For each group of related change requests, in order:
 4. Invoke the `/kix:commit` skill with the `!` flag, passing the change request
    context as the argument.
 5. Record the resulting commit SHA alongside the group (you will need it in
-   step 4c). Mark the corresponding `TodoWrite` task as completed. Then
-   **immediately continue to the next group** — do not push yet.
+   step 4c). Note the group as completed. Then **immediately continue to the
+   next group** — do not push yet.
 
 **4b — Push once**
 

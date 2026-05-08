@@ -29,15 +29,10 @@ Parse `$ARGUMENTS` to determine the mode and target branch:
    and tell the user to commit or stash first.
 2. Fetch the latest from origin: `git fetch origin {target}`.
 3. List the commits to rebase: `git log --oneline origin/{target}..HEAD`.
-   Display them so the user knows what will be rebased.
-4. Seed the todo list with TodoWrite — one todo per commit from step 3, in the
-   order the rebase will apply them (oldest first). Use the commit subject as
-   `content` and the short SHA as a prefix so the user can spot it (e.g.
-   `content: "abc1234 — feat: add foo"`,
-   `activeForm: "Applying abc1234 — feat: add foo"`). The todo list is the live
-   progress view for Step 2: flip a todo to `in_progress` when its commit is
-   being applied and to `completed` once that commit has landed (cleanly, after
-   a hook fix, or after conflict resolution — see Step 2).
+   Display them so the user knows what will be rebased. Track per-commit
+   progress in your text output as you work through Step 2 — call out which
+   commit is currently applying, and report when each one lands (cleanly, after
+   a hook fix, or after conflict resolution).
 
 ## Step 2 — Start the rebase
 
@@ -52,8 +47,8 @@ outcomes are possible per commit:
 
 ### A) Commit applies cleanly and hook passes
 
-Nothing to do — rebase continues automatically. Mark the matching todo
-`completed`.
+Nothing to do — rebase continues automatically. Note the commit as landed in
+your progress output.
 
 ### B) Pre-commit hook fails
 
@@ -65,7 +60,7 @@ When the pre-commit hook fails after a commit is applied:
 4. If the fix changes the commit's semantics, update the commit message to
    reflect what changed.
 5. Run `git rebase --continue`.
-6. Mark the matching todo `completed`.
+6. Note the commit as landed in your progress output.
 
 ### C) Conflict occurs
 
@@ -103,12 +98,12 @@ When the pre-commit hook fails after a commit is applied:
 **Then, in both modes:**
 
 5. Apply the resolution, stage the files, and run `git rebase --continue`.
-6. Mark the matching todo `completed`.
+6. Note the commit as landed in your progress output.
 
 ## Step 3 — Repeat
 
 Continue handling hook failures and conflicts until the rebase completes
-successfully — every todo from Step 1 should end up `completed`.
+successfully — every commit from Step 1 should end up landed.
 
 ## Step 4 — Report
 

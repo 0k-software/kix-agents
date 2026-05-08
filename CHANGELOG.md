@@ -53,6 +53,14 @@ The format is based on
 
 ### Removed
 
+- `kix:create-request`, `kix:create-pitch`, and `kix:create-task` skills, plus
+  their aliases (`kix:capture`, `kix:request`, `kix:pitch`, `kix:task`) — the
+  workflows are now handled directly by beads (`bd create`, `bd ready`, etc.).
+- `kix:cancel` skill — superseded by `bd close <id> --reason="..."`.
+- `kix:implement` skill — its `.kix/requests/`-driven flow no longer matches
+  the beads-based workflow; a beads-aware replacement will land separately.
+- `TodoWrite`-based progress tracking in `kix:rebase` and `kix:fix-pr`.
+  Per-step progress is reported in the agent's text output instead.
 - Redundant `type: request` field from Request front-matter — Requests are
   identified by their location under `.kix/requests/`, so the field carried no
   signal. Dropped from the `kix:create-request` skill template and stripped
