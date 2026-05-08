@@ -232,12 +232,13 @@ plan.
 
 1. Re-run `bd todo` and confirm the list is empty, or contains only items the
    user explicitly skipped.
-2. Show the new shape of every item that moved. Run `bd show <id>` for each
-   touched id and for each new epic created during this run — `bd show` is
-   parent-aware and lists an epic's children, so the grouping is visible:
+2. Show the new shape of every item that moved. Run `bd list --all` and filter
+   the output to keep only the lines that contain any **touched id** — every
+   previous `bd todo` item plus every new or referenced epic. The tree output
+   preserves parent → child structure, so grouping survives the filter:
 
    ```bash
-   bd show <touched-id>
+   bd list --all | grep -E '<touched-id-1>|<touched-id-2>|…'
    ```
 
 3. Report the totals and any follow-ups:
