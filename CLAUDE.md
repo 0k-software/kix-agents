@@ -88,8 +88,8 @@ kix-agents ships a Claude Code marketplace + plugin — no application code:
   skills; not consumed by anything today
 - `docs/kix/<bd-id>/spec.md` — long-form specs for non-trivial epics tracked in
   beads
-- `docs/kix-agents.md`, `docs/roadmap.md` — what the repo is and where it's
-  going
+- `docs/kix-agents.md` — what the repo is and how it fits into Kix (the roadmap
+  lives in beads — `bd ready` / `bd list`)
 - `scripts/bump-plugin.js` — plugin version bumper invoked by `make bump`
 
 ## Conventions & Patterns

@@ -32,14 +32,14 @@ claude-code/                      ← Claude Code plugin (manifest + skills + �
   templates/
 docs/
   kix-agents.md                   ← what this repo is and how it fits in Kix
-  roadmap.md                      ← MVP + Customization roadmaps
 scripts/bump-plugin.js            ← bump plugin.json version
 Makefile                          ← setup, autofix, check, bump
 ```
 
 ## Documentation
 
-- [Kix Agents](docs/kix-agents.md) — purpose, what it ships, install,
-  fork-don't-edit, how Run and Flow consume it
-- [Roadmap](docs/roadmap.md) — MVP Roadmap (MVP 1 → MVP 8) and Customization
-  Roadmap (V1 → V5)
+- [Kix Agents](docs/kix-agents.md) — purpose, what it ships, install, and how
+  Kix invokes the skills
+
+Roadmap and tasks live in [beads](https://github.com/steveyegge/beads); run
+`bd ready` to see what's open.
