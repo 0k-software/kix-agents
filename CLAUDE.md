@@ -52,18 +52,40 @@ bd close <id>         # Complete work
 
 ## Build & Test
 
-_Add your build and test commands here_
+This repo is Markdown content (slash commands, templates, docs) — there is no runtime and no test suite. The toolchain is Prettier + a small release pipeline:
 
 ```bash
-# Example:
-# npm install
-# npm test
+make setup     # install .git-hooks/* into .git/hooks/
+make autofix   # prettier --write .
+make check     # prettier --check .  (the formatting gate)
+make all       # autofix && check
+make bump PART=patch|minor|major   # bump claude-code/.claude-plugin/plugin.json
+make release   # cut a GitHub release at the current plugin.json version
+                # (requires clean tree, HEAD pushed, no existing tag)
 ```
+
+`make release` reads the version from `claude-code/.claude-plugin/plugin.json`, so bump first, commit, push, then release.
 
 ## Architecture Overview
 
-_Add a brief overview of your project architecture_
+kix-agents ships a Claude Code marketplace + plugin — no application code:
+
+- `.claude-plugin/marketplace.json` — marketplace declaration (root)
+- `claude-code/.claude-plugin/plugin.json` — plugin manifest
+- `claude-code/commands/*.md` — slash command definitions (one Markdown file per command, with frontmatter)
+- `claude-code/templates/*.md` — body templates stamped out by `kix:create-task` / `kix:create-pitch` (`task-feature.md`, `task-chore.md`, `task-bug.md`, `task-enhancement.md`, `pitch.md`)
+- `.kix/requests/{inbox,linked,closed}/`, `.kix/pitches/` — the Kix workflow data layout this repo dogfoods (see `docs/kix-agents.md` for the full Run/Flow picture)
+- `docs/kix-agents.md`, `docs/roadmap.md` — what the repo is and where it's going
+- `scripts/bump-plugin.js` — plugin version bumper invoked by `make bump`
+
+Long-term direction (per `docs/kix-agents.md`): canonical, agent-agnostic skills live under `.kix/skills/` and are **compiled** into per-harness layouts (`claude-code/`, `codex/`, …). Today those harness dirs are hand-authored — treat them as source, not generated output, until the compiler exists.
 
 ## Conventions & Patterns
 
-_Add your project-specific conventions here_
+- **Slash commands and aliases.** Some commands are thin aliases for canonical ones (`pitch.md` → `create-pitch.md`, `task.md` → `create-task.md`, `request.md` / `capture.md` → `create-request.md`, `fix.md` → `fix-pr.md`). Edit the canonical file; aliases just point at it.
+- **Skills, not commands folder.** When adding capabilities, prefer the skill format used by existing files in `claude-code/commands/`. The `commands/` dir is the Claude Code-native location; the canonical-skills move is documented but not yet implemented.
+- **Kix workflow IDs.** Requests/Pitches/Tasks use sequential numeric IDs allocated by the relevant skill (`kix:create-request`, `kix:create-pitch`, `kix:create-task`). Don't hand-assign IDs.
+- **Markdown formatting.** Prettier is the formatter; `make check` blocks merges on drift. Run `make autofix` before committing.
+- **Two issue trackers coexist.** `bd` (beads) is the runtime tracker (see the Beads section above and `AGENTS.md`); `.kix/requests/` is the user-facing Kix capture surface that the skills in this repo manage. Don't conflate them — `bd` is for in-flight engineering work, `.kix/requests/` is the inbox for product asks.
+- **Releases are tag-driven.** `make release` POSTs to GitHub's releases API; the plugin marketplace install path resolves via tags. Never force-tag or rewrite published tags.
+- **Pre-commit hook.** `.git-hooks/pre-commit` is installed by `make setup` — run setup once after cloning so commits get the same checks CI runs.
