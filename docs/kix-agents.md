@@ -242,8 +242,3 @@ docs/                             ← Run-specific implementation docs
 Each harness directory is hand-authored against that harness's native plugin
 layout (Claude Code's `SKILL.md`, Codex's prompt format, …). Skills aren't
 generated from a shared source today.
-
-## Versioning and roadmap
-
-Kix Agents customization mirrors the Customization Roadmap. See
-[Roadmap](roadmap.md) for the full picture.
