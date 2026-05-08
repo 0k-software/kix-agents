@@ -9,6 +9,15 @@ The format is based on
 
 ### Added
 
+- `kix:triage` skill (`claude-code/skills/triage/SKILL.md`) — walks every open
+  `bd todo` (untyped `task` issue) and routes each to a real type+priority, an
+  `epic` promotion, a new grouped epic, slotting under an existing epic, or
+  closure. Step 2 walks every item through priority → category → epic linkage;
+  Step 3 presents a per-item before/after overview; Step 4 waits for a single
+  batch confirmation before applying changes via `bd update` / `bd create` /
+  `bd close` and `--parent=<epic-id>`. Step 6 then runs `bd show <id>` over
+  every touched id (and any new epic created during the run) so the user sees
+  the new shape and parent linkage. Closes kxa-8xe.
 - `kix:cancel` skill (`claude-code/commands/cancel.md`) — polymorphic
   `/cancel <id> [reason]` that marks work as discarded. Requests move to
   `closed/` with the cancellation reason in the body; Pitches and Tasks get a
