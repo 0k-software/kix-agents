@@ -1,57 +1,61 @@
 ---
 description: Implement a Kix Request on a branch and open a PR
-argument-hint: <request-id> [extra context]
+argument-hint: <beads-id> [extra context]
 ---
 
 You are implementing a Kix Request end-to-end: branch, implement, close the
-Request, open a PR.
+beads issue, open a PR.
 
 The user's argument: $ARGUMENTS
 
 ## Argument parsing
 
-Parse `$ARGUMENTS` for a single **request id** — a bare integer (`18`),
-hash-prefixed (`#18`), or a file path containing an `<id>-` segment
-(`.kix/requests/inbox/18-foo.md`). Extract the integer id.
+Parse `$ARGUMENTS` for a single **beads issue id**. Accept any of:
+
+- the full id (`kix-jlb`)
+- the suffix only (`jlb`) — the skill prepends the prefix using
+  `bd config get prefix` (or just tries `kix-<suffix>`)
+- a hash-prefixed form (`#kix-jlb`, `#jlb`)
+
+Strip the leading `#` if present. Resolve to the canonical full id with
+`bd show <id> --json`.
 
 Any remaining text after the id is **supplemental context** — extra framing,
 constraints, or instructions from the user that should guide the implementation
-(e.g. `18 keep it minimal` or `#18 also update the README`). Carry this context
-into Step 4 and let it shape the work.
+(e.g. `kix-jlb keep it minimal` or `#kix-jlb also update the README`). Carry
+this context into Step 4 and let it shape the work.
 
-If `$ARGUMENTS` is empty or no id can be parsed, ask the user for the request
-id and wait for their reply before continuing.
+If `$ARGUMENTS` is empty or no id can be parsed, ask the user for the issue id
+and wait for their reply before continuing.
 
 ## Steps
 
-### 1. Load the Request
-
-Find the Request file by globbing across all outcome subfolders:
+### 1. Load the issue
 
 ```bash
-ls .kix/requests/*/<id>-*.md
+bd show <id> --json
 ```
 
-Exactly one file must match. If zero files match, abort with a clear error.
-Read the file's front-matter (`id`) and body. The Request's title is the H1 at
-the top of the body (the first `# ...` line after the front-matter), not a
-front-matter field.
+Read the title, description, type, and status. If the issue does not exist,
+abort with a clear error.
 
 ### 2. Derive the branch name
 
-Strip `.md` from the Request filename and prefix with `kix/`:
+Compute a slug from the title (2–3 words, lowercase, `[a-z0-9-]` only, collapse
+runs of `-`, trim). The branch is:
 
 ```
-kix/<filename-without-extension>
+kix/<bd-id>-<slug>
 ```
 
-For example, `18-implement-request-skill.md` →
-`kix/18-implement-request-skill`.
+For example, `kix-jlb` with title "Replace Kix file-based task storage with
+beads" → `kix/kix-jlb-replace-storage-with-beads`. If the slug is empty after
+sanitization, use the id alone (`kix/kix-jlb`).
 
 ### 3. Create and switch to the branch
 
 ```bash
-git checkout -b kix/<filename-without-extension>
+git checkout -b kix/<bd-id>-<slug>
 ```
 
 If the branch already exists, check it out with `git checkout` and warn the
@@ -61,11 +65,21 @@ user that work may already exist on this branch.
 > checking out in the current directory, so the implementation runs in an
 > isolated worktree and leaves the working tree clean.
 
-### 4. Implement the Request
+### 4. Move the issue into `doing`
 
-Read the Request body carefully, and factor in any supplemental context from
-`$ARGUMENTS`. The Request is raw input — a bug report, an idea, a task.
-Understand what is being asked and implement it directly in the codebase.
+```bash
+bd update <id> --status doing
+```
+
+This signals that work has started. Status hops are fine — Kix's phase rail
+doesn't require passing through `refining`/`planning` for a direct Request
+implementation.
+
+### 5. Implement
+
+Read the issue title and description carefully, and factor in any supplemental
+context from `$ARGUMENTS`. The Request is raw input — a bug report, an idea, a
+task. Understand what is being asked and implement it directly in the codebase.
 
 **Commit discipline:**
 
@@ -77,40 +91,8 @@ Understand what is being asked and implement it directly in the codebase.
 - Do not batch everything into a single commit unless the change is truly
   atomic.
 
-There is no pitch or plan required. Implement from the Request description
+There is no pitch or plan required. Implement from the issue description
 directly.
-
-### 5. Close the Request
-
-Once the implementation is complete, move the Request file to the `closed/`
-subfolder and update its `updated_at` timestamp:
-
-```bash
-mkdir -p .kix/requests/closed
-git mv .kix/requests/<current-subfolder>/<filename> .kix/requests/closed/
-```
-
-Update the `updated_at` field in the moved file to the current UTC timestamp
-(`date -u +%Y-%m-%dT%H:%M:%SZ`).
-
-Then append a `## Resolution` section to the end of the file body:
-
-```markdown
-## Resolution
-
-Implemented on branch `kix/<filename-without-extension>`. <one-sentence summary
-of what was done.> PR: <pr-url> (or "PR pending" if not yet opened).
-```
-
-If you know the commit SHAs at this point, list them; otherwise the PR link
-alone is sufficient. Update this section after opening the PR if the URL wasn't
-available yet.
-
-Commit this change with a message like:
-
-```
-close request #<id>: <title>
-```
 
 ### 6. Update the changelog (if present)
 
@@ -128,12 +110,31 @@ together with or immediately after the implementation commits.
 
 If no changelog file exists, skip this step silently.
 
-### 7. Open a pull request
+### 7. Close the beads issue
+
+Once the implementation is on the branch, close the issue:
+
+```bash
+bd close <id>
+```
+
+Then attach a resolution comment that records the branch, a one-sentence
+summary of what was done, and the PR URL (or `pending` if not yet opened):
+
+```bash
+bd comment <id> "Implemented on branch kix/<bd-id>-<slug>. <summary>. PR: <pr-url>"
+```
+
+If you know the commit SHAs at this point, list them; otherwise the PR link
+alone is sufficient. Update the comment (or add another) after opening the PR
+if the URL wasn't available yet.
+
+### 8. Open a pull request
 
 Push the branch and open a PR against the default branch (typically `main`):
 
 ```bash
-git push -u origin kix/<filename-without-extension>
+git push -u origin kix/<bd-id>-<slug>
 ```
 
 Then create the PR using one of the following methods, tried in order:
@@ -149,8 +150,8 @@ Then create the PR using one of the following methods, tried in order:
      -H "Accept: application/vnd.github+json" \
      https://api.github.com/repos/<owner>/<repo>/pulls \
      -d '{
-       "title": "implement request #<id>: <title>",
-       "head": "kix/<filename-without-extension>",
+       "title": "implement <bd-id>: <title>",
+       "head": "kix/<bd-id>-<slug>",
        "base": "main",
        "body": "<body>"
      }'
@@ -163,27 +164,27 @@ to open the PR manually.
 
 **PR content:**
 
-- **Title:** `implement request #<id>: <title>`
+- **Title:** `implement <bd-id>: <title>`
 - **Body:** a short summary of what was implemented, followed by a link back to
-  the Request:
+  the beads issue:
 
   ```
-  Implements .kix/requests/closed/<filename>
+  Implements beads issue <bd-id>.
   ```
 
   This ties the PR to the Kix Request so reviewers can trace implementation
   back to the original ask.
 
-Once the PR URL is known, go back and fill it into the `## Resolution` section
-of the closed Request file (if you wrote "PR pending" earlier) and amend or add
-a follow-up commit.
+Once the PR URL is known, post a follow-up `bd comment <id> "PR: <pr-url>"` (or
+amend the resolution comment) so the issue carries the PR link.
 
-### 8. Confirm
+### 9. Confirm
 
 Report:
 
+- The beads issue id and title.
 - The branch name.
 - The commits created.
 - The PR URL.
-- That the Request was moved to `closed/` and the Resolution section was added.
+- That the beads issue was closed and a resolution comment was added.
 - Whether the changelog was updated.
