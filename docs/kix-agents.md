@@ -156,8 +156,8 @@ Kix sidesteps that by treating skills the way a build system treats source:
 renders each canonical skill into the plugin shape each agent natively reads:
 
 ```text
-claude-code/commands/refinement.md   ← generated for Claude Code
-codex/prompts/refinement.md          ← generated from the same source for Codex
+claude-code/skills/refinement/SKILL.md   ← generated for Claude Code
+codex/prompts/refinement.md              ← generated from the same source for Codex
 ```
 
 The compiled plugin files are **never hand-edited** — they are reproducible
@@ -349,9 +349,9 @@ are versioned in Git and survive without the cache.
 
 ```text
 .claude-plugin/marketplace.json   ← marketplace declaration
-claude-code/                      ← Claude Code plugin (manifest + commands + …)
+claude-code/                      ← Claude Code plugin (manifest + skills + …)
   .claude-plugin/plugin.json
-  commands/
+  skills/
   templates/
 codex/                            ← Codex layout (analogous)
 docs/                             ← Run-specific implementation docs
