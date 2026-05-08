@@ -1,13 +1,6 @@
----
-id: 14
-phase: ideas
-requests: [11]
-created_by: kelvin.stinghen@me.com
-created_at: 2026-05-05T15:01:28Z
-updated_at: 2026-05-06T02:08:14Z
----
-
 # ID conflicts when multiple people allocate IDs in parallel
+
+> Spec for `kxa-3b7` — run `bd show kxa-3b7` for the issue.
 
 ## Summary
 
