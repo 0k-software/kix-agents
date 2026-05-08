@@ -103,14 +103,11 @@ themselves. As the App matures and skills delegate the deterministic work to
 it, "no App installed" becomes a progressively more limited path — see
 [Skills are stochastic; Kix App is deterministic](#skills-are-stochastic-kix-app-is-deterministic).
 
-## How Run and Flow consume it
+## How Kix invokes them
 
-- **Kix Run** invokes Kix Agents skills as the default agent layer for each
-  phase, packaged in whatever per-harness plugin layout the agent expects
-  (Claude Code, Codex, …).
-- **Kix Flow** references agents from Kix Agents in its default `flow.yaml`
-  per-phase wirings. Each Pitch or Task phase that runs an agent picks one out
-  of this catalog by name. Projects can override the wiring per Pitch or Task.
+The default workflow that comes with Kix invokes these skills as the agent
+layer for each phase. Projects can override the wiring per Pitch or Task to
+call a different skill or a forked variant.
 
 ## Phase automations
 
