@@ -8,7 +8,7 @@ Walk every open `bd todo` (i.e. every open `task`-typed issue) and either:
 
 - re-type it as `bug` / `feature` / `chore` with a real priority,
 - promote it to an `epic`,
-- group it under a freshly created epic,
+- group it with other related tasks under a freshly created epic,
 - slot it under an open or in-progress epic that already exists, or
 - close it.
 
