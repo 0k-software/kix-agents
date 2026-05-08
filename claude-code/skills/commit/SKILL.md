@@ -1,5 +1,5 @@
 ---
-description: Commit current work
+description: Commit current work using the project's commit procedure (staging strategy, message generation, pre-commit hook auto-fix).
 argument-hint: [!] [reason for the change]
 ---
 
