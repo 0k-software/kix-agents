@@ -76,24 +76,41 @@ epic assignments need to stay coherent across items.
 
 ## Step 3 — Present the plan overview
 
-Show the user one digestible overview of all proposed movements, bucketed by
-outcome. Suggested format (one line per item, empty buckets omitted):
+Show the user a single before/after view — current shape of every item next
+to its proposed shape. Suggested format:
 
-- **Close** (N items)
-  - `<id>: <title> — <reason>`
-- **Re-type & prioritize** (N items)
-  - `<id>: <title> → <type> P<priority>`
-- **Promote to epic** (N items)
-  - `<id>: <title> → epic P<priority>`
-- **New epics** (N groups)
-  - **<proposed epic title>** (P<priority>)
-    - `<id>: <title> → <type> P<priority>`
-    - …
-- **Slot under existing epic** (N items)
-  - `<id>: <title> → child of <epic-id> "<epic-title>" as <type> P<priority>`
+- For each item that is **not** being closed and **not** a member of a new
+  epic, show one line:
 
-End with a one-line totals summary. Wait for the user's reaction before walking
-through individual decisions.
+  ```
+  <id>: <title>
+    before: <current-type> P<current-priority> (parent: <current-parent|none>)
+    after:  <new-type>      P<new-priority>     (parent: <new-parent|none>)
+  ```
+
+- For each closure, show:
+
+  ```
+  <id>: <title>
+    before: <current-type> P<current-priority>
+    after:  closed — <reason>
+  ```
+
+- For each **new epic**, show the proposed epic first and its members
+  beneath, each as a normal before/after line with the new parent pointing
+  at the epic-to-be:
+
+  ```
+  NEW: <proposed epic title>     epic P<priority>
+    <member-id>: <title>
+      before: <current-type> P<current-priority> (parent: <current-parent|none>)
+      after:  <new-type>      P<new-priority>     (parent: <NEW epic above>)
+    …
+  ```
+
+End with a one-line totals summary (how many items change type, change
+priority, get a new parent, get closed; how many new epics get created).
+Wait for the user's reaction before applying.
 
 ## Step 4 — Walk through and confirm
 
