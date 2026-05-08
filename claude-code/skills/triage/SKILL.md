@@ -174,16 +174,13 @@ plan.
 
 1. Re-run `bd todo` and confirm the list is empty, or contains only items the
    user explicitly skipped.
-2. Show the new shape of every item that moved. Run `bd list` (or
-   `bd show <id>` for a parent-aware view) over the touched ids so the user
-   sees the result, including parents for items that landed under an epic:
+2. Show the new shape of every item that moved. Run `bd show <id>` for each
+   touched id and for each new epic created during this run — `bd show` is
+   parent-aware and lists an epic's children, so the grouping is visible:
 
    ```bash
-   bd list <touched-id-1> <touched-id-2> …
+   bd show <touched-id>
    ```
-
-   Each new epic created during this run goes in this list too — show it
-   alongside its members so the grouping is visible.
 
 3. Report the totals and any follow-ups:
    - How many items were closed, re-typed, promoted, grouped, slotted, skipped.
