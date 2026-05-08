@@ -74,7 +74,7 @@ kix-agents ships a Claude Code marketplace + plugin — no application code:
 - `claude-code/.claude-plugin/plugin.json` — plugin manifest
 - `claude-code/skills/<name>/SKILL.md` — skill definitions (one folder per skill, frontmatter + Markdown body). Each also surfaces as a `/kix:<name>` slash command.
 - `claude-code/templates/*.md` — body templates stamped out by `kix:create-task` / `kix:create-pitch` (`task-feature.md`, `task-chore.md`, `task-bug.md`, `task-enhancement.md`, `pitch.md`)
-- `docs/epics/<bd-id>/spec.md` — long-form specs for non-trivial epics tracked in beads
+- `docs/kix/<bd-id>/spec.md` — long-form specs for non-trivial epics tracked in beads
 - `docs/kix-agents.md`, `docs/roadmap.md` — what the repo is and where it's going
 - `scripts/bump-plugin.js` — plugin version bumper invoked by `make bump`
 
