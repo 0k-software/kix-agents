@@ -153,10 +153,15 @@ for the user's reaction before applying.
 
 Wait for the user to react to the Step 4 overview. They can:
 
-- Accept the whole plan as-is.
-- Push back with changes — different priorities, types, epic groupings,
-  parents, closures, etc. Update the plan and re-present (back to Step 4).
-- Reject specific items — drop them from the plan; they stay in `bd todo`
+- **Accept all** — apply the whole plan as-is.
+- **Review step-by-step** — when the plan is too big to read in one go, walk
+  the user through each proposed change one at a time. For each item (or
+  new-epic group), show only that item's before/after and offer **accept / edit
+  / skip**. Track confirmed decisions; drop skipped items.
+- **Push back with changes** — adjust priorities, types, epic groupings,
+  parents, closures, dependencies. Update the plan and re-present (back to Step
+  4).
+- **Reject specific items** — drop them from the plan; they stay in `bd todo`
   untouched.
 
 Only proceed to Step 6 once the user explicitly says go.
