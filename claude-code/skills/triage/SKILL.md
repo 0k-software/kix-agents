@@ -86,14 +86,20 @@ Walk every item and decide its final shape. For each item, in this order:
      of its own), change the category to `epic` instead — it gets promoted in
      place.
    - If the item is closeable (duplicate, obsolete, never going to happen),
-     mark it for closure and record a reason. Skip step 3.
-3. **Decide epic linkage** (skip for items that became `epic` or are being
-   closed):
+     mark it for closure and record a reason. Closures still go through epic
+     linkage in step 3.
+3. **Decide epic linkage** (skip only for items that became `epic`; closures
+   still get linked):
    - If the item fits inside an open or in-progress epic from Step 1, plan to
      set its `parent` to that epic.
    - If it doesn't fit any existing epic but clusters with other todo items,
      plan to create a new epic for the cluster and parent the members under it
      (draft the new epic's title, description, and priority now).
+   - For a closure marked as a duplicate of / superseded by another task,
+     parent it to whatever epic that other task belongs to (so the closure
+     stays grouped with what replaced it).
+   - For a closure marked obsolete / never-going-to-happen but still tied to a
+     running epic, parent it to that epic.
    - Otherwise, leave the item parentless.
 
 Reason through the whole list before talking to the user — clusterings and epic
@@ -155,10 +161,19 @@ Run `bd` commands in this order, so dependencies (epic exists before its
 members are parented) are satisfied:
 
 1. **Closures:**
+   - For a closure with no epic linkage:
 
-   ```bash
-   bd close <id> --reason="<reason>"
-   ```
+     ```bash
+     bd close <id> --reason="<reason>"
+     ```
+
+   - For a closure that should land inside an epic (duplicate's epic, related
+     running epic), set the parent first, then close:
+
+     ```bash
+     bd update <id> --parent=<epic-id>
+     bd close <id> --reason="<reason>"
+     ```
 
 2. **Re-types & priorities:**
 
