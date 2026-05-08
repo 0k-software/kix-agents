@@ -39,15 +39,15 @@ canonical epic-membership relationship), not `bd dep add`.
    Record id, title, description, priority, and any dependencies — anything
    that helps you reason about type, priority, and grouping.
 
-2. Pull the set of open and in-progress epics so you know the candidates for
+2. If `bd todo` is empty, report that and exit. Skip the rest of this step.
+
+3. Pull the set of open and in-progress epics so you know the candidates for
    case 3 (slot under existing epic):
 
    ```bash
    bd list --type=epic --status=open --json
    bd list --type=epic --status=in_progress --json
    ```
-
-3. If `bd todo` is empty, report that and exit.
 
 ## Step 2 — Reason through the whole list
 
