@@ -49,7 +49,32 @@ canonical epic-membership relationship), not `bd dep add`.
    bd list --type=epic --status=in_progress --json
    ```
 
-## Step 2 — Reason through the whole list
+## Step 2 — Fill in missing descriptions
+
+A good description is the most important context for the next steps — without
+it you can't reliably pick a priority, category, epic linkage, or dependencies.
+Before reasoning about the items, fill the gaps.
+
+For each item with an empty or thin description, walk the user through it one
+at a time:
+
+1. Propose a description, drafted from the title and whatever surrounding
+   context you have (related epic, sibling items, project conventions, recent
+   activity).
+2. Show the proposal and ask the user to **accept**, **edit**, or **skip**.
+   Skipping leaves the item with no description; the later steps will have to
+   work without it.
+3. On accept or edit, apply:
+
+   ```bash
+   bd update <id> --description="<final description>"
+   ```
+
+Walk these one at a time — do **not** batch them. The user needs to read and
+steer each proposal individually before the next one shows up. Only after every
+missing description is filled or skipped do you continue to Step 3.
+
+## Step 3 — Reason through the whole list
 
 Walk every item and decide its final shape. For each item, in this order:
 
@@ -74,7 +99,7 @@ Walk every item and decide its final shape. For each item, in this order:
 Reason through the whole list before talking to the user — clusterings and epic
 assignments need to stay coherent across items.
 
-## Step 3 — Present the plan overview
+## Step 4 — Present the plan overview
 
 Show the user a single before/after view — current shape of every item next to
 its proposed shape. Suggested format:
@@ -112,19 +137,19 @@ End with a one-line totals summary (how many items change type, change
 priority, get a new parent, get closed; how many new epics get created). Wait
 for the user's reaction before applying.
 
-## Step 4 — Confirm
+## Step 5 — Confirm
 
-Wait for the user to react to the Step 3 overview. They can:
+Wait for the user to react to the Step 4 overview. They can:
 
 - Accept the whole plan as-is.
 - Push back with changes — different priorities, types, epic groupings,
-  parents, closures, etc. Update the plan and re-present (back to Step 3).
+  parents, closures, etc. Update the plan and re-present (back to Step 4).
 - Reject specific items — drop them from the plan; they stay in `bd todo`
   untouched.
 
-Only proceed to Step 5 once the user explicitly says go.
+Only proceed to Step 6 once the user explicitly says go.
 
-## Step 5 — Apply
+## Step 6 — Apply
 
 Run `bd` commands in this order, so dependencies (epic exists before its
 members are parented) are satisfied:
@@ -170,7 +195,7 @@ If a `bd` call fails (validation error, unknown id, etc.), stop and surface the
 offending command and its error — do not continue applying the rest of the
 plan.
 
-## Step 6 — Verify and report
+## Step 7 — Verify and report
 
 1. Re-run `bd todo` and confirm the list is empty, or contains only items the
    user explicitly skipped.
