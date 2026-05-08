@@ -112,19 +112,17 @@ End with a one-line totals summary (how many items change type, change
 priority, get a new parent, get closed; how many new epics get created).
 Wait for the user's reaction before applying.
 
-## Step 4 — Walk through and confirm
+## Step 4 — Confirm
 
-Walk the buckets in this order: **Close**, **Re-type & prioritize**, **Promote
-to epic**, **New epics**, **Slot under existing epic**.
+Wait for the user to react to the Step 3 overview. They can:
 
-- For independent items, walk task-by-task. Show the proposed action on one
-  line and offer **accept / override / skip**.
-- For new-epic groups, present the whole group at once and offer **accept /
-  override / skip the group**. If the user keeps the proposed epic but wants
-  different members, walk the members one by one inside the group.
+- Accept the whole plan as-is.
+- Push back with changes — different priorities, types, epic groupings,
+  parents, closures, etc. Update the plan and re-present (back to Step 3).
+- Reject specific items — drop them from the plan; they stay in `bd todo`
+  untouched.
 
-Track confirmed decisions as you go. Drop anything the user skipped — do
-**not** apply it in Step 5.
+Only proceed to Step 5 once the user explicitly says go.
 
 ## Step 5 — Apply
 
