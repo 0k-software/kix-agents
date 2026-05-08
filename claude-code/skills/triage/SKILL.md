@@ -57,27 +57,27 @@ Walk every item and decide its final shape. For each item, in this order:
    gets one — priority is independent of type.
 2. **Pick a category** — `bug` / `feature` / `chore`:
    - Default to whichever fits the kind of work.
-   - If the item is too big to be a single deliverable (it would need
-     sub-tasks of its own), change the category to `epic` instead — it gets
-     promoted in place.
+   - If the item is too big to be a single deliverable (it would need sub-tasks
+     of its own), change the category to `epic` instead — it gets promoted in
+     place.
    - If the item is closeable (duplicate, obsolete, never going to happen),
      mark it for closure and record a reason. Skip step 3.
 3. **Decide epic linkage** (skip for items that became `epic` or are being
    closed):
-   - If the item fits inside an open or in-progress epic from Step 1, plan
-     to set its `parent` to that epic.
+   - If the item fits inside an open or in-progress epic from Step 1, plan to
+     set its `parent` to that epic.
    - If it doesn't fit any existing epic but clusters with other todo items,
-     plan to create a new epic for the cluster and parent the members under
-     it (draft the new epic's title, description, and priority now).
+     plan to create a new epic for the cluster and parent the members under it
+     (draft the new epic's title, description, and priority now).
    - Otherwise, leave the item parentless.
 
-Reason through the whole list before talking to the user — clusterings and
-epic assignments need to stay coherent across items.
+Reason through the whole list before talking to the user — clusterings and epic
+assignments need to stay coherent across items.
 
 ## Step 3 — Present the plan overview
 
-Show the user a single before/after view — current shape of every item next
-to its proposed shape. Suggested format:
+Show the user a single before/after view — current shape of every item next to
+its proposed shape. Suggested format:
 
 - For each item that is **not** being closed and **not** a member of a new
   epic, show one line:
@@ -96,9 +96,9 @@ to its proposed shape. Suggested format:
     after:  closed — <reason>
   ```
 
-- For each **new epic**, show the proposed epic first and its members
-  beneath, each as a normal before/after line with the new parent pointing
-  at the epic-to-be:
+- For each **new epic**, show the proposed epic first and its members beneath,
+  each as a normal before/after line with the new parent pointing at the
+  epic-to-be:
 
   ```
   NEW: <proposed epic title>     epic P<priority>
@@ -109,8 +109,8 @@ to its proposed shape. Suggested format:
   ```
 
 End with a one-line totals summary (how many items change type, change
-priority, get a new parent, get closed; how many new epics get created).
-Wait for the user's reaction before applying.
+priority, get a new parent, get closed; how many new epics get created). Wait
+for the user's reaction before applying.
 
 ## Step 4 — Confirm
 
@@ -174,7 +174,18 @@ plan.
 
 1. Re-run `bd todo` and confirm the list is empty, or contains only items the
    user explicitly skipped.
-2. Report:
+2. Show the new shape of every item that moved. Run `bd list` (or
+   `bd show <id>` for a parent-aware view) over the touched ids so the user
+   sees the result, including parents for items that landed under an epic:
+
+   ```bash
+   bd list <touched-id-1> <touched-id-2> …
+   ```
+
+   Each new epic created during this run goes in this list too — show it
+   alongside its members so the grouping is visible.
+
+3. Report the totals and any follow-ups:
    - How many items were closed, re-typed, promoted, grouped, slotted, skipped.
    - The ids of any new epics created and how many members each got.
    - Any `bd` calls that failed and still need follow-up.
