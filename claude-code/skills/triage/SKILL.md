@@ -51,19 +51,28 @@ canonical epic-membership relationship), not `bd dep add`.
 
 ## Step 2 — Reason through the whole list
 
-Before talking to the user, decide for **every** item which outcome applies:
+Walk every item and decide its final shape. For each item, in this order:
 
-- **Re-type & prioritize** — `bug` / `feature` / `chore` plus priority `0`–`4`
-  (`0` = critical, `4` = backlog).
-- **Promote to epic** — large enough to decompose; pick a priority.
-- **Group into new epic** — several items form a theme; draft an epic title,
-  description, priority, and the member list.
-- **Slot under existing epic** — pick the target epic from Step 1's list, plus
-  a `bug` / `feature` / `chore` type and priority for the member.
-- **Close** — duplicate, obsolete, or never going to be done; record a reason.
+1. **Pick a priority** (`0`–`4`; `0` = critical, `4` = backlog). Every item
+   gets one — priority is independent of type.
+2. **Pick a category** — `bug` / `feature` / `chore`:
+   - Default to whichever fits the kind of work.
+   - If the item is too big to be a single deliverable (it would need
+     sub-tasks of its own), change the category to `epic` instead — it gets
+     promoted in place.
+   - If the item is closeable (duplicate, obsolete, never going to happen),
+     mark it for closure and record a reason. Skip step 3.
+3. **Decide epic linkage** (skip for items that became `epic` or are being
+   closed):
+   - If the item fits inside an open or in-progress epic from Step 1, plan
+     to set its `parent` to that epic.
+   - If it doesn't fit any existing epic but clusters with other todo items,
+     plan to create a new epic for the cluster and parent the members under
+     it (draft the new epic's title, description, and priority now).
+   - Otherwise, leave the item parentless.
 
-Do **not** ask one item at a time blind. Reason through the whole list first so
-groupings and epic assignments stay coherent.
+Reason through the whole list before talking to the user — clusterings and
+epic assignments need to stay coherent across items.
 
 ## Step 3 — Present the plan overview
 
