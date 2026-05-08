@@ -72,14 +72,11 @@ expects the App without it installed will become a degraded path over time.
 - **Agents configuration** — definitions for each coding agent harness Kix
   supports (Claude Code, Codex, …) including the manifest each harness expects
 - **Skills** — slash commands, prompts, and hooks that drive Kix from a coding
-  agent, split across two purposes:
-  - **Kix-invocation skills** — directly drive Kix from a prompt: capture work
-    into beads, claim and progress an issue, commit, rebase, address PR review.
-    These are what make MVP 1 useful before the App exists. They start by doing
-    the work themselves and shrink to App delegations as Kix App matures (see
-    [Skills are stochastic; Kix App is deterministic](#skills-are-stochastic-kix-app-is-deterministic)).
-  - **Phase-execution skills** — the per-phase work agents run inside the flow:
-    refinement, planning, implementation, review, …
+  agent: capture work into beads, claim and progress an issue, commit, rebase,
+  address PR review. These are what make MVP 1 useful before the App exists.
+  They start by doing the work themselves and shrink to App delegations as Kix
+  App matures (see
+  [Skills are stochastic; Kix App is deterministic](#skills-are-stochastic-kix-app-is-deterministic)).
 - **Prompts** — the per-phase prompts referenced by `flow.yaml` defaults
 
 By living in the repo, skills are versioned with the project, reviewable in
