@@ -84,18 +84,13 @@ kix-agents ships a Claude Code marketplace + plugin — no application code:
 - `claude-code/skills/<name>/SKILL.md` — skill definitions (one folder per
   skill, frontmatter + Markdown body). Each also surfaces as a `/kix:<name>`
   slash command.
-- `claude-code/templates/*.md` — orphaned body templates from the removed
-  `create-task` / `create-pitch` skills; pending cleanup under kxa-2uk
+- `claude-code/templates/*.md` — orphaned body templates from removed creation
+  skills; not consumed by anything today
 - `docs/kix/<bd-id>/spec.md` — long-form specs for non-trivial epics tracked in
   beads
 - `docs/kix-agents.md`, `docs/roadmap.md` — what the repo is and where it's
   going
 - `scripts/bump-plugin.js` — plugin version bumper invoked by `make bump`
-
-Long-term direction (per `docs/kix-agents.md`): canonical, agent-agnostic
-skills live under `.kix/skills/` and are **compiled** into per-harness layouts
-(`claude-code/`, `codex/`, …). Today those harness dirs are hand-authored —
-treat them as source, not generated output, until the compiler exists.
 
 ## Conventions & Patterns
 
