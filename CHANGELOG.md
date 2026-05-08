@@ -9,6 +9,12 @@ The format is based on
 
 ### Added
 
+- `.claude/hooks/install-bd.sh` — invoked from the `SessionStart` hook to
+  install the `bd` (beads) CLI into `~/.local/bin` on bootstrap when it is not
+  already on `PATH`. Lets remote/cloud Claude Code sessions run beads commands
+  without manual setup. Idempotent (no-op locally), pinned to a known-good
+  version (`KIX_BD_VERSION`, default `1.0.3`), silent on success, and non-fatal
+  so a failed install does not abort session start. Closes kxa-tts.2.
 - `kix:triage` skill (`claude-code/skills/triage/SKILL.md`) — walks every open
   `bd todo` (untyped `task` issue) and routes each to a real type+priority, an
   `epic` promotion, a new grouped epic, slotting under an existing epic, or
