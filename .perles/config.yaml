@@ -5,10 +5,10 @@
 
 # UI settings
 ui:
-  show_counts: true       # Show issue counts in column headers
-  show_status_bar: true   # Show status bar at bottom
+  show_counts: true # Show issue counts in column headers
+  show_status_bar: true # Show status bar at bottom
   # markdown_style: dark  # Markdown rendering style: "dark" (default) or "light"
-  vim_mode: false         # Enable vim keybindings in text input areas (orchestration mode)
+  vim_mode: false # Enable vim keybindings in text input areas (orchestration mode)
 
   # Keybinding overrides (optional)
   # keybindings:
@@ -95,20 +95,20 @@ orchestration:
 
   # Claude-specific settings (only used when client: claude)
   claude:
-    model: opus  # sonnet (default), opus, or haiku
+    model: opus # sonnet (default), opus, or haiku
 
   # Codex-specific settings (only used when client: codex)
   codex:
-    model: gpt-5.4  # gpt-5.4 (default)
+    model: gpt-5.4 # gpt-5.4 (default)
 
   # Amp-specific settings (only used when client: amp)
   amp:
-    model: opus    # opus (default) or sonnet
-    mode: smart    # free, rush, or smart (default)
+    model: opus # opus (default) or sonnet
+    mode: smart # free, rush, or smart (default)
 
   # OpenCode-specific settings (only used when client: opencode)
   opencode:
-    model: anthropic/claude-opus-4-6  # anthropic/claude-opus-4-6 (default)
+    model: anthropic/claude-opus-4-6 # anthropic/claude-opus-4-6 (default)
 
   # Cursor-specific settings (only used when client: cursor)
   # cursor:
