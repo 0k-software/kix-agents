@@ -25,22 +25,20 @@ so a plain Claude Code setup can `/plugin marketplace add 0k-software/kix` and
 
 - the repo declares itself as a Claude Code marketplace via
   `.claude-plugin/marketplace.json` at the root; the actual plugin lives at
-  `agents/claude-code/` (manifest + commands + …), installable in any Claude
-  Code setup (local or remote)
-- a small set of canonical skills under `.kix/skills/` covering the core SDLC
-  moves:
-  - create a Request in `.kix/requests/`
-  - promote a Request to a Pitch
-  - create a Task (standalone or under a Pitch)
-  - move a Pitch or Task to the next phase
-- skills operate on the file layout that MVP 3 (Kix Flow basic) will formalize;
-  no compiler, no fork story yet — defaults only
+  `claude-code/` (manifest + skills + …), installable in any Claude Code setup
+  (local or remote)
+- a small set of skills covering the core SDLC moves: capture work as a beads
+  issue, progress it through phases, commit, rebase, and address PR review
+  feedback
+- issue tracking is delegated to [beads](https://github.com/steveyegge/beads),
+  not bespoke Markdown layouts — agents create, claim, and close `bd` issues
+  directly
 - no `kix_elixir`, no Phoenix UI, no checkpoint enforcement — those land in
   later MVPs and replace the bare-skill flow with a gated one
 
-> At the end of MVP 1, the repo can record Requests, Pitches, and Tasks as
-> Markdown via Claude Code, with no Kix App installed. Everything after this
-> hardens that loop with deterministic tooling and human gates.
+> At the end of MVP 1, the repo can capture and progress work via Claude Code
+> against beads, with no Kix App installed. Everything after this hardens that
+> loop with deterministic tooling and human gates.
 
 See [Kix Run](kix-run.md).
 
@@ -60,10 +58,11 @@ See [Kix Libs](kix-libs.md).
 ### MVP 3 — Kix Flow (basic)
 
 The minimum needed to start tracking work on this repo as Pitches and Tasks.
-File-system first, no UI yet.
+CLI-first, no UI yet.
 
-- `.kix/{requests,pitches,tasks}/` directory layout
-- phase recorded in front-matter / folder convention
+- beads-backed Requests, Pitches, and Tasks (one issue per artifact, linked via
+  beads dependencies)
+- phase recorded as a beads field / status convention
 - Mix/CLI tasks to create items and move them across phases
 - no Triage view, no Roadmap/Project views, no Phoenix UI
 
@@ -106,10 +105,7 @@ the right phase.
 - guided checkpoint UI (replacing the bare prompt from MVP 4)
 - hygiene rules and consistency guarantees enforced in the UI
 - slug renaming and branch ↔ Task binding
-- Kix Run: full skills compilation pipeline (canonical source → per-agent
-  plugin output), fork story, agent invocation, session capture — promoting the
-  MVP 1 skill set from "hand-authored Claude Code plugin" to "compiled output
-  from `.kix/skills/`"
+- Kix Run: per-phase agent invocation and session capture wired into the App
 - opt-in chaining / auto-review / auto-fix automations
 
 Once-folded MVP. By this point both modules are mature enough that splitting
@@ -159,17 +155,10 @@ Allow users to enable/disable:
 
 ### V3 — Prompt customization
 
-Allow project-level prompts, one per phase per flow level:
-
-```text
-.kix/config/prompts/task/backlog.md
-.kix/config/prompts/task/refining.md
-.kix/config/prompts/task/planning.md
-.kix/config/prompts/pitch/shaping.md
-.kix/config/prompts/pitch/betting.md
-.kix/config/prompts/triage.md
-.kix/config/prompts/checkpoint.md
-```
+Allow project-level prompts, one per phase per flow level (task backlog,
+refining, planning; pitch shaping, betting; triage; checkpoint). Where these
+live on disk is left to the consuming agent harness — Kix's job is to surface
+the override points, not to dictate the directory layout.
 
 ### V4 — Custom phases
 

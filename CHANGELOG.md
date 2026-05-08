@@ -61,6 +61,12 @@ The format is based on
   the beads-based workflow; a beads-aware replacement will land separately.
 - `TodoWrite`-based progress tracking in `kix:rebase` and `kix:fix-pr`.
   Per-step progress is reported in the agent's text output instead.
+- All `.kix/` references from active docs (`CLAUDE.md`, `docs/kix-agents.md`,
+  `docs/roadmap.md`). Issue tracking goes through beads; the skills-compiler
+  architecture (canonical `.kix/skills/` source compiled into per-harness
+  output) and per-project prompt customization paths
+  (`.kix/config/prompts/...`) were dropped — skill placement is left to each
+  agent harness rather than dictated by Kix.
 - Redundant `type: request` field from Request front-matter — Requests are
   identified by their location under `.kix/requests/`, so the field carried no
   signal. Dropped from the `kix:create-request` skill template and stripped

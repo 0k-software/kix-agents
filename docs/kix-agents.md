@@ -7,17 +7,17 @@ Kix Agents is a separate, public repository
 canonical agents, skills, and prompts authored for the Kix workflow. It serves
 two roles:
 
-- the **source of defaults** that Kix Run compiles and invokes, and that Kix
-  Flow wires into phase transitions
+- the **source of defaults** that Kix Run invokes, and that Kix Flow wires into
+  phase transitions
 - a **direct interface to Kix from a coding agent prompt** — slash commands and
-  prompt skills that capture and move work without going through the App, e.g.
-  creating Requests, promoting them to Pitches, creating Tasks, and advancing
-  Pitches or Tasks across phases
+  prompt skills that capture and move work without going through the App,
+  delegating issue tracking to beads
 
 The second role is what makes Kix usable on day one, before any Kix App or
 `kix_elixir` exists: a plain Claude Code (or Codex) setup with Kix Agents
-installed can already record `.kix/requests/`, `.kix/pitches/`, and
-`.kix/tasks/` against the same file layout the App later picks up.
+installed can already capture and progress work, with
+[beads](https://github.com/steveyegge/beads) tracking issues alongside the
+code.
 
 It is deliberately **not** part of Kix App:
 
@@ -49,18 +49,17 @@ The agent layer covers four concerns:
 
 ## Skills are stochastic; Kix App is deterministic
 
-Today, the [Kix-invocation skills](#what-it-ships) below do the work
-themselves: a slash command for "create a Pitch" reads templates, allocates an
-ID, writes the folder, and updates state — all driven by an LLM following the
-skill's prompt. That is **stochastic**: it works, but it can drift, miscount
-IDs, or skip a hygiene rule when the model has a bad day.
+Today, Kix Agents skills lean on deterministic tooling where it exists (beads
+for issue tracking, git for branches and PRs) and otherwise let the LLM do the
+work directly from the skill's prompt. The LLM-driven slice is **stochastic**:
+it works, but it can drift or skip a hygiene rule when the model has a bad day.
 
-The long-term direction is that as Kix App matures it provides **deterministic
-tooling** — typed CLI commands and library calls that own ID allocation, file
-layout, hygiene checks, and state transitions. The same skills then shrink to
-thin wrappers that **invoke those App commands** instead of reproducing the
-logic themselves. The stochastic surface stays at the "what did the human
-mean?" boundary; the structural moves become deterministic.
+The long-term direction is that as Kix App matures it provides additional
+**deterministic tooling** — typed CLI commands and library calls that own phase
+transitions, hygiene checks, and the rest of the workflow surface that isn't
+already covered by beads. Skills then shrink further into thin wrappers that
+**invoke those App commands**. The stochastic surface stays at the "what did
+the human mean?" boundary; the structural moves become deterministic.
 
 Implication: standalone Kix Agents (no App installed) is best understood as the
 **day-one entry point**, not a permanent steady state. Once the App is
@@ -72,16 +71,12 @@ expects the App without it installed will become a degraded path over time.
 
 - **Agents configuration** — definitions for each coding agent harness Kix
   supports (Claude Code, Codex, …) including the manifest each harness expects
-- **Skills** — the canonical, agent-agnostic source for slash commands,
-  prompts, and hooks (the same source Kix Run compiles into per-agent native
-  layouts — see
-  [Agent-agnostic source, per-agent build output](#agent-agnostic-source-per-agent-build-output)),
-  split across two purposes:
-  - **Kix-invocation skills** — directly drive Kix from a prompt: create a
-    Request, promote it to a Pitch, create a Task under a Pitch, move a Pitch
-    or Task to the next phase. These are what make MVP 1 useful before the App
-    exists. They start by doing the work themselves and shrink to App
-    delegations as Kix App matures (see
+- **Skills** — slash commands, prompts, and hooks that drive Kix from a coding
+  agent, split across two purposes:
+  - **Kix-invocation skills** — directly drive Kix from a prompt: capture work
+    into beads, claim and progress an issue, commit, rebase, address PR review.
+    These are what make MVP 1 useful before the App exists. They start by doing
+    the work themselves and shrink to App delegations as Kix App matures (see
     [Skills are stochastic; Kix App is deterministic](#skills-are-stochastic-kix-app-is-deterministic)).
   - **Phase-execution skills** — the per-phase work agents run inside the flow:
     refinement, planning, implementation, review, …
@@ -106,12 +101,6 @@ Codex and other harnesses each have their own equivalent, served from the same
 repo. A user can adopt the Kix workflow on a project without ever installing
 Kix App — the App layers Flow, Checkpoint, and a UI on top of the same skills.
 
-The same plugin-shaped output also gets produced **per workspace**: each Kix
-workspace compiles its own `.kix/skills/` (defaults plus project-local forks)
-into a Claude Code (or Codex) layout and ships a marketplace declaration
-alongside, so a fresh clone or remote checkout of a project picks up exactly
-the skills that project committed — no Kix App needed at install time.
-
 This works fully today because Kix Agents skills implement the moves
 themselves. As the App matures and skills delegate the deterministic work to
 it, "no App installed" becomes a progressively more limited path — see
@@ -119,113 +108,12 @@ it, "no App installed" becomes a progressively more limited path — see
 
 ## How Run and Flow consume it
 
-- **Kix Run** treats Kix Agents as the upstream for default skills. On init,
-  Kix App pulls the canonical sources from Kix Agents into the workspace's
-  `.kix/skills/`, then compiles them into each agent's native layout.
-  `kix skills.sync` re-pulls upstream defaults; user-forked skills under
-  `.kix/skills/` are never touched. (See [Sync](#sync).)
+- **Kix Run** invokes Kix Agents skills as the default agent layer for each
+  phase, packaged in whatever per-harness plugin layout the agent expects
+  (Claude Code, Codex, …).
 - **Kix Flow** references agents from Kix Agents in its default `flow.yaml`
   per-phase wirings. Each Pitch or Task phase that runs an agent picks one out
-  of this catalog by name. Projects can override the wiring per Pitch or Task,
-  or fork a skill and point the wiring at the fork.
-
-## Agent-agnostic source, per-agent build output
-
-A "draft spec.md" skill is the same _idea_ regardless of which agent runs it.
-Splitting skills under `claude-code/` vs `codex/` would force the same intent
-to be authored, fixed, and reviewed N times — and a project that switches
-agents would lose its skills.
-
-Kix sidesteps that by treating skills the way a build system treats source:
-
-- `.kix/skills/` is the **canonical, agent-agnostic source**
-- each agent's native plugin layout (Claude Code, Codex, …) is **build
-  output**, regenerated from source
-
-```text
-.kix/
-  skills/
-    refinement.md       ← canonical Kix skill (agent-agnostic)
-    planning.md
-    spec-review.md
-    hooks/
-      pre-checkpoint.md
-```
-
-`kix skills.compile` (run automatically on init and after every `skills.sync`)
-renders each canonical skill into the plugin shape each agent natively reads:
-
-```text
-claude-code/skills/refinement/SKILL.md   ← generated for Claude Code
-codex/prompts/refinement.md              ← generated from the same source for Codex
-```
-
-The compiled plugin files are **never hand-edited** — they are reproducible
-artifacts. Switching from Claude Code to Codex (or running both) is
-`kix skills.compile --agent codex`, not a manual re-authoring pass.
-
-## Skill format and harness divergence
-
-Each canonical skill is a Markdown file with Kix front-matter declaring its
-kind, inputs, and which harnesses can host it:
-
-```yaml
----
-name: refinement
-kind: command # command | prompt | hook
-description: Drafts spec.md from a brief
-inputs:
-  - case_id
-agents: [claude-code, codex] # default: all known harnesses
----
-```
-
-The compiler maps `kind` to each harness's native concept (a Claude Code slash
-command, a Codex prompt, etc.) and writes the front-matter that harness
-expects.
-
-Where harnesses genuinely diverge — e.g. a Claude Code hook with a JSON shape
-that has no Codex analogue — the skill declares `agents: [claude-code]` and the
-compiler skips harnesses that can't host it. **Common case is portable;
-divergence is explicit, not silent duplication.**
-
-## Customization: fork, don't edit
-
-Default skills shipped from Kix Agents are **not editable in place** inside a
-workspace.
-
-Rationale:
-
-> If users edit defaults directly, `kix skills.sync` cannot safely upgrade them
-> without losing customization or requiring a 3-way merge for every file.
-
-Users customize by **forking**:
-
-```text
-kix skills.fork <skill-name> [--as <new-name>]
-```
-
-This copies the default canonical skill into a sibling user-owned skill under
-`.kix/skills/`, registers it as a project-local skill, and leaves the default
-untouched and still managed by sync. The default keeps tracking upstream Kix
-Agents, so future syncs upgrade it without losing the user's customization. The
-next compile re-renders both into the agent-native dirs.
-
-## Sync
-
-```text
-kix skills.sync
-```
-
-Sync operates on the canonical source under `.kix/skills/`, then triggers a
-re-compile so the agent-native dirs match:
-
-- default canonical skills are replaced with the latest version from Kix Agents
-- user-forked skills under `.kix/skills/` are never touched
-- each agent's plugin layout (Claude Code, Codex, …) is **regenerated** from
-  the new source — any manual edits there are overwritten (they shouldn't have
-  existed)
-- no merge prompts, no drift, no surprises
+  of this catalog by name. Projects can override the wiring per Pitch or Task.
 
 ## Phase automations
 
@@ -353,22 +241,15 @@ claude-code/                      ← Claude Code plugin (manifest + skills + �
   .claude-plugin/plugin.json
   skills/
   templates/
-codex/                            ← Codex layout (analogous)
+codex/                            ← Codex layout (analogous, when added)
 docs/                             ← Run-specific implementation docs
 ```
 
-The same skill is authored once at canonical source and compiled into each
-harness's native layout — see
-[Agent-agnostic source, per-agent build output](#agent-agnostic-source-per-agent-build-output).
+Each harness directory is hand-authored against that harness's native plugin
+layout (Claude Code's `SKILL.md`, Codex's prompt format, …). Skills aren't
+generated from a shared source today.
 
 ## Versioning and roadmap
 
-Kix Agents customization mirrors the Customization Roadmap:
-
-- **V1** — default skills only, copied on init, sync overwrites; no fork
-- **V2** — fork command available; project-local skills supported; per-phase
-  agent overrides
-- **V3+** — UI for managing forks, sharing forked skills across projects,
-  custom orchestration rules
-
-See [Roadmap](roadmap.md) for the full picture.
+Kix Agents customization mirrors the Customization Roadmap. See
+[Roadmap](roadmap.md) for the full picture.
