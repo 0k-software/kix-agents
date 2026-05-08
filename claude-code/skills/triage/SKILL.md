@@ -101,9 +101,15 @@ Walk every item and decide its final shape. For each item, in this order:
    - For a closure marked obsolete / never-going-to-happen but still tied to a
      running epic, parent it to that epic.
    - Otherwise, leave the item parentless.
+4. **Identify dependencies.** Look at what other open issues block this one or
+   are blocked by it — anything that has to ship first, or anything that can
+   only land once this one is done. Plan a `bd dep add` for each dependency you
+   find. The parent/epic relationship is membership, not blocking; record real
+   blocking relationships separately here even when the items are already in
+   the same epic.
 
-Reason through the whole list before talking to the user — clusterings and epic
-assignments need to stay coherent across items.
+Reason through the whole list before talking to the user — clusterings, epic
+assignments, and dependencies need to stay coherent across items.
 
 ## Step 4 — Present the plan overview
 
@@ -204,6 +210,13 @@ members are parented) are satisfied:
 
    ```bash
    bd update <id> --type=<bug|feature|chore> --priority=<0-4> --parent=<epic-id>
+   ```
+
+6. **Dependencies** (add last, once both ends exist with their final
+   types/parents):
+
+   ```bash
+   bd dep add <issue-id> <depends-on-id>
    ```
 
 If a `bd` call fails (validation error, unknown id, etc.), stop and surface the
