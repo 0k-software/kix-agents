@@ -55,10 +55,13 @@ The state file is consumed (deleted) on a successful commit (Step 5) and on the
    - **Index is clean** (nothing staged): run `git add .` to stage all changes
      (unstaged + untracked). The user wants to commit everything.
    - **Index has staged changes**: assume the user curated the index
-     deliberately. Run
+     deliberately. Check whether there is anything outside the index by running
+     `git status --porcelain` (or equivalent) — if there are no unstaged
+     modifications and no untracked files, **skip the stash** (there is nothing
+     to set aside) and remember that no stash was created. Otherwise run
      `git stash push --keep-index --include-untracked -m "kix-commit-autostash"`
      to set aside unstaged + untracked changes so they don't leak into the
-     commit. Remember that a stash was created.
+     commit, and remember that a stash was created.
    - In both branches, capture the post-staging index with `git write-tree` and
      remember the SHA as `ORIG_INDEX_TREE`. You may need it in Step 6 to roll
      back fix attempts to the exact pre-`/commit` state.
