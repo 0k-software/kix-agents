@@ -7,3 +7,6 @@
 # Symlink created by .claude/hooks/bootstrap-bd.sh to redirect the auto-started
 # Dolt server's data dir into bd bootstrap's embedded layout (bd 1.0.3 quirk).
 .beads/dolt
+
+# Worktrees created by Agent isolation runs
+.claude/worktrees/
