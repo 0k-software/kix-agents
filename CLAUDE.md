@@ -56,6 +56,35 @@ complete until `git push` succeeds.
 - If push fails, resolve and retry until it succeeds
 <!-- END BEADS INTEGRATION -->
 
+## Non-Interactive Shell Commands
+
+**ALWAYS use non-interactive flags** with file operations to avoid hanging on
+confirmation prompts.
+
+Shell commands like `cp`, `mv`, and `rm` may be aliased to include `-i`
+(interactive) mode on some systems, causing the agent to hang indefinitely
+waiting for y/n input.
+
+**Use these forms instead:**
+
+```bash
+# Force overwrite without prompting
+cp -f source dest           # NOT: cp source dest
+mv -f source dest           # NOT: mv source dest
+rm -f file                  # NOT: rm file
+
+# For recursive operations
+rm -rf directory            # NOT: rm -r directory
+cp -rf source dest          # NOT: cp -r source dest
+```
+
+**Other commands that may prompt:**
+
+- `scp` - use `-o BatchMode=yes` for non-interactive
+- `ssh` - use `-o BatchMode=yes` to fail instead of prompting
+- `apt-get` - use `-y` flag
+- `brew` - use `HOMEBREW_NO_AUTO_UPDATE=1` env var
+
 ## Build & Test
 
 This repo is Markdown content (slash commands, templates, docs) — there is no
@@ -74,6 +103,33 @@ make release   # cut a GitHub release at the current plugin.json version
 
 `make release` reads the version from `claude-code/.claude-plugin/plugin.json`,
 so bump first, commit, push, then release.
+
+### Release Process
+
+Releases follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — the
+`[Unreleased]` section in `CHANGELOG.md` accumulates entries as work lands.
+Cutting a release is the act of stamping that section with a version + date.
+
+Versioning convention: while the plugin is in `0.x`, treat a `patch` bump as a
+user-facing minor and a `minor` bump as a user-facing major. Use `PART=patch`
+for normal additions and fixes; reserve `PART=minor` for breaking changes.
+
+Full flow:
+
+1. **Update `CHANGELOG.md`** — rename the `[Unreleased]` heading to
+   `[X.Y.Z] — YYYY-MM-DD` and add a fresh empty `[Unreleased]` section above
+   it. Today's date in ISO format.
+2. **Bump the plugin version** — `make bump PART=patch` (or `minor` / `major`).
+   Confirm `claude-code/.claude-plugin/plugin.json` shows the expected version.
+3. **Commit** — one `release: vX.Y.Z` commit containing both the CHANGELOG
+   update and the `plugin.json` bump.
+4. **Push** the branch.
+5. **Cut the release** — `make release`. This validates a clean tree, that HEAD
+   is on origin, and that the tag doesn't already exist, then POSTs to the
+   GitHub releases API tagging the current HEAD as `vX.Y.Z`.
+
+Released tags must not be force-moved or rewritten — the marketplace install
+path resolves through them.
 
 ## Architecture Overview
 
