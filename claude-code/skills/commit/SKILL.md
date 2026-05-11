@@ -50,19 +50,22 @@ The state file is consumed (deleted) on a successful commit (Step 5) and on the
 ## Steps
 
 1. Decide the staging strategy from the current index:
-   - Run `git diff --staged --quiet` to check whether anything is already
-     staged.
-   - **Index is clean** (nothing staged): run `git add .` to stage all changes
-     (unstaged + untracked). The user wants to commit everything.
-   - **Index has staged changes**: assume the user curated the index
-     deliberately. Check whether there is anything outside the index by running
-     `git status --porcelain` (or equivalent) — if there are no unstaged
-     modifications and no untracked files, **skip the stash** (there is nothing
-     to set aside) and remember that no stash was created. Otherwise run
+   - Run `git status --porcelain` once. Each line is `XY path`: `X` is the
+     index status (non-space = something staged), `Y` is the worktree status
+     (non-space = unstaged modifications), and `??` marks untracked files.
+     Classify into one of the three branches below from that output alone.
+   - **All unstaged** (nothing staged, working tree has changes): run
+     `git add .` to stage all changes (unstaged + untracked). The user wants to
+     commit everything. No stash is created.
+   - **All staged** (index has changes, nothing unstaged or untracked):
+     everything the user curated is already in the index — commit it as-is. No
+     stash is created.
+   - **Unstaged & Staged** (mixed): assume the user curated the index
+     deliberately. Run
      `git stash push --keep-index --include-untracked -m "kix-commit-autostash"`
      to set aside unstaged + untracked changes so they don't leak into the
      commit, and remember that a stash was created.
-   - In both branches, capture the post-staging index with `git write-tree` and
+   - In all branches, capture the post-staging index with `git write-tree` and
      remember the SHA as `ORIG_INDEX_TREE`. You may need it in Step 6 to roll
      back fix attempts to the exact pre-`/commit` state.
 2. Run `git diff --no-ext-diff --staged` to get the diff to be committed.
