@@ -247,7 +247,33 @@ what to implement).
 
 1. Derive `{owner}/{repo}` and `{pr-number}` from `$ARGUMENTS` or the current
    branch.
-2. Fetch **all** review threads using the GitHub GraphQL API to get
+2. **Abort early if any reviewer has a pending review draft.** A pending review
+   is one the reviewer started but has not yet submitted — its comments are
+   visible only to the author, and acting on them would be acting on
+   work-in-progress feedback. Check the PR's reviews for any with `state` equal
+   to `PENDING`:
+
+   ```bash
+   TOKEN="${GITHUB_TOKEN:-${GH_TOKEN:-$(gh auth token 2>/dev/null || true)}}"
+   pending_count="$(curl -s \
+     -H "Authorization: Bearer $TOKEN" \
+     -H "Accept: application/vnd.github+json" \
+     "https://api.github.com/repos/{owner}/{repo}/pulls/{pr-number}/reviews?per_page=100" \
+     | jq '[.[] | select(.state == "PENDING")] | length')"
+   if [ "$pending_count" -gt 0 ]; then
+     # Stop. Tell the user a reviewer has a pending review draft on this PR
+     # and that /kix:fix-pr will not run until the reviewer submits it (or
+     # discards it). Do not fetch threads, do not classify, do not implement.
+     exit 0
+   fi
+   ```
+
+   If any pending review is detected, **stop immediately** and tell the user
+   that a reviewer has an unsubmitted review draft on this PR, so `/kix:fix-pr`
+   is bailing out rather than acting on incomplete feedback. Do not proceed to
+   step 3.
+
+3. Fetch **all** review threads using the GitHub GraphQL API to get
    `isResolved`:
 
    ```bash
@@ -265,9 +291,9 @@ what to implement).
      -d @/tmp/gh-query.json | jq '.data.repository.pullRequest.reviewThreads.nodes'
    ```
 
-3. **Discard** every thread where `isResolved` is `true`. Keep only unresolved
+4. **Discard** every thread where `isResolved` is `true`. Keep only unresolved
    threads.
-4. For each remaining thread, iterate over **every** comment `databaseId` in
+5. For each remaining thread, iterate over **every** comment `databaseId` in
    that thread and check whether any of them has a 👀 (`eyes`) reaction from
    the authenticated user. Check all comments — not just the first — because
    any comment in the thread may have been marked in a previous run:
@@ -296,26 +322,9 @@ what to implement).
    **Important:** All REST API calls under `pulls/comments/` expect the numeric
    `databaseId` from the GraphQL response, not the opaque `id`.
 
-5. For each remaining thread, record all comments in order. The **last comment
+6. For each remaining thread, record all comments in order. The **last comment
    in the thread** takes precedence — if a later reply changes or overrides the
    original request, follow the latest instruction.
-
-Apply `in progress` to the PR:
-
-```bash
-remote_url=$(git remote get-url origin)
-remote_url=${remote_url%.git}
-owner_repo=$(echo "$remote_url" | sed 's|\.git$||; s|.*[:/]\([^/]*/[^/]*\)$|\1|')
-TOKEN="${GITHUB_TOKEN:-${GH_TOKEN:-$(gh auth token 2>/dev/null || true)}}"
-curl -X POST \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Accept: application/vnd.github+json" \
-  "https://api.github.com/repos/$owner_repo/issues/{pr-number}/labels" \
-  -d '{"labels":["in progress"]}' | jq .
-```
-
-If the label call fails, warn the user and continue — label management is
-non-blocking.
 
 ### A2 — Classify and group
 
@@ -409,8 +418,7 @@ curl -s -X POST \
 
 Include a link to the committed change in the reply, anchored at the exact
 commented line. Build the link from data already available in the thread (no
-extra API calls needed — `path` and `line` come from the GraphQL query in Step
-1):
+extra API calls needed — `path` and `line` come from the GraphQL query in A1):
 
 1. **Base URL** — PR-scoped changes view for this specific commit:
 
@@ -499,27 +507,6 @@ done
 ```
 
 Repeat this loop for every addressed thread.
-
-Remove `in progress` and apply `to review`:
-
-```bash
-remote_url=$(git remote get-url origin)
-remote_url=${remote_url%.git}
-owner_repo=$(echo "$remote_url" | sed 's|\.git$||; s|.*[:/]\([^/]*/[^/]*\)$|\1|')
-TOKEN="${GITHUB_TOKEN:-${GH_TOKEN:-$(gh auth token 2>/dev/null || true)}}"
-curl -X DELETE \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Accept: application/vnd.github+json" \
-  "https://api.github.com/repos/$owner_repo/issues/{pr-number}/labels/in%20progress" | jq .
-curl -X POST \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Accept: application/vnd.github+json" \
-  "https://api.github.com/repos/$owner_repo/issues/{pr-number}/labels" \
-  -d '{"labels":["to review"]}' | jq .
-```
-
-If either label call fails, warn the user and continue — label management is
-non-blocking.
 
 ### A6 — Report
 
