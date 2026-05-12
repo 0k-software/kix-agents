@@ -19,10 +19,10 @@ a duplicate (the session id is the key).
 The skill runs from **either** a Claude chat session or Claude Code. It uses
 the GitHub tools the host exposes (the `mcp__github__*` names below are the
 concrete tools when running in Claude Code — substitute the equivalent the host
-provides) rather than assuming a shell or a checked-out git repo. When a local
-transcript file is present (Claude Code) it is committed verbatim as the raw
-artifact; otherwise the skill falls back to the conversation available in
-context.
+provides) rather than assuming a shell or a checked-out git repo. A local
+Claude Code session's transcript file is committed verbatim as the raw
+artifact; a chat session — or a hosted/cloud sandbox, where that file is only a
+per-turn fragment — renders the conversation in context to markdown instead.
 
 ---
 
@@ -80,33 +80,38 @@ targets it.
 
 ## Step 2 — Capture the session content
 
-Note the **session id** (from the host context — the same id used to read the
-transcript / conversation). It identifies this session for re-save lookup in
-Step 3.
+**Session id (the Step 3 re-save key).** In a hosted/cloud sandbox
+(`CLAUDE_CODE_REMOTE` truthy) use `CLAUDE_CODE_REMOTE_SESSION_ID` — it's stable
+across the per-turn processes such sandboxes spin up. Otherwise use the host's
+session id (`CLAUDE_CODE_SESSION_ID`, or whatever the runtime exposes).
 
-Pick the source in this order:
+Pick the content source:
 
-1. **Raw transcript (preferred).** If a local Claude Code transcript JSONL
-   exists for this session (e.g. under
-   `~/.claude/projects/<slug>/<session-id>.jsonl`), use it **as-is** — this is
-   the raw artifact: committed byte-for-byte, no edits, no frontmatter, no
-   reformatting.
-2. **Rendered fallback.** If no transcript JSONL is reachable (e.g. a Claude
-   chat session), fall back to the conversation tool the host exposes — the
-   Claude API / conversation tool, authenticated with `ANTHROPIC_API_KEY` (the
-   session id comes from the host context, not an argument) — or, failing that,
-   the conversation already in context. Render it to markdown **verbatim**:
-   turn order, roles, and message text preserved; tool calls, tool results, and
-   system content all kept; nothing collapsed, truncated, or omitted.
+- **Hosted/cloud sandbox (`CLAUDE_CODE_REMOTE` truthy):** do **not** read the
+  local `~/.claude/projects/.../<id>.jsonl` — there it's a single-turn
+  fragment, not the whole conversation. Go straight to the rendered fallback
+  below and write `raw.md` from the conversation in context (same as a chat
+  session).
+- **Otherwise — raw transcript (preferred):** if a local Claude Code transcript
+  JSONL exists for this session (e.g. `~/.claude/projects/<slug>/<id>.jsonl`),
+  use it **as-is** — the raw artifact, committed byte-for-byte: no edits, no
+  frontmatter, no reformatting.
+- **Rendered fallback** (no transcript JSONL reachable — a chat session, or a
+  hosted sandbox per above): fall back to the conversation tool the host
+  exposes — the Claude API / conversation tool, authenticated with
+  `ANTHROPIC_API_KEY` — or, failing that, the conversation already in context.
+  Render it to markdown **verbatim**: turn order, roles, and message text
+  preserved; tool calls, tool results, and system content all kept; nothing
+  collapsed, truncated, or omitted.
 
-If neither path yields any conversation content (no user/assistant turns),
-abort with: "Nothing to save — couldn't read this session's conversation
-content." Do not create a branch or PR.
+If no path yields conversation content (no user/assistant turns), abort with:
+"Nothing to save — couldn't read this session's conversation content." Do not
+create a branch or PR.
 
-### Summary (only when the raw transcript was used)
+### Summary (only when a raw `raw.jsonl` transcript was committed)
 
-When path 2.1 produced a raw JSONL transcript, also generate a human-readable
-summary of the conversation:
+When the non-remote raw-transcript path produced a `raw.jsonl`, also generate a
+human-readable summary of the conversation:
 
 - **If the `caveman` skill is available** (the `caveman:caveman` compression
   mode — invocable as `/caveman`; check the host's skill list), invoke it and
@@ -118,8 +123,8 @@ summary of the conversation:
   was built or changed, and any open follow-ups — a few short sections, not a
   blow-by-blow replay.
 
-Prepend this header to `summary.md` (and to the path 2.2 `raw.md`, minus
-`raw_transcript`):
+Prepend this header to `summary.md` (and to `raw.md` on the fallback path,
+minus `raw_transcript`):
 
 ```markdown
 ---
@@ -138,7 +143,8 @@ raw_transcript: raw.jsonl
 The session id makes re-saves idempotent: a session that was saved before is
 **updated in place**, not duplicated.
 
-1. **Short id** — the first 8 hex characters of the session id.
+1. **Short id** — strip any prefix like `cse_`, lowercase, keep the first 8
+   alphanumerics of the session id.
 2. **Existing archive?** Look under `docs/conversations/` for a directory whose
    name ends with `-<short-id>` (or whose `summary.md` / `raw.md` frontmatter
    carries `session_id: <full id>`). If found, this is a **re-save**: reuse
@@ -228,8 +234,9 @@ Print:
   (re-save).
 - The branch name and the committed file path(s).
 - The PR URL.
-- Whether a raw transcript was found (and summarized via `caveman` or directly)
-  or the rendered-markdown fallback was used.
+- Whether a `raw.jsonl` transcript was committed (and summarized via `caveman`
+  or directly) or the `raw.md` rendered fallback was used — note when the
+  fallback was forced by a hosted/cloud sandbox (`CLAUDE_CODE_REMOTE`).
 
 ---
 
