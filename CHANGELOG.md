@@ -14,8 +14,8 @@ The format is based on
   into a per-session folder `docs/conversations/<stem>/` in a target repo on a
   new branch and opens a PR (title = session topic, body = outcome summary +
   link). When a local Claude Code transcript exists it commits the raw
-  `transcript.jsonl` verbatim plus a `summary.md` (via the `caveman` summarizer
-  if available, else summarized directly); otherwise it commits a verbatim
+  `raw.jsonl` verbatim plus a `summary.md` (via the `caveman` summarizer if
+  available, else summarized directly); otherwise it commits a verbatim
   `raw.md` render fetched via the host's conversation tool / Anthropic API
   (`ANTHROPIC_API_KEY`). Archives are keyed by the session id, so re-saving the
   same session updates that folder, branch, and PR in place instead of
