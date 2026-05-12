@@ -53,6 +53,10 @@ The format is based on
   bundled `setup.sh` that does the idempotent file changes and an `assets/`
   directory holding the canonical hook scripts, Makefile, CI workflow, and
   Prettier config it deploys.
+- `docs/kix/kxa-8g7/spec.md` and `docs/kix/kxa-8g7/plan.md` — spec (target
+  outcome) + step-by-step local execution plan for moving beads issue state off
+  branch-committed `.beads/issues.jsonl` onto a shared Dolt remote (tracked in
+  beads as `kxa-8g7`).
 
 ### Changed
 
