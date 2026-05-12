@@ -1,5 +1,5 @@
 ---
-description: Archive the current Claude session in a GitHub repo — raw transcript + summary when a transcript file exists, a verbatim markdown render otherwise — and open a PR for it (title = session topic, body = outcome summary + link).
+description: Archive the current Claude session in a GitHub repo — raw transcript + summary when a transcript file exists, a verbatim markdown render otherwise — and open (or update) a PR for it. Re-saving the same session overwrites its archive in place.
 argument-hint: [owner/repo]
 ---
 
@@ -12,7 +12,9 @@ and open a pull request summarizing the session.
 
 Invoked as `/kix:save-session [owner/repo]`. The repo argument is optional —
 when omitted, the skill infers a likely target and asks the user to confirm
-before any write.
+before any write. Re-running it on a session that was saved before **updates
+that archive in place** — same file, same branch, same PR — instead of creating
+a duplicate (the session id is the key).
 
 The skill runs from **either** a Claude chat session or Claude Code. It uses
 the GitHub tools the host exposes (the `mcp__github__*` names below are the
@@ -36,8 +38,9 @@ file, the commit message, or the PR body.
   "Set `ANTHROPIC_API_KEY` to a key with access to this conversation."
 - GitHub auth — handled by the GitHub MCP server's own credential storage. All
   repo writes go through the `mcp__github__*` tools (`create_branch`,
-  `create_or_update_file` / `push_files`, `create_pull_request`, plus
-  `search_repositories` / `list_*` for inference). If those tools return
+  `create_or_update_file` / `push_files`, `create_pull_request` /
+  `update_pull_request`, plus `search_repositories` / `list_*` /
+  `get_file_contents` for inference and re-save lookup). If those tools return
   401/403, abort with: "Re-authenticate the GitHub MCP server, then retry."
 
 If no GitHub tool is available but a shell is, fall back to the GitHub REST API
@@ -70,12 +73,16 @@ via `curl` with `${GITHUB_TOKEN:-${GH_TOKEN}}`. Never invoke the `gh` CLI.
 4. Verify the chosen repo is reachable (and within the MCP allowlist). If not,
    abort with: "`{owner}/{repo}` is not accessible from this session."
 
-Record the repo's **default branch** — the new branch is cut from it and the PR
+Record the repo's **default branch** — a new branch is cut from it and the PR
 targets it.
 
 ---
 
 ## Step 2 — Capture the session content
+
+Note the **session id** (from the host context — the same id used to read the
+transcript / conversation). It identifies this session for re-save lookup in
+Step 3.
 
 Pick the source in this order:
 
@@ -126,40 +133,68 @@ raw_transcript: <basename of the .jsonl committed alongside, if any>
 
 ---
 
-## Step 3 — Derive the title, slug, and file paths
+## Step 3 — Title, paths, and branch (with re-save lookup)
 
-1. **Title** — a concise summary of the session's main topic, ≤ 70 characters,
+The session id makes re-saves idempotent: a session that was saved before is
+**updated in place**, not duplicated.
+
+1. **Short id** — the first 8 hex characters of the session id.
+2. **Existing archive?** Look under `docs/conversations/` for files whose name
+   ends with `-<short-id>` before the extension (and/or whose `.summary.md` /
+   `.raw.md` frontmatter carries `session_id: <full id>`). If a match is found,
+   this is a **re-save**: reuse that file's exact **stem** and the **branch**
+   from step 6 — do not rename, do not append a uniqueness suffix. Skip to
+   step 6.
+3. **Title** — a concise summary of the session's main topic, ≤ 70 characters,
    used as the PR title and the summary's `# ` heading. Derive it from what the
-   session actually accomplished, not the first message.
-2. **Stem** — lowercase the title, replace runs of non-alphanumerics with `-`,
-   trim leading/trailing `-`, cap the slug at ~50 chars, then prefix today's
-   date (UTC): `<YYYY-MM-DD>-<slug>`. If any file with that stem already exists
-   under `docs/conversations/`, append `-2`, `-3`, … until it is unique.
-3. **File paths** under `docs/conversations/`:
+   session actually accomplished, not the first message. (On a re-save the
+   title may be refreshed inside the file body, but the stem stays put.)
+4. **Slug** — lowercase the title, replace runs of non-alphanumerics with `-`,
+   trim leading/trailing `-`, cap at ~50 chars.
+5. **Stem** (new archive only) — `<YYYY-MM-DD>-<slug>-<short-id>` (today's
+   date, UTC). The trailing `-<short-id>` is what later re-saves match on. If
+   another archive somehow already uses this exact stem, append `-2`, `-3`, …
+6. **File paths** under `docs/conversations/`:
    - Raw transcript available → `<stem>.jsonl` (verbatim) **and**
      `<stem>.summary.md`.
    - No raw transcript → `<stem>.raw.md` (the verbatim markdown render).
-4. **Branch** — `claude/save-session-<slug>`.
+7. **Branch** — `claude/save-session-<stem>` (stable: a re-save reuses it).
 
 ---
 
-## Step 4 — Create the branch and commit the file(s)
+## Step 4 — Create or update the branch and commit the file(s)
 
-1. Create the branch `claude/save-session-<slug>` from the repo's default
-   branch (`mcp__github__create_branch`).
-2. Commit the Step 3 artifact(s) under `docs/conversations/` on that branch
-   with the message `docs: save session — <title>` (`mcp__github__push_files`
-   for both files at once, or `mcp__github__create_or_update_file` per file).
+1. **Branch.** If `claude/save-session-<stem>` already exists on the remote
+   (re-save), use it as-is. Otherwise create it from the repo's default branch
+   (`mcp__github__create_branch`).
+2. **Commit.** Write the Step 3 artifact(s) under `docs/conversations/` on that
+   branch — message `docs: save session — <title>` for a new archive,
+   `docs: update saved session — <title>` for a re-save. Use
+   `mcp__github__push_files` for both files at once, or
+   `mcp__github__create_or_update_file` per file (when overwriting, pass the
+   existing blob `sha`).
+   - **Large transcript:** the GitHub Contents API can't take a multi-MB
+     `.jsonl` via a tool call. When the runtime has a local checkout, do this
+     step via git instead: branch from `origin/<default>` (or fetch + reset the
+     existing branch), copy the transcript in, write the summary, commit, and
+     `git push`. Fall back to the API only for small renders.
 
-If any call fails, surface the error and stop — do not open a PR against a
-half-created branch.
+If any call fails, surface the error and stop — do not open/leave a PR pointing
+at a half-written branch.
 
 ---
 
-## Step 5 — Open the pull request
+## Step 5 — Open or update the pull request
 
-Open a PR from `claude/save-session-<slug>` into the repo's default branch
-(`mcp__github__create_pull_request`):
+1. If an **open** PR already exists for `claude/save-session-<stem>`
+   (`mcp__github__list_pull_requests` / `pull_request_read`), update it — the
+   push from Step 4 already added the new commit; refresh the title/body so
+   they reflect the current session state (`mcp__github__update_pull_request`).
+2. Otherwise (no PR, or a prior one was merged/closed), open a new PR
+   (`mcp__github__create_pull_request`) from `claude/save-session-<stem>` into
+   the repo's default branch.
+
+PR fields:
 
 - **Title** — the Step 3 title (the session's main topic, ≤ 70 chars).
 - **Body** — one paragraph summarizing the session's outcome (what was decided,
@@ -182,7 +217,7 @@ Open a PR from `claude/save-session-<slug>` into the repo's default branch
 
 If the repo argument was **inferred** (Step 1 path 2), the user has already
 confirmed the repo — proceed. If anything about the inferred target still feels
-ambiguous, re-confirm via `AskUserQuestion` before creating the PR.
+ambiguous, re-confirm via `AskUserQuestion` before creating/updating the PR.
 
 ---
 
@@ -191,6 +226,8 @@ ambiguous, re-confirm via `AskUserQuestion` before creating the PR.
 Print:
 
 - The target `owner/repo` and whether it was explicit or inferred+confirmed.
+- Whether this **created a new archive** or **updated an existing one**
+  (re-save).
 - The branch name and the committed file path(s).
 - The PR URL.
 - Whether a raw transcript was found (and summarized via `caveman` or directly)
@@ -207,7 +244,7 @@ Print:
 | Rendered-fallback path taken and `ANTHROPIC_API_KEY` missing/rejected  | Abort: instruct the user to set the env var.                                  |
 | GitHub MCP tools return 401/403 (and no `GITHUB_TOKEN` fallback works) | Abort: instruct the user to re-auth the GitHub MCP server.                    |
 | Empty session (no conversation content from either path)               | Abort before creating any branch or PR.                                       |
-| Branch / file / PR creation fails midway                               | Surface the error, stop; do not leave a PR pointing at a half-created branch. |
+| Branch / file / PR creation fails midway                               | Surface the error, stop; do not leave a PR pointing at a half-written branch. |
 
 Never write any token (or other secret) into a committed file, the commit
 message, the PR title/body, or terminal output.
