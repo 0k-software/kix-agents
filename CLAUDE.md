@@ -139,7 +139,10 @@ kix-agents ships a Claude Code marketplace + plugin — no application code:
 - `claude-code/.claude-plugin/plugin.json` — plugin manifest
 - `claude-code/skills/<name>/SKILL.md` — skill definitions (one folder per
   skill, frontmatter + Markdown body). Each also surfaces as a `/kix:<name>`
-  slash command.
+  slash command. A skill folder may also bundle scripts/assets it needs at
+  runtime (e.g. `claude-code/skills/setup/setup.sh` and
+  `claude-code/skills/setup/assets/`), referenced via
+  `${CLAUDE_PLUGIN_ROOT}/skills/<name>/…`.
 - `claude-code/templates/*.md` — orphaned body templates from removed creation
   skills; not consumed by anything today
 - `docs/kix/<bd-id>/spec.md` — long-form specs for non-trivial epics tracked in

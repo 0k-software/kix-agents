@@ -43,6 +43,14 @@ The format is based on
   Claude Code sessions pick up caveman's `full` mode (agent-output token
   compression) automatically. Code blocks, commits, and PR descriptions are
   still written normally.
+- `kix:setup` skill (`claude-code/skills/setup/SKILL.md`) — installs the
+  baseline Kix repo tooling into the current repository (Prettier formatting
+  gate + `make` targets + a `.github/workflows/check.yml` CI workflow,
+  `.git-hooks/pre-commit`, `.claude` SessionStart/PreCompact hooks that install
+  `dolt` + `bd` and bootstrap beads, plus optional `bd init` and a `CLAUDE.md`
+  Beads section), then opens a PR. Ships a bundled `setup.sh` that does the
+  idempotent file changes and an `assets/` directory holding the canonical hook
+  scripts, Makefile, CI workflow, and Prettier config it deploys.
 
 ### Changed
 

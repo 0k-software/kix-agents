@@ -4,10 +4,11 @@
 # isn't checked into git, so without this `bd prime`, `bd ready`, etc.
 # fail with "database not found" until the user runs bootstrap manually.
 #
-# Idempotent: safe to invoke on every SessionStart.
+# Idempotent: safe to invoke on every SessionStart. No-op until the repo has
+# actually run `bd init` (i.e. there is a .beads/ directory).
 set -euo pipefail
 
-beads_dir="${CLAUDE_PROJECT_DIR}/.beads"
+beads_dir="${CLAUDE_PROJECT_DIR:-$PWD}/.beads"
 
 [ -d "$beads_dir" ] || exit 0
 chmod 700 "$beads_dir" 2>/dev/null || true  # bd warns on group/other-readable .beads
@@ -21,7 +22,7 @@ if [ ! -e "${beads_dir}/dolt" ] && [ ! -e "${beads_dir}/embeddeddolt" ]; then
   ln -s embeddeddolt "${beads_dir}/dolt"
 fi
 
-cd "$CLAUDE_PROJECT_DIR"
+cd "${CLAUDE_PROJECT_DIR:-$PWD}"
 bd bootstrap --yes >/dev/null 2>&1 || {
   printf 'bootstrap-bd: bd bootstrap failed (continuing)\n' >&2
 }
