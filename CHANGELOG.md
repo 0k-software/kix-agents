@@ -7,6 +7,15 @@ The format is based on
 
 ## [Unreleased]
 
+### Added
+
+- Caveman plugin wired into the repo dev setup — `.claude/settings.json` now
+  registers the `caveman` marketplace (`JuliusBrussee/caveman`) via
+  `extraKnownMarketplaces` and enables `caveman@caveman`, so cloud and local
+  Claude Code sessions pick up caveman's `full` mode (agent-output token
+  compression) automatically. Code blocks, commits, and PR descriptions are
+  still written normally.
+
 ## [0.2.2] — 2026-05-11
 
 ### Added
