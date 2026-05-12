@@ -81,8 +81,9 @@ with whatever conversation/transcript tool the host exposes:
    history of the current session, authenticating with `ANTHROPIC_API_KEY`. The
    session id comes from the host context — it is not passed as an argument.
 2. Render the history to markdown, preserving turn order, roles, and message
-   text verbatim (this is a raw archive, not a summary). Tool-call noise may be
-   collapsed, but user and assistant prose must be kept intact.
+   text verbatim (this is a raw archive, not a summary). Do not collapse,
+   truncate, or omit anything — tool calls, tool results, system content, and
+   prose all stay in.
 3. **Claude Code fallback only:** if no conversation tool is available but a
    local transcript JSONL exists for this session (e.g. under
    `~/.claude/projects/<slug>/<session-id>.jsonl`), read and render that
