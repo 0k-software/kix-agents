@@ -1,7 +1,16 @@
 {
+  "extraKnownMarketplaces": {
+    "caveman": {
+      "source": {
+        "source": "github",
+        "repo": "JuliusBrussee/caveman"
+      }
+    }
+  },
   "enabledPlugins": {
     "kix@kix-agents": true,
-    "superpowers@claude-plugins-official": true
+    "superpowers@claude-plugins-official": true,
+    "caveman@caveman": true
   },
   "hooks": {
     "PreCompact": [
