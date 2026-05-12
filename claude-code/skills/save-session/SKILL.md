@@ -101,10 +101,14 @@ content." Do not create a branch or PR.
 When path 2.1 produced a raw JSONL transcript, also generate a human-readable
 summary of the conversation:
 
-- If the `caveman` summarizer skill/tool is available, use it — it compresses
-  the conversation without dropping the important parts.
-- Otherwise, write the summary directly: the goal, the key decisions, what was
-  built or changed, and any open follow-ups — a few short sections, not a
+- **If the `caveman` skill is available** (the `caveman:caveman` compression
+  mode — invocable as `/caveman`; check the host's skill list), invoke it and
+  write the summary in its compressed format. It strips filler while keeping
+  every technical fact, code block, URL, and decision intact. Note in the
+  summary itself that `caveman` was used (e.g. a one-line blockquote at the
+  top).
+- **Otherwise**, write the summary directly: the goal, the key decisions, what
+  was built or changed, and any open follow-ups — a few short sections, not a
   blow-by-blow replay.
 
 Prepend this header to the summary markdown (and to the path 2.2 `.raw.md`,
