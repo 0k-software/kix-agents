@@ -1,0 +1,181 @@
+#!/usr/bin/env bash
+# setup.sh — drop the Kix repo tooling into the current git repository.
+#
+# Installs (idempotently):
+#   - Prettier config         .prettierrc.json, .prettierignore
+#   - Prettier CI workflow     .github/workflows/check.yml (only if absent)
+#   - Prettier Makefile        Makefile (only if absent — otherwise reports the
+#                              targets it needs so a human can merge them)
+#   - git pre-commit hook      .git-hooks/pre-commit  (also copied into the
+#                              repo's real hooks dir, like `make setup`)
+#   - Claude Code hooks        .claude/hooks/{session-start,install-dolt,
+#                              install-bd,bootstrap-bd}.sh and the matching
+#                              SessionStart / PreCompact entries in
+#                              .claude/settings.json
+#
+# It does NOT: run `bd init`, edit CLAUDE.md/AGENTS.md, commit, push, or open a
+# PR. The /kix:setup skill drives those steps and handles merges this script
+# can't do safely.
+#
+# Re-running is safe: existing non-managed files are kept; the Claude hook
+# scripts and the settings.json hook entries are upserted.
+#
+# Bundled assets are looked up next to this script (./assets); override with
+# KIX_SETUP_ASSETS=/path/to/assets.
+set -euo pipefail
+
+note() { printf 'kix-setup: %s\n' "$*"; }
+warn() { printf 'kix-setup: WARNING: %s\n' "$*" >&2; }
+die()  { printf 'kix-setup: error: %s\n' "$*" >&2; exit 1; }
+
+# --- locate bundled assets ---------------------------------------------------
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ASSETS_DIR="${KIX_SETUP_ASSETS:-$SCRIPT_DIR/assets}"
+[ -d "$ASSETS_DIR" ] || die "assets dir not found: $ASSETS_DIR"
+
+# --- must run inside a git repo; operate from its root -----------------------
+git rev-parse --git-dir >/dev/null 2>&1 || die "not inside a git repository"
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
+note "target repository: $REPO_ROOT"
+
+needs_attention=()
+
+# --- helpers -----------------------------------------------------------------
+copy_if_absent() {  # <asset-relpath> <dest>
+  local src="$ASSETS_DIR/$1" dst="$2"
+  [ -e "$src" ] || die "missing asset: $src"
+  if [ -e "$dst" ]; then
+    note "kept existing $dst"
+    return 1
+  fi
+  mkdir -p "$(dirname "$dst")"
+  cp -f "$src" "$dst"
+  note "created $dst"
+  return 0
+}
+
+copy_force() {  # <asset-relpath> <dest>  (kix-managed; always overwrite)
+  local src="$ASSETS_DIR/$1" dst="$2"
+  [ -e "$src" ] || die "missing asset: $src"
+  mkdir -p "$(dirname "$dst")"
+  cp -f "$src" "$dst"
+  chmod +x "$dst" 2>/dev/null || true
+  note "wrote $dst"
+}
+
+# --- 1. Prettier config ------------------------------------------------------
+copy_if_absent prettierrc.json .prettierrc.json || true
+
+if [ ! -e .prettierignore ]; then
+  cp -f "$ASSETS_DIR/prettierignore" .prettierignore
+  note "created .prettierignore"
+else
+  while IFS= read -r entry; do
+    [ -n "$entry" ] || continue
+    if ! grep -qxF "$entry" .prettierignore; then
+      printf '%s\n' "$entry" >> .prettierignore
+      note "appended '$entry' to .prettierignore"
+    fi
+  done < "$ASSETS_DIR/prettierignore"
+fi
+
+# Prettier CI workflow (mirrors the local `make check` gate).
+copy_if_absent check.yml .github/workflows/check.yml || true
+
+# --- 2. git pre-commit hook --------------------------------------------------
+if copy_if_absent git-pre-commit .git-hooks/pre-commit; then
+  chmod +x .git-hooks/pre-commit
+elif ! cmp -s "$ASSETS_DIR/git-pre-commit" .git-hooks/pre-commit; then
+  warn "an existing .git-hooks/pre-commit was left in place and differs from the kix one — make sure it runs the Prettier gate (or merge it with $ASSETS_DIR/git-pre-commit)"
+  needs_attention+=("review .git-hooks/pre-commit — kept the repo's existing hook; confirm it still enforces 'make check'")
+fi
+
+# Install repo hooks into the real hooks dir (equivalent to `make setup`).
+HOOKS_DIR="$(git rev-parse --git-path hooks)"
+mkdir -p "$HOOKS_DIR"
+for h in .git-hooks/*; do
+  [ -e "$h" ] || continue
+  name="$(basename "$h")"
+  if [ -e "$HOOKS_DIR/$name" ] && ! cmp -s "$h" "$HOOKS_DIR/$name"; then
+    warn "existing $HOOKS_DIR/$name differs from .git-hooks/$name — overwriting (the repo's source of truth is .git-hooks/)"
+  fi
+  cp -f "$h" "$HOOKS_DIR/$name"
+  chmod +x "$HOOKS_DIR/$name" 2>/dev/null || true
+  note "installed git hook: $name"
+done
+
+# --- 3. Makefile (Prettier targets) -----------------------------------------
+if [ ! -e Makefile ]; then
+  cp -f "$ASSETS_DIR/Makefile" Makefile
+  note "created Makefile"
+else
+  have_all=1; have_setup=1; have_autofix=1; have_check=1
+  grep -qE '^all:'     Makefile || have_all=0
+  grep -qE '^setup:'   Makefile || have_setup=0
+  grep -qE '^autofix:' Makefile || have_autofix=0
+  grep -qE '^check:'   Makefile || have_check=0
+  if [ "$have_setup$have_autofix$have_check" != "111" ]; then
+    warn "Makefile exists but is missing kix targets (setup=$have_setup autofix=$have_autofix check=$have_check) — not edited; merge these in:"
+    sed 's/^/    /' "$ASSETS_DIR/Makefile" >&2
+    needs_attention+=("merge the 'setup' / 'autofix' / 'check' targets into the existing Makefile (template: $ASSETS_DIR/Makefile)")
+  else
+    note "Makefile already has setup/autofix/check"
+  fi
+fi
+
+# --- 4. Claude Code hook scripts --------------------------------------------
+copy_force hooks/session-start.sh  .claude/hooks/session-start.sh
+copy_force hooks/install-dolt.sh   .claude/hooks/install-dolt.sh
+copy_force hooks/install-bd.sh     .claude/hooks/install-bd.sh
+copy_force hooks/bootstrap-bd.sh   .claude/hooks/bootstrap-bd.sh
+
+# --- 5. .claude/settings.json hook entries ----------------------------------
+command -v jq >/dev/null 2>&1 || die "jq is required to merge .claude/settings.json"
+SETTINGS=".claude/settings.json"
+mkdir -p .claude
+[ -e "$SETTINGS" ] || { printf '{}\n' > "$SETTINGS"; note "created $SETTINGS"; }
+
+SS_HOOK='$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh'
+tmp="$(mktemp)"
+jq --arg ss "$SS_HOOK" '
+  def cmds($arr): [ ($arr // [])[]?.hooks[]?.command // empty ];
+  def add_if_missing($arr; $entry; $cmd):
+    if (cmds($arr) | any(. == $cmd)) then $arr else ($arr + [$entry]) end;
+  .hooks = (.hooks // {})
+  | .hooks.PreCompact = add_if_missing(.hooks.PreCompact // [];
+      {"hooks":[{"type":"command","command":"bd prime"}],"matcher":""}; "bd prime")
+  | .hooks.SessionStart = add_if_missing(.hooks.SessionStart // [];
+      {"hooks":[{"type":"command","command":$ss}]}; $ss)
+  | .hooks.SessionStart = add_if_missing(.hooks.SessionStart;
+      {"hooks":[{"type":"command","command":"bd prime"}],"matcher":""}; "bd prime")
+' "$SETTINGS" > "$tmp" || { rm -f "$tmp"; die "failed to merge $SETTINGS (invalid JSON?)"; }
+if cmp -s "$tmp" "$SETTINGS"; then
+  rm -f "$tmp"
+  note "$SETTINGS already has the SessionStart/PreCompact hooks"
+else
+  mv -f "$tmp" "$SETTINGS"
+  note "merged SessionStart + PreCompact hooks into $SETTINGS"
+fi
+
+# --- 6. .beads permissions ---------------------------------------------------
+# bd warns when .beads is group/other-readable; tighten it if the repo already
+# has a beads tracker (this script does not run `bd init` — the skill does).
+if [ -d .beads ]; then
+  chmod 700 .beads 2>/dev/null && note "set .beads to 0700" || true
+fi
+
+# --- summary -----------------------------------------------------------------
+echo
+note "done. Review the changes with: git status && git diff"
+if [ "${#needs_attention[@]}" -gt 0 ]; then
+  echo
+  note "needs manual attention:"
+  for item in "${needs_attention[@]}"; do printf 'kix-setup:   - %s\n' "$item"; done
+fi
+echo
+note "not done by this script (the /kix:setup skill handles these):"
+note "  - bd init   (give this repo a beads issue tracker, if it doesn't have one)"
+note "  - add a Beads section to CLAUDE.md / AGENTS.md"
+note "  - enable the kix plugin for the repo ('kix@kix-agents': true under enabledPlugins)"
+note "  - commit, push, open the PR"
