@@ -32,8 +32,8 @@ Tokens are read from the environment (or the plugin's secret storage) —
 **never** hard-coded, logged, echoed into commands, or written into a committed
 file, the commit message, or the PR body.
 
-- `ANTHROPIC_API_KEY` — used by the rendered-fallback path (Step 2.2) to fetch
-  conversation content via the Anthropic API when no local transcript exists.
+- `ANTHROPIC_API_KEY` — used by the rendered-fallback path (Step 2) to fetch
+  conversation content via the Anthropic API when no local transcript is used.
   If that path is taken and the key is missing or rejected (401), abort with:
   "Set `ANTHROPIC_API_KEY` to a key with access to this conversation."
 - GitHub auth — handled by the GitHub MCP server's own credential storage. All
