@@ -11,12 +11,14 @@ The format is based on
 
 - `kix:save-session` skill (`claude-code/skills/save-session/SKILL.md`) —
   invoked as `/kix:save-session [owner/repo]`; archives the current
-  conversation as `conversations/YYYY-MM-DD-<slug>.md` in a target repo on a
-  new branch and opens a PR (title = session topic, body = outcome summary +
-  link). Fetches conversation content via the Anthropic API
+  conversation as `docs/conversations/YYYY-MM-DD-<slug>.md` in a target repo on
+  a new branch and opens a PR (title = session topic, body = outcome summary +
+  link). Runtime-agnostic (Claude chat sessions or Claude Code): fetches
+  conversation content via the host's conversation tool / Anthropic API
   (`ANTHROPIC_API_KEY`) with a local-transcript fallback, performs repo writes
-  through the GitHub MCP tools, and — when the repo arg is omitted — infers a
-  candidate and confirms with the user before any write. Tracked in `kxa-bpt`.
+  through the available GitHub tools, and — when the repo arg is omitted or a
+  bare repo name is given — resolves the target by searching accessible repos
+  and confirms with the user before any write. Tracked in `kxa-bpt`.
 - Caveman plugin wired into the repo dev setup — `.claude/settings.json` now
   registers the `caveman` marketplace (`JuliusBrussee/caveman`) via
   `extraKnownMarketplaces` and enables `caveman@caveman`, so cloud and local
