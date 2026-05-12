@@ -11,18 +11,18 @@ The format is based on
 
 - `kix:save-session` skill (`claude-code/skills/save-session/SKILL.md`) —
   invoked as `/kix:save-session [owner/repo]`; archives the current session
-  under `docs/conversations/` in a target repo on a new branch and opens a PR
-  (title = session topic, body = outcome summary + link). When a local Claude
-  Code transcript exists it commits the raw `.jsonl` verbatim plus a
-  `.summary.md` (via the `caveman` summarizer if available, else summarized
-  directly); otherwise it commits a verbatim `.raw.md` render fetched via the
-  host's conversation tool / Anthropic API (`ANTHROPIC_API_KEY`). Archives are
-  keyed by the session id, so re-saving the same session updates its file,
-  branch, and PR in place instead of duplicating. Runtime-agnostic (Claude chat
-  sessions or Claude Code); repo writes go through the available GitHub tools;
-  when the repo arg is omitted or a bare name is given the target is resolved
-  by searching accessible repos and confirmed with the user before any write.
-  Tracked in `kxa-bpt`.
+  into a per-session folder `docs/conversations/<stem>/` in a target repo on a
+  new branch and opens a PR (title = session topic, body = outcome summary +
+  link). When a local Claude Code transcript exists it commits the raw
+  `transcript.jsonl` verbatim plus a `summary.md` (via the `caveman` summarizer
+  if available, else summarized directly); otherwise it commits a verbatim
+  `raw.md` render fetched via the host's conversation tool / Anthropic API
+  (`ANTHROPIC_API_KEY`). Archives are keyed by the session id, so re-saving the
+  same session updates that folder, branch, and PR in place instead of
+  duplicating. Runtime-agnostic (Claude chat sessions or Claude Code); repo
+  writes go through the available GitHub tools; when the repo arg is omitted or
+  a bare name is given the target is resolved by searching accessible repos and
+  confirmed with the user before any write. Tracked in `kxa-bpt`.
 - Caveman plugin wired into the repo dev setup — `.claude/settings.json` now
   registers the `caveman` marketplace (`JuliusBrussee/caveman`) via
   `extraKnownMarketplaces` and enables `caveman@caveman`, so cloud and local
