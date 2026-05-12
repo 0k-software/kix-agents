@@ -144,8 +144,12 @@ Cave Kit as an inspiration source, not a replacement. Reasoning:
    offer that.
 3. **Patterns worth borrowing from Cave Kit into Kix:**
    - **Single living `SPEC.md` per project** (alongside per-feature plan docs)
-     — could become a Kix convention paired with the bd issue tracker (bd is
-     the §T/§B store; a `SPEC.md` could be the §G/§C/§I/§V store).
+     — could become a Kix convention paired with the bd issue tracker. (The
+     `§`-prefixed labels are Cave Kit's section markers from earlier in this
+     doc: `§G` = goal, `§C` = constraints, `§I` = interfaces, `§V` =
+     invariants, `§T` = tasks, `§B` = bugs.) bd already holds the tasks/bugs
+     (`§T`/`§B`); a `SPEC.md` could hold the stable
+     goal/constraints/interfaces/invariants (`§G`/`§C`/`§I`/`§V`).
    - **`backprop`-style "bug → invariant" feedback loop** — when a bd bug issue
      closes, optionally write the lesson as a new acceptance rule on the parent
      epic.

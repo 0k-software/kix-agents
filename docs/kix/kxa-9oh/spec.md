@@ -173,5 +173,5 @@ projects that touch Elixir/Phoenix**. Specifically:
 Follow-ups tracked in beads:
 
 - **kxa-w2n** — Per-project phxagents adoption decision for Elixir/Phoenix work
-- `bd memories phxagents-v3-reaudit` — re-audit when v3.0.0 ships with
-  Codex/OpenCode/Pi multi-agent support
+- **kxa-fb4** — Re-audit phxagents when v3.0.0 ships (Codex/OpenCode/Pi
+  multi-agent support); blocked on the v3.0.0 release

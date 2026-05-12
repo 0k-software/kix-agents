@@ -96,9 +96,12 @@ superpowers). Specifically:
 ## Recommendation
 
 **ADOPT LOCALLY for this repo. Don't enforce on consumers.** Concrete
-follow-ups (filed in beads):
+follow-ups (filed in beads, all depending on this eval issue kxa-x83):
 
-- **kxa-1bx** — Run `/caveman-compress CLAUDE.md` and commit the result
+- **kxa-u86** — Adopt the caveman plugin in the kix-agents repo (install + wire
+  in) — umbrella for the items below
+- **kxa-1bx** — Run `/caveman-compress CLAUDE.md` and commit the result (also
+  depends on kxa-u86)
 - **kxa-3xx** — Update `/kix:commit` and `/kix:fix-pr` skill bodies to prefer
   caveman-style output
 - **kxa-e68** — Document optional caveman install for contributors in
