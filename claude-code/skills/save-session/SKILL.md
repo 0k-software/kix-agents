@@ -1,35 +1,39 @@
 ---
-description: Archive the current Claude conversation as a markdown file in a GitHub repo and open a PR for it (title = session topic, body = outcome summary + link).
+description: Archive the current Claude session in a GitHub repo — raw transcript + summary when a transcript file exists, a verbatim markdown render otherwise — and open a PR for it (title = session topic, body = outcome summary + link).
 argument-hint: [owner/repo]
 ---
 
 # Save Session
 
-Capture the raw content of the current chat / Claude Code session, commit it as
-a markdown file to a target GitHub repository on a new branch, and open a pull
-request summarizing the session.
+Capture the content of the current chat / Claude Code session, commit it to a
+target GitHub repository on a new branch — the raw transcript plus a summary
+when a transcript file is available, or a verbatim markdown render otherwise —
+and open a pull request summarizing the session.
 
 Invoked as `/kix:save-session [owner/repo]`. The repo argument is optional —
 when omitted, the skill infers a likely target and asks the user to confirm
 before any write.
 
-The skill is designed to run from **either** a Claude chat session or Claude
-Code: every step uses the conversation / GitHub tools the host exposes rather
-than assuming a shell, a checked-out git repo, or local transcript files. The
-`mcp__github__*` names below are the concrete tools when running in Claude Code
-— substitute the equivalent GitHub tool the host provides.
+The skill runs from **either** a Claude chat session or Claude Code. It uses
+the GitHub tools the host exposes (the `mcp__github__*` names below are the
+concrete tools when running in Claude Code — substitute the equivalent the host
+provides) rather than assuming a shell or a checked-out git repo. When a local
+transcript file is present (Claude Code) it is committed verbatim as the raw
+artifact; otherwise the skill falls back to the conversation available in
+context.
 
 ---
 
 ## Credentials
 
-Both tokens are read from the environment (or the plugin's secret storage) —
-**never** hard-coded, logged, echoed into commands, or written into the file,
-the commit message, or the PR body.
+Tokens are read from the environment (or the plugin's secret storage) —
+**never** hard-coded, logged, echoed into commands, or written into a committed
+file, the commit message, or the PR body.
 
-- `ANTHROPIC_API_KEY` — used to fetch conversation content via the Anthropic
-  API. If missing or rejected (401), abort with: "Set `ANTHROPIC_API_KEY` to a
-  key with access to this conversation."
+- `ANTHROPIC_API_KEY` — used by the rendered-fallback path (Step 2.2) to fetch
+  conversation content via the Anthropic API when no local transcript exists.
+  If that path is taken and the key is missing or rejected (401), abort with:
+  "Set `ANTHROPIC_API_KEY` to a key with access to this conversation."
 - GitHub auth — handled by the GitHub MCP server's own credential storage. All
   repo writes go through the `mcp__github__*` tools (`create_branch`,
   `create_or_update_file` / `push_files`, `create_pull_request`, plus
@@ -71,35 +75,46 @@ targets it.
 
 ---
 
-## Step 2 — Gather the conversation content
+## Step 2 — Capture the session content
 
-This skill runs from Claude chat sessions **and** from Claude Code, so it must
-not assume a particular runtime. Get the raw content of the **current session**
-with whatever conversation/transcript tool the host exposes:
+Pick the source in this order:
 
-1. Use the available Claude API / conversation tool to fetch the full message
-   history of the current session, authenticating with `ANTHROPIC_API_KEY`. The
-   session id comes from the host context — it is not passed as an argument.
-2. Render the history to markdown, preserving turn order, roles, and message
-   text verbatim (this is a raw archive, not a summary). Do not collapse,
-   truncate, or omit anything — tool calls, tool results, system content, and
-   prose all stay in.
-3. **Claude Code fallback only:** if no conversation tool is available but a
-   local transcript JSONL exists for this session (e.g. under
-   `~/.claude/projects/<slug>/<session-id>.jsonl`), read and render that
-   instead, and note in the final report that the local transcript was used.
+1. **Raw transcript (preferred).** If a local Claude Code transcript JSONL
+   exists for this session (e.g. under
+   `~/.claude/projects/<slug>/<session-id>.jsonl`), use it **as-is** — this is
+   the raw artifact: committed byte-for-byte, no edits, no frontmatter, no
+   reformatting.
+2. **Rendered fallback.** If no transcript JSONL is reachable (e.g. a Claude
+   chat session), fall back to the conversation tool the host exposes — the
+   Claude API / conversation tool, authenticated with `ANTHROPIC_API_KEY` (the
+   session id comes from the host context, not an argument) — or, failing that,
+   the conversation already in context. Render it to markdown **verbatim**:
+   turn order, roles, and message text preserved; tool calls, tool results, and
+   system content all kept; nothing collapsed, truncated, or omitted.
 
-If no conversation content can be obtained, or it has no user/assistant turns,
+If neither path yields any conversation content (no user/assistant turns),
 abort with: "Nothing to save — couldn't read this session's conversation
 content." Do not create a branch or PR.
 
-Prepend a small frontmatter / header block to the rendered markdown:
+### Summary (only when the raw transcript was used)
+
+When path 2.1 produced a raw JSONL transcript, also generate a human-readable
+summary of the conversation:
+
+- If the `caveman` summarizer skill/tool is available, use it — it compresses
+  the conversation without dropping the important parts.
+- Otherwise, write the summary directly: the goal, the key decisions, what was
+  built or changed, and any open follow-ups — a few short sections, not a
+  blow-by-blow replay.
+
+Prepend this header to the summary markdown (and to the path 2.2 `.raw.md`,
+minus `raw_transcript`):
 
 ```markdown
 ---
 saved_at: <ISO-8601 timestamp>
-source: <"conversation-api" | "local-transcript">
 session_id: <id>
+raw_transcript: <basename of the .jsonl committed alongside, if any>
 ---
 
 # <Session title — see Step 3>
@@ -107,30 +122,32 @@ session_id: <id>
 
 ---
 
-## Step 3 — Derive the title, slug, and file path
+## Step 3 — Derive the title, slug, and file paths
 
 1. **Title** — a concise summary of the session's main topic, ≤ 70 characters,
-   suitable as both the PR title and the markdown `# ` heading. Derive it from
-   what the session actually accomplished, not the first message.
-2. **Slug** — lowercase the title, replace runs of non-alphanumerics with `-`,
-   trim leading/trailing `-`, cap at ~50 chars.
-3. **File path** — `docs/conversations/<YYYY-MM-DD>-<slug>.md`, where the date
-   is today's date (UTC). If that path already exists in the repo, append `-2`,
-   `-3`, … to the slug until it's unique.
-4. **Branch** — `claude/save-session-<slug>` (same uniqueness suffix as the
-   file if needed).
+   used as the PR title and the summary's `# ` heading. Derive it from what the
+   session actually accomplished, not the first message.
+2. **Stem** — lowercase the title, replace runs of non-alphanumerics with `-`,
+   trim leading/trailing `-`, cap the slug at ~50 chars, then prefix today's
+   date (UTC): `<YYYY-MM-DD>-<slug>`. If any file with that stem already exists
+   under `docs/conversations/`, append `-2`, `-3`, … until it is unique.
+3. **File paths** under `docs/conversations/`:
+   - Raw transcript available → `<stem>.jsonl` (verbatim) **and**
+     `<stem>.summary.md`.
+   - No raw transcript → `<stem>.raw.md` (the verbatim markdown render).
+4. **Branch** — `claude/save-session-<slug>`.
 
 ---
 
-## Step 4 — Create the branch and commit the file
+## Step 4 — Create the branch and commit the file(s)
 
 1. Create the branch `claude/save-session-<slug>` from the repo's default
    branch (`mcp__github__create_branch`).
-2. Commit the rendered markdown at `docs/conversations/<YYYY-MM-DD>-<slug>.md`
-   on that branch with the message `docs: save session — <title>`
-   (`mcp__github__create_or_update_file` or `push_files`).
+2. Commit the Step 3 artifact(s) under `docs/conversations/` on that branch
+   with the message `docs: save session — <title>` (`mcp__github__push_files`
+   for both files at once, or `mcp__github__create_or_update_file` per file).
 
-If either call fails, surface the error and stop — do not open a PR against a
+If any call fails, surface the error and stop — do not open a PR against a
 half-created branch.
 
 ---
@@ -142,16 +159,22 @@ Open a PR from `claude/save-session-<slug>` into the repo's default branch
 
 - **Title** — the Step 3 title (the session's main topic, ≤ 70 chars).
 - **Body** — one paragraph summarizing the session's outcome (what was decided,
-  built, or resolved), followed by a relative link to the new file:
+  built, or resolved), then a relative link to the primary artifact (the
+  `.summary.md` when it exists, otherwise the `.raw.md`); when a raw transcript
+  was committed, also link it:
 
   ```markdown
   <one-paragraph outcome summary>
 
-  Saved conversation: [`docs/conversations/<YYYY-MM-DD>-<slug>.md`](docs/conversations/<YYYY-MM-DD>-<slug>.md)
+  Saved conversation: [`docs/conversations/<stem>.summary.md`](docs/conversations/<stem>.summary.md)
+  Raw transcript: [`docs/conversations/<stem>.jsonl`](docs/conversations/<stem>.jsonl)
 
   ---
   *Generated by Claude Code*
   ```
+
+  When only a `.raw.md` was committed, drop the "Raw transcript" line and point
+  "Saved conversation" at the `.raw.md` instead.
 
 If the repo argument was **inferred** (Step 1 path 2), the user has already
 confirmed the repo — proceed. If anything about the inferred target still feels
@@ -164,9 +187,10 @@ ambiguous, re-confirm via `AskUserQuestion` before creating the PR.
 Print:
 
 - The target `owner/repo` and whether it was explicit or inferred+confirmed.
-- The branch name and file path.
+- The branch name and the committed file path(s).
 - The PR URL.
-- Which content source was used (Anthropic API vs. local transcript).
+- Whether a raw transcript was found (and summarized via `caveman` or directly)
+  or the rendered-markdown fallback was used.
 
 ---
 
@@ -176,10 +200,10 @@ Print:
 | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
 | No repo arg and no plausible candidate / user declines                 | Abort: ask the user to pass `owner/repo`.                                     |
 | Repo not accessible / outside MCP allowlist                            | Abort with a clear message; no writes.                                        |
-| `ANTHROPIC_API_KEY` missing or rejected                                | Abort: instruct the user to set the env var.                                  |
+| Rendered-fallback path taken and `ANTHROPIC_API_KEY` missing/rejected  | Abort: instruct the user to set the env var.                                  |
 | GitHub MCP tools return 401/403 (and no `GITHUB_TOKEN` fallback works) | Abort: instruct the user to re-auth the GitHub MCP server.                    |
-| Empty session (no user/assistant turns)                                | Abort before creating any branch or PR.                                       |
+| Empty session (no conversation content from either path)               | Abort before creating any branch or PR.                                       |
 | Branch / file / PR creation fails midway                               | Surface the error, stop; do not leave a PR pointing at a half-created branch. |
 
-Never write either token (or any other secret) into the committed file, the
-commit message, the PR title/body, or terminal output.
+Never write any token (or other secret) into a committed file, the commit
+message, the PR title/body, or terminal output.

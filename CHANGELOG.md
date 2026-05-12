@@ -10,15 +10,17 @@ The format is based on
 ### Added
 
 - `kix:save-session` skill (`claude-code/skills/save-session/SKILL.md`) —
-  invoked as `/kix:save-session [owner/repo]`; archives the current
-  conversation as `docs/conversations/YYYY-MM-DD-<slug>.md` in a target repo on
-  a new branch and opens a PR (title = session topic, body = outcome summary +
-  link). Runtime-agnostic (Claude chat sessions or Claude Code): fetches
-  conversation content via the host's conversation tool / Anthropic API
-  (`ANTHROPIC_API_KEY`) with a local-transcript fallback, performs repo writes
-  through the available GitHub tools, and — when the repo arg is omitted or a
-  bare repo name is given — resolves the target by searching accessible repos
-  and confirms with the user before any write. Tracked in `kxa-bpt`.
+  invoked as `/kix:save-session [owner/repo]`; archives the current session
+  under `docs/conversations/` in a target repo on a new branch and opens a PR
+  (title = session topic, body = outcome summary + link). When a local Claude
+  Code transcript exists it commits the raw `.jsonl` verbatim plus a
+  `.summary.md` (via the `caveman` summarizer if available, else summarized
+  directly); otherwise it commits a verbatim `.raw.md` render fetched via the
+  host's conversation tool / Anthropic API (`ANTHROPIC_API_KEY`). Runtime-
+  agnostic (Claude chat sessions or Claude Code); repo writes go through the
+  available GitHub tools; when the repo arg is omitted or a bare name is given
+  the target is resolved by searching accessible repos and confirmed with the
+  user before any write. Tracked in `kxa-bpt`.
 - Caveman plugin wired into the repo dev setup — `.claude/settings.json` now
   registers the `caveman` marketplace (`JuliusBrussee/caveman`) via
   `extraKnownMarketplaces` and enables `caveman@caveman`, so cloud and local
