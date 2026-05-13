@@ -14,6 +14,9 @@
 #                              install-bd,bootstrap-bd}.sh and the matching
 #                              SessionStart / PreCompact entries in
 #                              .claude/settings.json
+#   - AGENTS.md alias          AGENTS.md → CLAUDE.md symlink (so the two don't
+#                              drift); creates an empty CLAUDE.md if neither
+#                              file exists yet
 #
 # It does NOT: run `bd init`, edit CLAUDE.md/AGENTS.md, commit, push, or open a
 # PR. The /kix:setup skill drives those steps and handles merges this script
@@ -192,6 +195,30 @@ if [ -d .beads ]; then
   chmod 700 .beads 2>/dev/null && note "set .beads to 0700" || true
 fi
 
+# --- 7. AGENTS.md ↔ CLAUDE.md alias -----------------------------------------
+# Mirror kix-agents convention: AGENTS.md is a symlink to CLAUDE.md so agent
+# instructions don't drift between the two files. The skill's Step 6 fills the
+# CLAUDE.md content; this section just enforces the symlink.
+if [ -L AGENTS.md ] && [ "$(readlink AGENTS.md)" = "CLAUDE.md" ]; then
+  note "AGENTS.md already symlinked to CLAUDE.md"
+elif [ -f AGENTS.md ] && [ ! -e CLAUDE.md ]; then
+  mv -f AGENTS.md CLAUDE.md
+  ln -s CLAUDE.md AGENTS.md
+  note "renamed AGENTS.md → CLAUDE.md and symlinked AGENTS.md → CLAUDE.md"
+elif [ -f AGENTS.md ] && [ -e CLAUDE.md ]; then
+  warn "both CLAUDE.md and AGENTS.md exist as regular files — merge by hand"
+  needs_attention+=("merge AGENTS.md into CLAUDE.md, then: rm AGENTS.md && ln -s CLAUDE.md AGENTS.md")
+else
+  if [ ! -e CLAUDE.md ]; then
+    : > CLAUDE.md
+    note "created empty CLAUDE.md (skill fills it in Step 6)"
+  fi
+  if [ ! -e AGENTS.md ]; then
+    ln -s CLAUDE.md AGENTS.md
+    note "symlinked AGENTS.md → CLAUDE.md"
+  fi
+fi
+
 # --- summary -----------------------------------------------------------------
 echo
 note "done. Review the changes with: git status && git diff"
@@ -203,6 +230,6 @@ fi
 echo
 note "not done by this script (the /kix:setup skill handles these):"
 note "  - bd init   (give this repo a beads issue tracker, if it doesn't have one)"
-note "  - add a Beads section to CLAUDE.md / AGENTS.md"
+note "  - add a Beads section to CLAUDE.md (AGENTS.md is now a symlink to it)"
 note "  - enable the kix plugin for the repo ('kix@kix-agents': true under enabledPlugins)"
 note "  - commit, push, open the PR"
