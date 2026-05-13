@@ -5,10 +5,10 @@ argument-hint: [owner/repo]
 
 # Save Session
 
-Capture the content of the current chat / Claude Code session, commit it to a
-target GitHub repository on a new branch — a `summary.md` plus the verbatim
-conversation (the raw transcript file when one exists, otherwise a markdown
-render) — and open a pull request summarizing the session.
+Capture the content of the current chat / Claude Code session and commit it to
+a target GitHub repository — a `summary.md` plus the verbatim conversation (the
+raw transcript file when one exists, otherwise a markdown render) — landing on
+the work branch when there is one, or on its own branch + PR otherwise.
 
 Invoked as `/kix:save-session [owner/repo]`. The repo argument is optional —
 when omitted, the skill infers a likely target and asks the user to confirm
@@ -232,7 +232,7 @@ branch and its PR.)
 
 PR fields:
 
-- **Title** — the Step 4 title (the session's main topic, ≤ 70 chars).
+- **Title** — the Step 3 title (the session's main topic, ≤ 70 chars).
 - **Body** — one paragraph summarizing the session's outcome (what was decided,
   built, or resolved), then relative links to the archive files:
 
