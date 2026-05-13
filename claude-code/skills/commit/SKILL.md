@@ -67,26 +67,15 @@ The state file is consumed (deleted) on a successful commit (Step 5) and on the
      `git stash push --keep-index --include-untracked -m "kix-commit-autostash"`
      to set aside unstaged + untracked changes so they don't leak into the
      commit, and remember that a stash was created.
-   - **In all branches, after staging:** first **bundle the session archive**
-     (Claude Code only — skip entirely if
-     `~/.claude/projects/<project-slug>/*.jsonl` doesn't exist, e.g. a plain
-     chat session), reusing the [`kix:save-session`](../save-session/SKILL.md)
-     machinery: pick the **largest** `*.jsonl` in the project dir (the complete
-     cumulative transcript — save-session Step 2), `gzip` it to
-     `docs/conversations/<stem>/raw.jsonl.gz`, and update
-     `docs/conversations/<stem>/summary.md` **from context** — create it on the
-     first save, or **append** a new `## <timestamp> — update` section on a
-     re-save (never rewrite it; see save-session's `### Summary`). Don't
-     re-read the `.jsonl` to summarize; use `caveman` if available. `<stem>` =
-     an existing `docs/conversations/<dir>/` ending in `-<short-id>` (re-save),
-     else `<YYYY-MM-DD>-<slug>-<short-id>`, with `<short-id>` derived from
-     `CLAUDE_CODE_REMOTE_SESSION_ID` (else `CLAUDE_CODE_SESSION_ID`) — see
-     save-session Step 3. `git add docs/conversations/<stem>/` (and add
-     `docs/conversations/` to `.prettierignore` if the repo runs Prettier and
-     it isn't ignored). Do **not** run save-session's branch/commit/PR steps —
-     `/kix:commit` commits the archive together with everything else; the
-     transcript is the work this session did, so it rides along. Then capture
-     the post-staging index with `git write-tree` and remember the SHA as
+   - **In all branches, after staging:** invoke
+     [`/kix:save-session --no-commit`](../save-session/SKILL.md) — it writes
+     this session's archive (`docs/conversations/<stem>/raw.jsonl.gz` +
+     `summary.md`, and `.prettierignore` if needed) into the checkout and
+     `git add`s it, without committing. (It's a no-op when there's no
+     transcript, e.g. a plain chat session — fine; carry on.) Don't
+     re-implement any of that here. The archive then rides along in this commit
+     — the transcript is the work this session did. Finally capture the
+     post-staging index with `git write-tree` and remember the SHA as
      `ORIG_INDEX_TREE` (you may need it in Step 6 to roll back fix attempts).
 2. Run `git diff --no-ext-diff --staged` to get the diff to be committed.
 3. Write a commit message following `Commit message` instructions in
