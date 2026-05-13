@@ -20,10 +20,10 @@ The skill runs from **either** a Claude chat session or Claude Code. It uses
 the GitHub tools the host exposes (the `mcp__github__*` names below are the
 concrete tools when running in Claude Code — substitute the equivalent the host
 provides) rather than assuming a shell or a checked-out git repo. The verbatim
-artifact is the Claude Code transcript `.jsonl` (in a hosted sandbox, the
-largest file in the project dir — the complete cumulative transcript); a chat
-session with no transcript renders the conversation in context to markdown
-instead.
+artifact is the Claude Code transcript `.jsonl`, gzipped to `raw.jsonl.gz` (in
+a hosted sandbox, the largest file in the project dir — the complete cumulative
+transcript); a chat session with no transcript renders the conversation in
+context to `raw.md` instead.
 
 ---
 
@@ -94,10 +94,13 @@ Pick the content source, in order:
    `claude --resume` copies the prior transcript forward and appends, so a
    hosted sandbox leaves many files for one conversation — pick the **largest**
    (= newest, the complete cumulative transcript; _not_ the file named after
-   the current per-turn id, which may be an older fork). Commit it
-   **byte-for-byte** as `raw.jsonl`: no edits, no frontmatter, no reformatting.
-   This is the fullest record — every turn, tool call, tool result, and system
-   block, verbatim.
+   the current per-turn id, which may be an older fork). It's append-only and
+   keeps every original turn even after a context compaction, so it's the
+   fullest record there is — every turn, tool call, tool result, and system
+   block, byte-for-byte. `gzip` it (don't otherwise touch it) and commit the
+   result as `raw.jsonl.gz`: these files are multi-MB raw, ~4–5× smaller
+   gzipped, and write-once — a compressed blob in git is fine and keeps the
+   repo from ballooning (no Git LFS needed at any realistic volume).
 2. **Rendered fallback** — only when there is no transcript file at all (e.g. a
    Claude chat session). Fall back to the conversation tool the host exposes —
    the Claude API / conversation tool, authenticated with `ANTHROPIC_API_KEY` —
@@ -114,7 +117,7 @@ read this session's conversation content." Do not create a branch or PR.
 ### Summary
 
 Always generate a human-readable `summary.md` of the conversation — alongside
-`raw.jsonl` or `raw.md`, whichever verbatim artifact was committed:
+`raw.jsonl.gz` or `raw.md`, whichever verbatim artifact was committed:
 
 - **If the `caveman` skill is available** (the `caveman:caveman` compression
   mode — invocable as `/caveman`; check the host's skill list), invoke it and
@@ -127,13 +130,13 @@ Always generate a human-readable `summary.md` of the conversation — alongside
   blow-by-blow replay.
 
 Prepend this header to `summary.md` and to `raw.md` (drop `raw_transcript` when
-there is no `raw.jsonl` — i.e. the rendered-fallback path):
+there is no `raw.jsonl.gz` — i.e. the rendered-fallback path):
 
 ```markdown
 ---
 saved_at: <ISO-8601 timestamp>
 session_id: <id>
-raw_transcript: raw.jsonl
+raw_transcript: raw.jsonl.gz
 ---
 
 # <Session title — see Step 3>
@@ -164,7 +167,8 @@ The session id makes re-saves idempotent: a session that was saved before is
    another archive somehow already uses this exact stem, append `-2`, `-3`, …
 6. **Archive directory** — `docs/conversations/<stem>/` — always a `summary.md`
    plus the verbatim artifact:
-   - Raw transcript available → `raw.jsonl` (verbatim, byte-for-byte).
+   - Transcript available → `raw.jsonl.gz` (the gzipped byte-for-byte
+     transcript).
    - Otherwise → `raw.md` (the verbatim markdown render).
 7. **Branch** — `claude/save-session-<stem>` (stable: a re-save reuses it).
 
@@ -181,12 +185,13 @@ The session id makes re-saves idempotent: a session that was saved before is
    `mcp__github__push_files` for both files at once, or
    `mcp__github__create_or_update_file` per file (when overwriting, pass the
    existing blob `sha`).
-   - **Large transcript:** the GitHub Contents API can't take a multi-MB
-     `raw.jsonl` via a tool call. When the runtime has a local checkout, do
-     this step via git instead: branch from `origin/<default>` (or fetch +
-     reset the existing branch), copy the largest project `.jsonl` in as
-     `raw.jsonl`, write `summary.md`, commit, and `git push`. Use the API only
-     for the small `raw.md` render path.
+   - **Transcript via git:** the gzipped transcript is ~hundreds of KB, but
+     it's still easiest when the runtime has a local checkout: branch from
+     `origin/<default>` (or fetch + reset the existing branch), `gzip` the
+     largest project `.jsonl` to `docs/conversations/<stem>/raw.jsonl.gz`,
+     write `summary.md`, commit, `git push`. Use the Contents API directly only
+     for the `raw.md` render path (or a small `raw.jsonl.gz` when there's no
+     checkout).
 
 If any call fails, surface the error and stop — do not open/leave a PR pointing
 at a half-written branch.
@@ -213,7 +218,7 @@ PR fields:
   <one-paragraph outcome summary>
 
   Conversation Summary: [`docs/conversations/<stem>/summary.md`](docs/conversations/<stem>/summary.md)
-  Raw transcript: [`docs/conversations/<stem>/raw.jsonl`](docs/conversations/<stem>/raw.jsonl)
+  Raw transcript: [`docs/conversations/<stem>/raw.jsonl.gz`](docs/conversations/<stem>/raw.jsonl.gz)
 
   ---
   *Generated by Claude Code*
@@ -237,7 +242,8 @@ Print:
   (re-save).
 - The branch name and the committed file path(s).
 - The PR URL.
-- Whether the verbatim artifact is `raw.jsonl` (which project transcript — name
+- Whether the verbatim artifact is `raw.jsonl.gz` (which project transcript —
+  name
   - size) or the `raw.md` rendered fallback (and, for `raw.md`, whether older
     turns were already compacted out), and how `summary.md` was produced
     (`caveman` or directly).
