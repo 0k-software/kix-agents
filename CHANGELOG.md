@@ -14,19 +14,20 @@ The format is based on
   into a per-session folder `docs/conversations/<stem>/` in a target repo on a
   new branch and opens a PR (title = session topic, body = outcome summary +
   link). The folder always holds a `summary.md` (via the `caveman` summarizer
-  if available, else summarized directly) plus the verbatim conversation: a
-  local Claude Code session's transcript committed byte-for-byte as
-  `raw.jsonl`, or — in a chat session, or a hosted/cloud sandbox
-  (`CLAUDE_CODE_REMOTE`) where the local transcript is only a per-turn fragment
-  — a verbatim `raw.md` render from the conversation in context / the host's
-  conversation tool / Anthropic API (`ANTHROPIC_API_KEY`). Archives are keyed
-  by the session id (`CLAUDE_CODE_REMOTE_SESSION_ID` in a hosted sandbox), so
-  re-saving the same session updates that folder, branch, and PR in place
-  instead of duplicating. Runtime-agnostic (Claude chat sessions or Claude
-  Code); repo writes go through the available GitHub tools; when the repo arg
-  is omitted or a bare name is given the target is resolved by searching
-  accessible repos and confirmed with the user before any write. Tracked in
-  `kxa-bpt`.
+  if available, else summarized directly) plus the verbatim conversation: the
+  Claude Code transcript `.jsonl` committed byte-for-byte as `raw.jsonl` — in a
+  hosted/cloud sandbox (`CLAUDE_CODE_REMOTE`) where each turn is a fresh
+  `claude --resume`, the largest file in the project dir (the complete
+  cumulative transcript); or, when there's no transcript at all (a chat
+  session), a verbatim `raw.md` render from the host's conversation tool /
+  Anthropic API (`ANTHROPIC_API_KEY`) / the in-context view. Archives are keyed
+  by the session id (`CLAUDE_CODE_REMOTE_SESSION_ID` in a hosted sandbox — the
+  only id stable across turns), so re-saving the same session updates that
+  folder, branch, and PR in place instead of duplicating. Runtime-agnostic
+  (Claude chat sessions or Claude Code); repo writes go through the available
+  GitHub tools; when the repo arg is omitted or a bare name is given the target
+  is resolved by searching accessible repos and confirmed with the user before
+  any write. Tracked in `kxa-bpt`.
 - Caveman plugin wired into the repo dev setup — `.claude/settings.json` now
   registers the `caveman` marketplace (`JuliusBrussee/caveman`) via
   `extraKnownMarketplaces` and enables `caveman@caveman`, so cloud and local
