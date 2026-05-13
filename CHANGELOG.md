@@ -13,20 +13,20 @@ The format is based on
   invoked as `/kix:save-session [owner/repo]`; archives the current session
   into a per-session folder `docs/conversations/<stem>/` in a target repo on a
   new branch and opens a PR (title = session topic, body = outcome summary +
-  link). The folder always holds a `summary.md` (via the `caveman` summarizer
-  if available, else summarized directly) plus the verbatim conversation: the
-  Claude Code transcript `.jsonl`, gzipped and committed as `raw.jsonl.gz`
-  (~4–5× smaller, keeps the repo from ballooning — no Git LFS needed) — in a
-  hosted/cloud sandbox (`CLAUDE_CODE_REMOTE`) where each turn is a fresh
-  `claude --resume`, the largest file in the project dir (the complete
-  cumulative transcript, append-only across compactions); or, when there's no
-  transcript at all (a chat session), a verbatim `raw.md` render from the
-  host's conversation tool / Anthropic API (`ANTHROPIC_API_KEY`) / the
-  in-context view. Archives are keyed by the session id
-  (`CLAUDE_CODE_REMOTE_SESSION_ID` in a hosted sandbox — the only id stable
-  across turns), so re-saving the same session updates that folder, branch, and
-  PR in place instead of duplicating. Runtime-agnostic (Claude chat sessions or
-  Claude Code); repo writes go through the available GitHub tools; when the
+  link). The folder holds `raw.md` — a markdown render of the whole
+  conversation (every user/assistant turn, tool call, and tool result;
+  `<system-reminder>` blocks and hook noise elided; ~6× smaller than the raw
+  `.jsonl` and readable/greppable in the GitHub UI) — plus `summary.md` (via
+  the `caveman` summarizer if available, else summarized directly). `raw.md` is
+  rendered from the Claude Code transcript when one exists — in a hosted/cloud
+  sandbox (`CLAUDE_CODE_REMOTE`), where each turn is a fresh `claude --resume`,
+  the largest file in the project dir (the complete cumulative transcript,
+  append-only across compactions) — or from the in-context view when there's no
+  transcript (a chat session; partial if older turns were compacted out).
+  Archives are keyed by the session id (`CLAUDE_CODE_REMOTE_SESSION_ID` in a
+  hosted sandbox — the only id stable across turns), so re-saving the same
+  session updates that folder, branch, and PR in place instead of duplicating.
+  Runtime-agnostic; repo writes go through the available GitHub tools; when the
   repo arg is omitted or a bare name is given the target is resolved by
   searching accessible repos and confirmed with the user before any write.
   Tracked in `kxa-bpt`.
