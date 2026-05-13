@@ -23,9 +23,11 @@ runs on SessionStart, then open a PR with the changes:
   which on session start install the `dolt` and `bd` CLIs into `~/.local/bin`
   and bootstrap the beads database, and run `bd prime` on session start /
   pre-compact — so cloud Claude Code sessions can run `bd`.
+- **`AGENTS.md` → `CLAUDE.md` symlink** — enforces one canonical
+  agent-instructions file so the two don't drift (creates an empty `CLAUDE.md`
+  if neither file exists; if the repo has only `AGENTS.md`, promotes it).
 - **Optionally** — `bd init` to give the repo a beads issue tracker, and a
-  Beads / session-completion / non-interactive-shell section in `CLAUDE.md` (or
-  `AGENTS.md`).
+  Beads / session-completion / non-interactive-shell section in `CLAUDE.md`.
 
 The mechanical file changes are done by the bundled script `setup.sh` (next to
 this `SKILL.md`); this skill runs it, then handles the merges the script can't
@@ -138,15 +140,22 @@ there (so beads' own hooks run too). Then `git rm` the now-bypassed
 
 ## Step 6 — CLAUDE.md / AGENTS.md (optional)
 
-Offer to add a Beads / session-completion / non-interactive-shell section to
-the repo's agent-instructions file (create `CLAUDE.md` if neither it nor
-`AGENTS.md` exists). Use `$SKILL_DIR/assets/CLAUDE.kix-section.md` as the
-starting text; drop the leading HTML comment, and adapt the project-specific
-parts — in particular the **Build & Test** block: keep the Prettier targets,
-and either fill in the repo's real build/test commands or leave the "replace
-this section" note for the maintainers. Don't copy kix-agents-only content (its
-release pipeline, its architecture overview). In interactive mode, show the
-proposed insertion and wait for an OK before writing.
+`setup.sh` already enforces the canonical layout: **`CLAUDE.md` is the file,
+`AGENTS.md` is a symlink to it.** If neither existed it created an empty
+`CLAUDE.md`; if the repo had only an `AGENTS.md` it promoted that file's
+content into `CLAUDE.md` and replaced `AGENTS.md` with the symlink. If both
+existed as regular files the script left them alone and flagged it — merge them
+by hand, then `rm AGENTS.md && ln -s CLAUDE.md AGENTS.md`.
+
+Once `CLAUDE.md` is the canonical file, offer to add a Beads /
+session-completion / non-interactive-shell section to it. Use
+`$SKILL_DIR/assets/CLAUDE.kix-section.md` as the starting text; drop the
+leading HTML comment, and adapt the project-specific parts — in particular the
+**Build & Test** block: keep the Prettier targets, and either fill in the
+repo's real build/test commands or leave the "replace this section" note for
+the maintainers. Don't copy kix-agents-only content (its release pipeline, its
+architecture overview). In interactive mode, show the proposed insertion and
+wait for an OK before writing.
 
 If the file already has a Beads section, leave it alone.
 

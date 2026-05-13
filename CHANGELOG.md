@@ -47,11 +47,12 @@ The format is based on
   baseline Kix repo tooling into the current repository (Prettier formatting
   gate + `make` targets + a `.github/workflows/check.yml` CI workflow, a merged
   beads-sync + Prettier `pre-commit` hook, `.claude` SessionStart/PreCompact
-  hooks that install `dolt` + `bd` and bootstrap beads, plus optional `bd init`
-  and a `CLAUDE.md` Beads section), then opens a PR. Ships a bundled `setup.sh`
-  that does the idempotent file changes and an `assets/` directory holding the
-  canonical hook scripts, Makefile, CI workflow, and Prettier config it
-  deploys.
+  hooks that install `dolt` + `bd` and bootstrap beads, an `AGENTS.md` →
+  `CLAUDE.md` symlink so the two agent-instructions files don't drift, plus
+  optional `bd init` and a `CLAUDE.md` Beads section), then opens a PR. Ships a
+  bundled `setup.sh` that does the idempotent file changes and an `assets/`
+  directory holding the canonical hook scripts, Makefile, CI workflow, and
+  Prettier config it deploys.
 
 ### Changed
 
