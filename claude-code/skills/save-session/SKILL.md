@@ -161,20 +161,34 @@ raw_transcript: raw.jsonl.gz
 ## <ISO-8601 timestamp> — update
 
 - <key decisions, what was built/changed so far>
-- <open follow-ups>
+- <if new open questions surfaced this turn, note them here AND add to Open
+  Questions below>
+
+## Open Questions
+
+- [ ] <question 1>
+- [ ] <question 2>
 ```
 
 (Give `raw.md` the same frontmatter + `# <title>`; drop `raw_transcript` when
 there's no `raw.jsonl.gz`, i.e. the rendered-fallback path.)
 
 **Re-save** — do **not** rewrite the file. Read the existing `summary.md`,
-leave every prior section byte-for-byte, and **append one new
-`## <ISO-8601 timestamp> — update` section** covering only what's happened
-since the previous update section (clean diff, preserved history, no LLM drift
-in the old content). Update only the frontmatter `saved_at`; touch the `# `
-heading or `## Goal` only if the session's overall aim genuinely changed (the
-stem/slug never changes). The "what's new" boundary is whatever the last update
-section already covered.
+leave every prior section byte-for-byte, and:
+
+1. **Insert a new `## <ISO-8601 timestamp> — update` section immediately
+   _before_ the `## Open Questions` section** (updates stay in time order; Open
+   Questions remains the tail).
+2. **Update `## Open Questions`** as a GitHub-style checklist:
+   - When a question gets answered this session, flip its bullet from `- [ ]`
+     to `- [x]` and add the answer as a **sub-item** beneath it (don't delete
+     the question — keep the trail). The discussion that led to the answer goes
+     in the new update section above.
+   - New questions surfaced this turn: add as fresh `- [ ]` items.
+3. Refresh only the frontmatter `saved_at`; touch the `# ` heading or `## Goal`
+   only if the session's overall aim genuinely changed (the stem/slug never
+   changes). The "what's new" boundary is whatever the last update section
+   already covered.
 
 If the `caveman` skill is available (the `caveman:caveman` compression mode —
 invocable as `/caveman`; check the host's skill list), run it over the

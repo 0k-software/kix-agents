@@ -1,5 +1,5 @@
 ---
-saved_at: 2026-05-13T10:38:41Z
+saved_at: 2026-05-13T10:43:02Z
 session_id: cse_01Qz8ByMxYiCeBo6KQz2Ez5L
 raw_transcript: raw.jsonl.gz
 ---
@@ -54,13 +54,28 @@ Plus wire `kix:commit` to bundle the archive into every commit via the
 - This archive itself was regenerated from scratch to demonstrate the
   first-save output shape — replaces the prior hand-written `summary.md`.
 
-## Open follow-ups
+## 2026-05-13T10:43Z — update
 
-- Gzipped `.jsonl` isn't directly rendered/searchable in the GitHub UI — clone
-  + `zcat | grep`. Acceptable trade.
-- At scale (~few thousand sessions ≈ 1 GB), prune older archives to just
-  `summary.md` or move raw transcripts to a separate backup repo. No Git LFS
-  needed at any realistic volume.
-- PR #43 (standalone-save demo) still uses the old `docs/conversations/` path
-  and predates the latest changes — close or refresh it.
-- `kxa-bpt` stays in progress until PR #34 merges.
+- Refined the `summary.md` re-save protocol: new `## <timestamp> — update`
+  sections are inserted **before** the `## Open Questions` section (updates in
+  time order, Open Questions stays the tail).
+- Renamed the trailing section from `## Open follow-ups` → **`## Open
+  Questions`**, formatted as a GitHub-style checklist (`- [ ]` / `- [x]`).
+  When a question gets answered, flip it to `- [x]` and add the resolution as
+  a sub-item underneath — keep the question line for the trail; never delete
+  it. New questions surfaced this turn go in as fresh `- [ ]` items, with the
+  discussion captured in the update section above.
+- Updated `claude-code/skills/save-session/SKILL.md` `### Summary` to spec all
+  of the above.
+
+## Open Questions
+
+- [x] Is a gzipped `.jsonl` (not directly rendered/searchable in the GitHub
+      UI) acceptable as the archive format?
+  - **Resolved:** yes — clone + `zcat | grep` is the accepted trade-off; the
+    gz blob keeps the repo small and is the true raw record.
+- [ ] At scale (~few thousand sessions ≈ 1 GB), prune older archives to just
+      `summary.md` or move raw transcripts to a separate backup repo?
+- [ ] Close or refresh PR #43 (standalone-save demo on the old
+      `docs/conversations/` path)?
+- [ ] Close `kxa-bpt` once PR #34 merges.
