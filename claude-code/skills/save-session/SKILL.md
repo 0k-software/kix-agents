@@ -1,6 +1,6 @@
 ---
 description: Archive the current Claude session in a GitHub repo — a summary plus the verbatim conversation (raw transcript file, or a markdown render) — and open (or update) a PR for it. Re-saving the same session overwrites its archive in place.
-argument-hint: [owner/repo]
+argument-hint: [owner/repo] [--no-commit]
 ---
 
 # Save Session
@@ -23,6 +23,11 @@ A standalone `claude/save-session-<stem>` branch + PR is created only when
 there's no work branch to attach to: you started Claude Code on the default
 branch, or there's no checkout at all (a chat session, where the repo is the
 one you confirmed above).
+
+**`--no-commit`** (stage-only mode): do everything up to and including
+`git add` of the archive files into the current checkout, then **stop** — no
+commit, no push, no PR; the caller commits. `kix:commit` uses this so the
+archive lands in the same commit as the code. Requires a local checkout.
 
 The skill runs from **either** a Claude chat session or Claude Code. It uses
 the GitHub tools the host exposes (the `mcp__github__*` names below are the
@@ -59,7 +64,16 @@ via `curl` with `${GITHUB_TOKEN:-${GH_TOKEN}}`. Never invoke the `gh` CLI.
 
 ## Step 1 — Resolve the target repository
 
-1. **Explicit arg.** If `$ARGUMENTS` (trimmed) is non-empty:
+**`--no-commit` flag.** If `$ARGUMENTS` contains `--no-commit`, strip that
+token (whatever remains is the `owner/repo`, if any) and run in **stage-only
+mode** — see Steps 3 & 4. Stage-only mode requires a local git checkout; if
+there isn't one, abort: "`--no-commit` needs a local git checkout." When no
+repo arg is given in this mode, derive `owner/repo` from
+`git remote get-url origin` of the current checkout and **do not** prompt for
+confirmation (the caller is driving). Otherwise resolve the repo as below.
+
+1. **Explicit arg.** If `$ARGUMENTS` (trimmed, `--no-commit` removed) is
+   non-empty:
    - If it contains a `/`, parse it as `owner/repo` — that is the target.
    - If it's a bare name, search the repos the GitHub tools can reach for one
      whose name matches case-insensitively (e.g.
@@ -171,12 +185,14 @@ new-since-last-update turns and use its output as the section body; note
 
 ## Step 3 — Destination, title, paths (with re-save lookup)
 
-1. **Destination mode.** If the runtime has a **local git checkout** of the
-   target repo and the current branch (`git branch --show-current`) is **not**
-   the repo's default branch → this is a **work-branch save**: the session is
-   the work behind that branch, so the archive is committed onto it. Otherwise
-   (on the default branch, or no checkout — a chat session) → a **standalone
-   save**: the archive gets its own `claude/save-session-<stem>` branch + PR.
+1. **Destination mode.** In `--no-commit` mode it's always a **work-branch
+   save** (the caller commits onto the current branch). Otherwise: if the
+   runtime has a **local git checkout** of the target repo and the current
+   branch (`git branch --show-current`) is **not** the repo's default branch →
+   **work-branch save** (the session is the work behind that branch, so the
+   archive is committed onto it); on the default branch, or no checkout (a chat
+   session) → **standalone save** (the archive gets its own
+   `claude/save-session-<stem>` branch + PR).
 2. **Short id** — strip any prefix like `cse_`, lowercase, keep the first 8
    alphanumerics of the session id.
 3. **Existing archive? (re-save check.)** Look for a
@@ -207,11 +223,17 @@ new-since-last-update turns and use its output as the section body; note
 
 **Work-branch save.** Write
 `docs/conversations/<stem>/{summary.md, raw.jsonl.gz}` into the current
-checkout, `git add` them, `git commit -m "docs: save session — <title>"`
-(re-save: `docs: update saved session — <title>`), `git push`. If an open PR
-already covers this branch, it picks up the commit — **leave that PR's title
-and body alone** (it's the PR for the actual work; the archive just rides
-along). **You're done — skip Step 5.**
+checkout (if the repo runs Prettier with a prose-wrap rule and
+`docs/conversations/` isn't in its `.prettierignore`, add that line too), then
+`git add` those paths.
+
+- **`--no-commit` (stage-only):** **stop here** — do not `git commit`, push, or
+  open a PR. Report the staged paths and return to the caller; skip Step 5.
+- **Otherwise:** `git commit -m "docs: save session — <title>"` (re-save:
+  `docs: update saved session — <title>`), `git push`. If an open PR already
+  covers this branch, it picks up the commit — **leave that PR's title and body
+  alone** (it's the PR for the actual work; the archive just rides along).
+  **You're done — skip Step 5.**
 
 **Standalone save.**
 
@@ -277,9 +299,9 @@ ambiguous, re-confirm via `AskUserQuestion` before creating the PR.
 Print:
 
 - The target `owner/repo` and whether it was explicit or inferred+confirmed.
-- **Destination:** work-branch save (which branch; "added to PR #N" if one
-  covers it) or standalone save (the `claude/save-session-<stem>` branch + PR
-  URL).
+- **Destination:** `--no-commit` → the staged file paths + "caller will commit
+  them"; work-branch save → which branch ("added to PR #N" if one covers it);
+  standalone save → the `claude/save-session-<stem>` branch + PR URL.
 - New archive or re-save (which `docs/conversations/<stem>/`).
 - Whether the artifact is `raw.jsonl.gz` (which project transcript — filename +
   size) or the `raw.md` fallback (and, for `raw.md`, whether older turns were
@@ -296,6 +318,7 @@ Print:
 | Rendered-fallback path taken and `ANTHROPIC_API_KEY` missing/rejected  | Abort: instruct the user to set the env var.                                  |
 | GitHub MCP tools return 401/403 (and no `GITHUB_TOKEN` fallback works) | Abort: instruct the user to re-auth the GitHub MCP server.                    |
 | Empty session (no conversation content from either path)               | Abort before creating any branch or PR.                                       |
+| `--no-commit` with no local checkout                                   | Abort: "`--no-commit` needs a local git checkout."                            |
 | Branch / file / PR creation fails midway                               | Surface the error, stop; do not leave a PR pointing at a half-written branch. |
 
 Never write any token (or other secret) into a committed file, the commit

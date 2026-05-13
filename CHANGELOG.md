@@ -30,10 +30,11 @@ The format is based on
   in-context view. Archives are keyed by the session id
   (`CLAUDE_CODE_REMOTE_SESSION_ID` in a hosted sandbox — the only id stable
   across turns), so re-saving the same session updates that folder in place
-  instead of duplicating. Repo writes go through the available GitHub tools;
-  when the repo arg is omitted or a bare name is given the target is resolved
-  by searching accessible repos and confirmed with the user before any write.
-  Tracked in `kxa-bpt`.
+  instead of duplicating. A `--no-commit` flag stages the archive into the
+  current checkout without committing (used by `kix:commit`). Repo writes go
+  through the available GitHub tools; when the repo arg is omitted or a bare
+  name is given the target is resolved by searching accessible repos and
+  confirmed with the user before any write. Tracked in `kxa-bpt`.
 - Caveman plugin wired into the repo dev setup — `.claude/settings.json` now
   registers the `caveman` marketplace (`JuliusBrussee/caveman`) via
   `extraKnownMarketplaces` and enables `caveman@caveman`, so cloud and local
@@ -44,13 +45,12 @@ The format is based on
 ### Changed
 
 - `kix:commit` now bundles the current Claude Code session's archive into every
-  commit it makes — `gzip`s the largest project transcript to
-  `docs/conversations/<stem>/raw.jsonl.gz`, creates/appends `summary.md` (from
-  context; a new `## <timestamp> — update` section per commit on the same
-  session), `git add`s them, and commits the lot together with the rest of the
+  commit it makes — it invokes `/kix:save-session --no-commit` (a new
+  stage-only mode that writes
+  `docs/conversations/<stem>/{raw.jsonl.gz,summary.md}` and `git add`s them
+  without committing), then commits the lot together with the rest of the
   staged changes (the session is the work behind the commit). No-op for plain
-  chat sessions (no transcript). Skip behaviour and the stem / session-id rules
-  follow `kix:save-session`. `docs/conversations/**/raw.jsonl.gz` is marked
+  chat sessions (no transcript). `docs/conversations/**/raw.jsonl.gz` is marked
   `binary` in `.gitattributes` so diffs stay clean.
 
 ## [0.2.2] — 2026-05-11
