@@ -39,6 +39,16 @@ The format is based on
   compression) automatically. Code blocks, commits, and PR descriptions are
   still written normally.
 
+### Changed
+
+- `kix:commit` now bundles the current Claude Code session's archive into every
+  commit it makes — `gzip`s the largest project transcript to
+  `docs/conversations/<stem>/raw.jsonl.gz` and writes `summary.md` (from
+  context), `git add`s them, and commits the lot together with the rest of the
+  staged changes (the session is the work behind the commit). No-op for plain
+  chat sessions (no transcript). Skip behaviour and the stem / session-id rules
+  follow `kix:save-session`.
+
 ## [0.2.2] — 2026-05-11
 
 ### Added

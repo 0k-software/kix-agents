@@ -1,10 +1,11 @@
 ---
-description: Commit current work using the project's commit procedure (staging strategy, message generation, pre-commit hook auto-fix).
+description: Commit current work using the project's commit procedure (staging strategy, message generation, pre-commit hook auto-fix). Also bundles the current Claude Code session's archive into the commit.
 argument-hint: [!] [reason for the change]
 ---
 
 Commit the current intent — everything if the index is clean, only what's
-staged otherwise — and generate the commit message.
+staged otherwise — and generate the commit message. When run from a Claude Code
+session, also bundle that session's archive into the same commit (see Step 1b).
 
 ## Argument parsing
 
@@ -32,9 +33,10 @@ exists, a previous `/commit` run was paused via Step 6 **Continue** — this is 
   the resume hits an ambiguity that the saved state alone can't resolve.
 - If the current `$ARGUMENTS` is empty, reuse the saved `arguments` (so `!`
   mode persists across resumes). If non-empty, the new value wins.
-- **Skip Step 1** — the staging strategy was decided on the original run. Run
-  `git add .` to pick up any manual fixes the user made before resuming, and
-  reuse the saved `ORIG_INDEX_TREE`.
+- **Skip Steps 1 & 1b** — the staging strategy was decided on the original run,
+  and the session archive was written + `git add`ed then. Run `git add .` to
+  pick up any manual fixes the user made before resuming (this re-stages the
+  archive too), and reuse the saved `ORIG_INDEX_TREE`.
 - **Skip Step 3** if the new staged diff matches `last_staged_diff` and a saved
   `commit_message` is present — reuse the message. Otherwise regenerate the
   message in Step 3 against the new diff.
@@ -65,9 +67,30 @@ The state file is consumed (deleted) on a successful commit (Step 5) and on the
      `git stash push --keep-index --include-untracked -m "kix-commit-autostash"`
      to set aside unstaged + untracked changes so they don't leak into the
      commit, and remember that a stash was created.
-   - In all branches, capture the post-staging index with `git write-tree` and
-     remember the SHA as `ORIG_INDEX_TREE`. You may need it in Step 6 to roll
-     back fix attempts to the exact pre-`/commit` state.
+   - In all branches, do the staging _first_, then Step 1b, then capture the
+     post-staging index with `git write-tree` and remember the SHA as
+     `ORIG_INDEX_TREE`. You may need it in Step 6 to roll back fix attempts.
+     1b. **Bundle the session archive.** If this is a Claude Code session with
+     a reachable transcript (i.e. `~/.claude/projects/<project-slug>/*.jsonl`
+     exists; skip this whole step otherwise — e.g. a plain chat session),
+     bundle this session's archive into the commit, reusing the
+     [`kix:save-session`](../save-session/SKILL.md) machinery:
+   - Determine the **session id** (`CLAUDE_CODE_REMOTE_SESSION_ID` when set,
+     else `CLAUDE_CODE_SESSION_ID`) and **short id**; look for an existing
+     `docs/conversations/<dir>/` ending in `-<short-id>` (or whose `summary.md`
+     carries that `session_id`) — reuse that `<stem>` if found (re-save), else
+     `<stem>` = `<YYYY-MM-DD>-<slug>-<short-id>`.
+   - `gzip` the **largest** `*.jsonl` in the project dir →
+     `docs/conversations/<stem>/raw.jsonl.gz` (it's the complete cumulative
+     transcript — see save-session Step 2). Write
+     `docs/conversations/<stem>/summary.md` **from context** (don't re-read the
+     `.jsonl` to summarize); if `caveman` is available, use it.
+   - If the repo runs Prettier with a prose-wrap rule and `docs/conversations/`
+     isn't in its `.prettierignore`, add that line.
+   - `git add docs/conversations/<stem>/` (and `.prettierignore` if changed).
+   - **Do not** run save-session's branch/commit/PR steps — this `/kix:commit`
+     commits the archive together with the rest of the staged changes; the
+     transcript is the work this session did, so it rides along.
 2. Run `git diff --no-ext-diff --staged` to get the diff to be committed.
 3. Write a commit message following `Commit message` instructions in
    `AGENTS.md`/`CLAUDE.md`. If none, base yourself from
