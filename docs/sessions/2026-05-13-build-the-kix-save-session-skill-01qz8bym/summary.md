@@ -1,5 +1,5 @@
 ---
-saved_at: 2026-05-13T10:43:02Z
+saved_at: 2026-05-13T10:45:00Z
 session_id: cse_01Qz8ByMxYiCeBo6KQz2Ez5L
 raw_transcript: raw.jsonl.gz
 ---
@@ -68,6 +68,19 @@ Plus wire `kix:commit` to bundle the archive into every commit via the
 - Updated `claude-code/skills/save-session/SKILL.md` `### Summary` to spec all
   of the above.
 
+## 2026-05-13T10:45Z — update
+
+- Added a trailing **`## Action Items`** checklist section to the summary
+  template — `- [ ]` / `- [x]` items for things to remember to do (close a PR,
+  follow up on a beads issue, ship a follow-up, …). When done, flip to `[x]`
+  and add a sub-item with the reference (beads id, PR #N, commit SHA); if a
+  beads issue is filed, mark `[x]` with the beads id and let the tracker carry
+  it from there. Section order: Goal → updates (time order) → Open Questions
+  → Action Items (new tail).
+- Updated `claude-code/skills/save-session/SKILL.md` `### Summary` to spec it.
+- Migrated the two action-style items out of `## Open Questions` into the new
+  `## Action Items` section (closing PR #43; closing `kxa-bpt` on merge).
+
 ## Open Questions
 
 - [x] Is a gzipped `.jsonl` (not directly rendered/searchable in the GitHub
@@ -76,6 +89,9 @@ Plus wire `kix:commit` to bundle the archive into every commit via the
     gz blob keeps the repo small and is the true raw record.
 - [ ] At scale (~few thousand sessions ≈ 1 GB), prune older archives to just
       `summary.md` or move raw transcripts to a separate backup repo?
+
+## Action Items
+
 - [ ] Close or refresh PR #43 (standalone-save demo on the old
-      `docs/conversations/` path)?
+      `docs/conversations/` path).
 - [ ] Close `kxa-bpt` once PR #34 merges.
