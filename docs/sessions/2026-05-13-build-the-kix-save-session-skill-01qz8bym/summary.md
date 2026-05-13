@@ -1,5 +1,5 @@
 ---
-saved_at: 2026-05-13T01:02:52Z
+saved_at: 2026-05-13T10:24:29Z
 session_id: cse_01Qz8ByMxYiCeBo6KQz2Ez5L
 raw_transcript: raw.jsonl.gz
 ---
@@ -64,3 +64,26 @@ repo and open (or update) a PR for it — plus the beads issue tracking it.
 - PR #43 duplicates this session's archive (under a `2026-05-12-…` stem) — close
   it once this lands.
 - `kxa-bpt` stays in progress until PR #34 merges.
+
+## 2026-05-13T10:24Z — update
+
+- Made `summary.md` **append-only**: re-saves add a `## <timestamp> — update`
+  section, never rewrite the file (clean diff, preserved history, no LLM drift
+  in old content). `kix:save-session` `### Summary` and `kix:commit` Step 1
+  updated to match.
+- Added **`/kix:save-session --no-commit`** (stage-only mode): writes the
+  archive + `git add` and stops; caller commits. `kix:commit` Step 1 collapsed
+  to a one-line invocation of it, dropping the duplicated capture/stem/summary
+  prose.
+- Renamed **`docs/conversations/` → `docs/sessions/`** everywhere (SKILL.md,
+  kix:commit, `.prettierignore`, `.gitattributes`, CHANGELOG, the committed
+  archive folder). PR-body link relabeled `Session summary:`. Skill name stays
+  `kix:save-session`.
+- Added **`.gitattributes`** marking `docs/sessions/**/raw.jsonl.gz binary` so
+  diffs stay clean (binary blob, no useful diff anyway).
+- Confirmed the **"after staging" placement** in `kix:commit` is deliberate:
+  in the mixed-index case, writing the archive *before* the stash would let
+  `git stash --include-untracked` sweep it away. Session-scoped archives ≠
+  commit-scoped — a session split across multiple commits carries an updated
+  archive on each (gz re-gzipped, `summary.md` appends a section); the final
+  commit holds the complete view.
