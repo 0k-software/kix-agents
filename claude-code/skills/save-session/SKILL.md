@@ -1,14 +1,14 @@
 ---
-description: Archive the current Claude session in a GitHub repo — a summary plus the verbatim conversation (raw transcript file, or a markdown render) — and open (or update) a PR for it. Re-saving the same session overwrites its archive in place.
+description: Archive the current Claude session in a GitHub repo — a log plus the verbatim conversation (transcript file, or a markdown render) — and open (or update) a PR for it. Re-saving the same session overwrites its archive in place.
 argument-hint: [owner/repo] [--no-commit]
 ---
 
 # Save Session
 
 Capture the content of the current chat / Claude Code session and commit it to
-a target GitHub repository — a `summary.md` plus the verbatim conversation (the
-raw transcript file when one exists, otherwise a markdown render) — landing on
-the work branch when there is one, or on its own branch + PR otherwise.
+a target GitHub repository — a `log.md` plus the verbatim conversation (the
+transcript file when one exists, otherwise a markdown render) — landing on the
+work branch when there is one, or on its own branch + PR otherwise.
 
 Invoked as `/kix:save-session [owner/repo]`. The repo argument is optional —
 when omitted, the skill infers a likely target and asks the user to confirm
@@ -33,10 +33,10 @@ The skill runs from **either** a Claude chat session or Claude Code. It uses
 the GitHub tools the host exposes (the `mcp__github__*` names below are the
 concrete tools when running in Claude Code — substitute the equivalent the host
 provides) rather than assuming a shell or a checked-out git repo. The verbatim
-artifact is the Claude Code transcript `.jsonl`, gzipped to `raw.jsonl.gz` (in
-a hosted sandbox, the largest file in the project dir — the complete cumulative
-transcript); a chat session with no transcript renders the conversation in
-context to `raw.md` instead.
+artifact is the Claude Code transcript `.jsonl`, gzipped to
+`transcript.jsonl.gz` (in a hosted sandbox, the largest file in the project dir
+— the complete cumulative transcript); a chat session with no transcript
+renders the conversation in context to `transcript.md` instead.
 
 ---
 
@@ -120,14 +120,14 @@ Pick the content source, in order:
    keeps every original turn even after a context compaction, so it's the
    fullest record there is — every turn, tool call, tool result, and system
    block, byte-for-byte. `gzip` it (don't otherwise touch it) and commit the
-   result as `raw.jsonl.gz`: these files are multi-MB raw, ~4–5× smaller
+   result as `transcript.jsonl.gz`: these files are multi-MB raw, ~4–5× smaller
    gzipped, and write-once — a compressed blob in git is fine and keeps the
    repo from ballooning (no Git LFS needed at any realistic volume).
 2. **Rendered fallback** — only when there is no transcript file at all (e.g. a
    Claude chat session). Fall back to the conversation tool the host exposes —
    the Claude API / conversation tool, authenticated with `ANTHROPIC_API_KEY` —
    or, failing that, the conversation already in context. Render it to markdown
-   in `raw.md`, **as verbatim as the source allows**: turn order, roles,
+   in `transcript.md`, **as verbatim as the source allows**: turn order, roles,
    message text, tool calls, tool results, and system content all kept; nothing
    collapsed, truncated, or omitted. If the runtime has already compacted older
    turns, only the surviving in-context view can be rendered — state that in
@@ -136,20 +136,30 @@ Pick the content source, in order:
 If no path yields conversation content, abort with: "Nothing to save — couldn't
 read this session's conversation content." Do not create a branch or PR.
 
-### Summary
+### Log
 
-`summary.md` is an **append-only running history** of the session — never
+`log.md` is an **append-only running history** of the session — never
 regenerated. Build it **from context** (what's in working memory, compacted
 older turns included, is plenty; don't re-read the transcript `.jsonl` to
 summarize).
 
-**First save** — create `summary.md` with this layout:
+**Be specific.** Each update section should record: what was decided this turn,
+the alternatives considered and why this option won, and concrete refs (beads
+id, PR #, commit SHA, file path). Enough detail that a reader (or a later you)
+can reconstruct the reasoning — not just the final state.
+
+**First save** — create `log.md` with this layout. Reconstruct the prior
+conversation as a **step-by-step history**, not a final-state condensed
+summary: emit **multiple `## <ISO-8601 date> — update` sections** broken by
+natural slices (one per calendar date when the session spans days; one per
+distinct topic-chunk inside a single day). Same step-by-step shape a series of
+re-saves would have produced.
 
 ```markdown
 ---
 saved_at: <ISO-8601 timestamp>
 session_id: <id>
-raw_transcript: raw.jsonl.gz
+transcript: transcript.jsonl.gz
 ---
 
 # <Session title — see Step 3>
@@ -158,11 +168,15 @@ raw_transcript: raw.jsonl.gz
 
 <one short paragraph: what this session set out to do>
 
-## <ISO-8601 timestamp> — update
+## <YYYY-MM-DD> — update
 
-- <key decisions, what was built/changed so far>
-- <new open questions / action items surfaced this turn — also add them to the
-  checklist sections below>
+- <step-by-step record of that slice (date or topic): what was decided, the
+  alternatives considered, what won and why, refs (beads id / PR # / commit
+  SHA / file path)>
+
+## <YYYY-MM-DD> — update
+
+- <next slice>
 
 ## Open Questions
 
@@ -174,11 +188,12 @@ raw_transcript: raw.jsonl.gz
 - [ ] <thing to remember to do>
 ```
 
-(Give `raw.md` the same frontmatter + `# <title>`; drop `raw_transcript` when
-there's no `raw.jsonl.gz`, i.e. the rendered-fallback path.)
+(Give `transcript.md` the same frontmatter + `# <title>`; drop the
+`transcript:` field when there's no `transcript.jsonl.gz`, i.e. the
+rendered-fallback path.)
 
-**Re-save** — do **not** rewrite the file. Read the existing `summary.md`,
-leave every prior section byte-for-byte, and:
+**Re-save** — do **not** rewrite the file. Read the existing `log.md`, leave
+every prior section byte-for-byte, and:
 
 1. **Insert a new `## <ISO-8601 timestamp> — update` section immediately
    _before_ the `## Open Questions` section** (updates stay in time order;
@@ -222,7 +237,7 @@ new-since-last-update turns and use its output as the section body; note
 2. **Short id** — strip any prefix like `cse_`, lowercase, keep the first 8
    alphanumerics of the session id.
 3. **Existing archive? (re-save check.)** Look for a `docs/sessions/<dir>/`
-   whose name ends with `-<short-id>` (or whose `summary.md` / `raw.md`
+   whose name ends with `-<short-id>` (or whose `log.md` / `transcript.md`
    frontmatter carries `session_id: <full id>`) — in the **current branch's
    working tree** for a work-branch save, or on the **default branch** (via
    `mcp__github__get_file_contents`) for a standalone save. If found, this is a
@@ -230,7 +245,7 @@ new-since-last-update turns and use its output as the section body; note
    save, the `claude/save-session-<stem>` branch). Don't rename, don't suffix.
    Skip to step 6.
 4. **Title** — a concise summary of the session's main topic, ≤ 70 characters
-   (the `# ` heading in `summary.md` / `raw.md`; and the PR title for a
+   (the `# ` heading in `log.md` / `transcript.md`; and the PR title for a
    standalone save). Derive it from what the session accomplished, not the
    first message. (On a re-save the title may be refreshed in the file body;
    the stem stays put.)
@@ -238,8 +253,8 @@ new-since-last-update turns and use its output as the section body; note
    `<YYYY-MM-DD>-<slug>-<short-id>` (slug = lowercased title, non-alphanumerics
    → `-`, trimmed, ≤ ~50 chars; date UTC); if that exact stem is already taken,
    append `-2`, `-3`, … The archive directory is `docs/sessions/<stem>/`,
-   holding `summary.md` plus `raw.jsonl.gz` (transcript path) **or** `raw.md`
-   (no-transcript fallback).
+   holding `log.md` plus `transcript.jsonl.gz` (transcript path) **or**
+   `transcript.md` (no-transcript fallback).
 6. **Branch.** Work-branch save → the current branch. Standalone save →
    `claude/save-session-<stem>` (stable: a re-save reuses it).
 
@@ -247,10 +262,10 @@ new-since-last-update turns and use its output as the section body; note
 
 ## Step 4 — Commit the archive
 
-**Work-branch save.** Write `docs/sessions/<stem>/{summary.md, raw.jsonl.gz}`
-into the current checkout (if the repo runs Prettier with a prose-wrap rule and
-`docs/sessions/` isn't in its `.prettierignore`, add that line too), then
-`git add` those paths.
+**Work-branch save.** Write
+`docs/sessions/<stem>/{log.md, transcript.jsonl.gz}` into the current checkout
+(if the repo runs Prettier with a prose-wrap rule and `docs/sessions/` isn't in
+its `.prettierignore`, add that line too), then `git add` those paths.
 
 - **`--no-commit` (stage-only):** **stop here** — do not `git commit`, push, or
   open a PR. Report the staged paths and return to the caller; skip Step 5.
@@ -269,11 +284,11 @@ into the current checkout (if the repo runs Prettier with a prose-wrap rule and
    `mcp__github__push_files` / `mcp__github__create_or_update_file` (pass the
    existing blob `sha` when overwriting), or via a local git checkout if
    available (branch from `origin/<default>` / fetch + reset, write the files,
-   commit, `git push`). The gzipped transcript is sub-MB; the `raw.md` fallback
-   is small too — the Contents API handles either.
+   commit, `git push`). The gzipped transcript is sub-MB; the `transcript.md`
+   fallback is small too — the Contents API handles either.
    - If the target repo runs Prettier with a prose-wrap rule and
      `docs/sessions/` isn't in its `.prettierignore`, add that line in the same
-     commit (the `raw.md` fallback would otherwise be reflowed).
+     commit (the `transcript.md` fallback would otherwise be reflowed).
 3. Proceed to Step 5.
 
 If any call fails, surface the error and stop — do not leave a PR pointing at a
@@ -303,15 +318,15 @@ PR fields:
   ```markdown
   <one-paragraph outcome summary>
 
-  Session summary: [`docs/sessions/<stem>/summary.md`](docs/sessions/<stem>/summary.md)
-  Raw transcript: [`docs/sessions/<stem>/raw.jsonl.gz`](docs/sessions/<stem>/raw.jsonl.gz)
+  Session log: [`docs/sessions/<stem>/log.md`](docs/sessions/<stem>/log.md)
+  Raw transcript: [`docs/sessions/<stem>/transcript.jsonl.gz`](docs/sessions/<stem>/transcript.jsonl.gz)
 
   ---
   *Generated by Claude Code*
   ```
 
   On the rendered-fallback path, point "Raw transcript" at
-  `docs/sessions/<stem>/raw.md` instead.
+  `docs/sessions/<stem>/transcript.md` instead.
 
 If the repo argument was **inferred** (Step 1 path 2), the user has already
 confirmed the repo — proceed; if anything about the target still feels
@@ -328,9 +343,10 @@ Print:
   them"; work-branch save → which branch ("added to PR #N" if one covers it);
   standalone save → the `claude/save-session-<stem>` branch + PR URL.
 - New archive or re-save (which `docs/sessions/<stem>/`).
-- Whether the artifact is `raw.jsonl.gz` (which project transcript — filename +
-  size) or the `raw.md` fallback (and, for `raw.md`, whether older turns were
-  compacted out), and how `summary.md` was produced (`caveman` or directly).
+- Whether the artifact is `transcript.jsonl.gz` (which project transcript —
+  filename + size) or the `transcript.md` fallback (and, for `transcript.md`,
+  whether older turns were compacted out), and how `log.md` was produced
+  (`caveman` or directly).
 
 ---
 
