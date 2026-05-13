@@ -125,7 +125,11 @@ read this session's conversation content." Do not create a branch or PR.
 ### Summary
 
 Always generate a human-readable `summary.md` of the conversation — alongside
-`raw.jsonl.gz` or `raw.md`, whichever verbatim artifact was committed:
+`raw.jsonl.gz` or `raw.md`, whichever verbatim artifact was committed. Source
+it from the conversation **in context** — what's in working memory (the
+compacted view of older turns included) is plenty for a summary; do **not**
+re-read the transcript `.jsonl` just to summarize (that's the verbatim
+artifact's job and wastes tokens).
 
 - **If the `caveman` skill is available** (the `caveman:caveman` compression
   mode — invocable as `/caveman`; check the host's skill list), invoke it and
