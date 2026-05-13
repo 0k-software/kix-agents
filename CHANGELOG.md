@@ -11,19 +11,19 @@ The format is based on
 
 - `kix:save-session` skill (`claude-code/skills/save-session/SKILL.md`) —
   invoked as `/kix:save-session [owner/repo]`; archives the current session
-  into a per-session folder `docs/conversations/<stem>/` in a target repo. When
-  run from Claude Code on a feature branch (the branch that holds this
-  session's work) the archive is committed straight onto that branch so it
-  rides along with that branch's PR; only when there's no work branch — you
-  started on the default branch, or there's no checkout (a chat session) — does
-  it get its own `claude/save-session-<stem>` branch + PR. The folder holds a
-  `summary.md` — an append-only running history (first save creates it; each
-  re-save appends a `## <timestamp> — update` section rather than rewriting it,
-  built from context, via `caveman` if available) — plus the verbatim
-  conversation: the Claude Code transcript `.jsonl`, gzipped and committed as
-  `raw.jsonl.gz` (~4–5× smaller, keeps the repo from ballooning — no Git LFS
-  needed) — in a hosted/cloud sandbox (`CLAUDE_CODE_REMOTE`) where each turn is
-  a fresh `claude --resume`, the largest file in the project dir (the complete
+  into a per-session folder `docs/sessions/<stem>/` in a target repo. When run
+  from Claude Code on a feature branch (the branch that holds this session's
+  work) the archive is committed straight onto that branch so it rides along
+  with that branch's PR; only when there's no work branch — you started on the
+  default branch, or there's no checkout (a chat session) — does it get its own
+  `claude/save-session-<stem>` branch + PR. The folder holds a `summary.md` —
+  an append-only running history (first save creates it; each re-save appends a
+  `## <timestamp> — update` section rather than rewriting it, built from
+  context, via `caveman` if available) — plus the verbatim conversation: the
+  Claude Code transcript `.jsonl`, gzipped and committed as `raw.jsonl.gz`
+  (~4–5× smaller, keeps the repo from ballooning — no Git LFS needed) — in a
+  hosted/cloud sandbox (`CLAUDE_CODE_REMOTE`) where each turn is a fresh
+  `claude --resume`, the largest file in the project dir (the complete
   cumulative transcript, append-only across compactions); or, when there's no
   transcript at all (a chat session), a verbatim `raw.md` render from the
   host's conversation tool / Anthropic API (`ANTHROPIC_API_KEY`) / the
@@ -46,12 +46,12 @@ The format is based on
 
 - `kix:commit` now bundles the current Claude Code session's archive into every
   commit it makes — it invokes `/kix:save-session --no-commit` (a new
-  stage-only mode that writes
-  `docs/conversations/<stem>/{raw.jsonl.gz,summary.md}` and `git add`s them
-  without committing), then commits the lot together with the rest of the
-  staged changes (the session is the work behind the commit). No-op for plain
-  chat sessions (no transcript). `docs/conversations/**/raw.jsonl.gz` is marked
-  `binary` in `.gitattributes` so diffs stay clean.
+  stage-only mode that writes `docs/sessions/<stem>/{raw.jsonl.gz,summary.md}`
+  and `git add`s them without committing), then commits the lot together with
+  the rest of the staged changes (the session is the work behind the commit).
+  No-op for plain chat sessions (no transcript).
+  `docs/sessions/**/raw.jsonl.gz` is marked `binary` in `.gitattributes` so
+  diffs stay clean.
 
 ## [0.2.2] — 2026-05-11
 

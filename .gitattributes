@@ -1,4 +1,4 @@
 # Saved session transcripts (kix:save-session / kix:commit) — gzip blobs.
 # Mark binary so diffs say "Binary files differ" instead of nothing, and so
 # Git doesn't try to merge them.
-docs/conversations/**/raw.jsonl.gz binary
+docs/sessions/**/raw.jsonl.gz binary

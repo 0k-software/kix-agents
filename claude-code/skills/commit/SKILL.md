@@ -69,7 +69,7 @@ The state file is consumed (deleted) on a successful commit (Step 5) and on the
      commit, and remember that a stash was created.
    - **In all branches, after staging:** invoke
      [`/kix:save-session --no-commit`](../save-session/SKILL.md) — it writes
-     this session's archive (`docs/conversations/<stem>/raw.jsonl.gz` +
+     this session's archive (`docs/sessions/<stem>/raw.jsonl.gz` +
      `summary.md`, and `.prettierignore` if needed) into the checkout and
      `git add`s it, without committing. (It's a no-op when there's no
      transcript, e.g. a plain chat session — fine; carry on.) Don't
