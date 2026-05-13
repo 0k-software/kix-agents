@@ -1,3 +1,6 @@
 .git
 .beads/
 .perles/
+
+# Saved session archives (kix:save-session) — generated dumps, not source
+docs/conversations/
