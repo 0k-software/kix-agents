@@ -50,15 +50,26 @@ file, the commit message, or the PR body.
   conversation content via the Anthropic API when no local transcript is used.
   If that path is taken and the key is missing or rejected (401), abort with:
   "Set `ANTHROPIC_API_KEY` to a key with access to this conversation."
-- GitHub auth — handled by the GitHub MCP server's own credential storage. All
-  repo writes go through the `mcp__github__*` tools (`create_branch`,
-  `create_or_update_file` / `push_files`, `create_pull_request` /
-  `update_pull_request`, plus `search_repositories` / `list_*` /
-  `get_file_contents` for inference and re-save lookup). If those tools return
-  401/403, abort with: "Re-authenticate the GitHub MCP server, then retry."
+- GitHub auth — preferred path is the GitHub MCP server's own credential
+  storage; all repo writes go through the `mcp__github__*` tools
+  (`create_branch`, `create_or_update_file` / `push_files`,
+  `create_pull_request` / `update_pull_request`, plus `search_repositories` /
+  `list_*` / `get_file_contents` for inference and re-save lookup). If those
+  tools return 401/403, abort with: "Re-authenticate the GitHub MCP server,
+  then retry."
 
-If no GitHub tool is available but a shell is, fall back to the GitHub REST API
-via `curl` with `${GITHUB_TOKEN:-${GH_TOKEN}}`. Never invoke the `gh` CLI.
+**Token fallback (`GITHUB_TOKEN` / `GH_TOKEN`).** Whenever the GitHub MCP path
+isn't usable for the target repo — the MCP tools aren't present, **or** the
+repo is outside the MCP server's allowlist — fall back to the GitHub REST API
+via `curl` with `${GITHUB_TOKEN:-${GH_TOKEN}}` for every subsequent write
+(branch, file, PR). All `mcp__github__*` calls below have direct REST
+equivalents (e.g. `POST /repos/{o}/{r}/git/refs` for `create_branch`,
+`PUT /repos/{o}/{r}/contents/{path}` for `create_or_update_file`,
+`POST /repos/{o}/{r}/pulls` for `create_pull_request`). Never invoke the `gh`
+CLI. If neither MCP nor a token is available, abort with: "`{owner}/{repo}`
+isn't reachable via the GitHub MCP server (out of allowlist?) and no
+`GITHUB_TOKEN` / `GH_TOKEN` is set — add the repo to the allowlist or set a
+token."
 
 ---
 
@@ -93,8 +104,16 @@ confirmation (the caller is driving). Otherwise resolve the repo as below.
      file, or PR until the user confirms a repo.
 3. If no plausible candidate exists, or the user declines all of them, abort
    with: "Specify the target repo: `/kix:save-session owner/repo`."
-4. Verify the chosen repo is reachable (and within the MCP allowlist). If not,
-   abort with: "`{owner}/{repo}` is not accessible from this session."
+4. Verify the chosen repo is reachable: try a cheap read (e.g.
+   `mcp__github__get_file_contents` on `/`). One of three outcomes:
+   - **OK** → use the MCP tools for all subsequent writes.
+   - **Outside the MCP allowlist** (or no MCP tools at all) → fall back to the
+     GitHub REST API with `${GITHUB_TOKEN:-${GH_TOKEN}}` + `curl` for every
+     subsequent write — see the Credentials section. **Do not abort** just
+     because the repo isn't in the allowlist.
+   - **Neither MCP nor a token reaches it** → abort with: "`{owner}/{repo}`
+     isn't reachable via the GitHub MCP server (out of allowlist?) and no
+     `GITHUB_TOKEN` / `GH_TOKEN` is set."
 
 Record the repo's **default branch** — a new branch is cut from it and the PR
 targets it.
@@ -352,15 +371,15 @@ Print:
 
 ## Error handling summary
 
-| Situation                                                              | Behavior                                                                      |
-| ---------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| No repo arg and no plausible candidate / user declines                 | Abort: ask the user to pass `owner/repo`.                                     |
-| Repo not accessible / outside MCP allowlist                            | Abort with a clear message; no writes.                                        |
-| Rendered-fallback path taken and `ANTHROPIC_API_KEY` missing/rejected  | Abort: instruct the user to set the env var.                                  |
-| GitHub MCP tools return 401/403 (and no `GITHUB_TOKEN` fallback works) | Abort: instruct the user to re-auth the GitHub MCP server.                    |
-| Empty session (no conversation content from either path)               | Abort before creating any branch or PR.                                       |
-| `--no-commit` with no local checkout                                   | Abort: "`--no-commit` needs a local git checkout."                            |
-| Branch / file / PR creation fails midway                               | Surface the error, stop; do not leave a PR pointing at a half-written branch. |
+| Situation                                                              | Behavior                                                                                      |
+| ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| No repo arg and no plausible candidate / user declines                 | Abort: ask the user to pass `owner/repo`.                                                     |
+| Repo outside MCP allowlist                                             | Fall back to GitHub REST API with `GITHUB_TOKEN` / `GH_TOKEN`; abort only if no token is set. |
+| Rendered-fallback path taken and `ANTHROPIC_API_KEY` missing/rejected  | Abort: instruct the user to set the env var.                                                  |
+| GitHub MCP tools return 401/403 (and no `GITHUB_TOKEN` fallback works) | Abort: instruct the user to re-auth the GitHub MCP server.                                    |
+| Empty session (no conversation content from either path)               | Abort before creating any branch or PR.                                                       |
+| `--no-commit` with no local checkout                                   | Abort: "`--no-commit` needs a local git checkout."                                            |
+| Branch / file / PR creation fails midway                               | Surface the error, stop; do not leave a PR pointing at a half-written branch.                 |
 
 Never write any token (or other secret) into a committed file, the commit
 message, the PR title/body, or terminal output.

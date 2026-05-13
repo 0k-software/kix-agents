@@ -1,5 +1,5 @@
 ---
-saved_at: 2026-05-13T10:55:38Z
+saved_at: 2026-05-13T12:07:40Z
 session_id: cse_01Qz8ByMxYiCeBo6KQz2Ez5L
 transcript: transcript.jsonl.gz
 ---
@@ -208,6 +208,25 @@ differ".
     a day), not one big section.
 - **Regenerated this `log.md` from scratch** to verify the from-scratch
   path produces a good step-by-step log on a long-running session.
+
+## 2026-05-13T12:07Z — update
+
+### Allowlist fallback to `GITHUB_TOKEN`
+
+- User: if the GitHub MCP server's allowlist blocks the target repo, fall
+  back to the REST API + `GITHUB_TOKEN` instead of aborting.
+- Reworked Step 1 #4 in `claude-code/skills/save-session/SKILL.md`: try a
+  cheap MCP read on the repo and branch into three outcomes — (a) OK → use
+  MCP for writes; (b) outside allowlist or no MCP at all → fall back to
+  `curl` + `${GITHUB_TOKEN:-${GH_TOKEN}}` for every subsequent write
+  (`create_branch` → `POST /repos/{o}/{r}/git/refs`,
+  `create_or_update_file` → `PUT /repos/{o}/{r}/contents/{path}`,
+  `create_pull_request` → `POST /repos/{o}/{r}/pulls`, etc.); (c) neither
+  works → abort with a clear "set a token or extend the allowlist"
+  message. Never use the `gh` CLI.
+- Credentials section updated to spell out the three states explicitly.
+- Error-table row "Repo not accessible / outside MCP allowlist" relaxed:
+  fall back to REST API + token; abort only when no token is set.
 
 ## Open Questions
 
