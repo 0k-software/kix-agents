@@ -19,10 +19,11 @@ a duplicate (the session id is the key).
 The skill runs from **either** a Claude chat session or Claude Code. It uses
 the GitHub tools the host exposes (the `mcp__github__*` names below are the
 concrete tools when running in Claude Code — substitute the equivalent the host
-provides) rather than assuming a shell or a checked-out git repo. A local
-Claude Code session's transcript file is committed verbatim as the raw
-artifact; a chat session — or a hosted/cloud sandbox, where that file is only a
-per-turn fragment — renders the conversation in context to markdown instead.
+provides) rather than assuming a shell or a checked-out git repo. The verbatim
+artifact is the Claude Code transcript `.jsonl` (in a hosted sandbox, the
+largest file in the project dir — the complete cumulative transcript); a chat
+session with no transcript renders the conversation in context to markdown
+instead.
 
 ---
 
@@ -80,33 +81,35 @@ targets it.
 
 ## Step 2 — Capture the session content
 
-**Session id (the Step 3 re-save key).** In a hosted/cloud sandbox
-(`CLAUDE_CODE_REMOTE` truthy) use `CLAUDE_CODE_REMOTE_SESSION_ID` — it's stable
-across the per-turn processes such sandboxes spin up. Otherwise use the host's
-session id (`CLAUDE_CODE_SESSION_ID`, or whatever the runtime exposes).
+**Session id (the Step 3 re-save key).** Use `CLAUDE_CODE_REMOTE_SESSION_ID`
+when set — in hosted/cloud sandboxes (`CLAUDE_CODE_REMOTE` truthy) it's the
+only id stable across turns (each turn is a fresh `claude --resume` with a new
+per-turn id). Otherwise use `CLAUDE_CODE_SESSION_ID`, or whatever the runtime
+exposes.
 
-Pick the content source:
+Pick the content source, in order:
 
-- **Hosted/cloud sandbox (`CLAUDE_CODE_REMOTE` truthy):** do **not** read the
-  local `~/.claude/projects/.../<id>.jsonl` — there it's a single-turn
-  fragment, not the whole conversation. Go straight to the rendered fallback
-  below and write `raw.md` from the conversation in context (same as a chat
-  session).
-- **Otherwise — raw transcript (preferred):** if a local Claude Code transcript
-  JSONL exists for this session (e.g. `~/.claude/projects/<slug>/<id>.jsonl`),
-  use it **as-is** — the raw artifact, committed byte-for-byte: no edits, no
-  frontmatter, no reformatting.
-- **Rendered fallback** (no transcript JSONL reachable — a chat session, or a
-  hosted sandbox per above): fall back to the conversation tool the host
-  exposes — the Claude API / conversation tool, authenticated with
-  `ANTHROPIC_API_KEY` — or, failing that, the conversation already in context.
-  Render it to markdown **verbatim**: turn order, roles, and message text
-  preserved; tool calls, tool results, and system content all kept; nothing
-  collapsed, truncated, or omitted.
+1. **Local transcript (preferred).** Look in the Claude Code project dir
+   `~/.claude/projects/<project-slug>/` for `*.jsonl` transcripts. Each
+   `claude --resume` copies the prior transcript forward and appends, so a
+   hosted sandbox leaves many files for one conversation — pick the **largest**
+   (= newest, the complete cumulative transcript; _not_ the file named after
+   the current per-turn id, which may be an older fork). Commit it
+   **byte-for-byte** as `raw.jsonl`: no edits, no frontmatter, no reformatting.
+   This is the fullest record — every turn, tool call, tool result, and system
+   block, verbatim.
+2. **Rendered fallback** — only when there is no transcript file at all (e.g. a
+   Claude chat session). Fall back to the conversation tool the host exposes —
+   the Claude API / conversation tool, authenticated with `ANTHROPIC_API_KEY` —
+   or, failing that, the conversation already in context. Render it to markdown
+   in `raw.md`, **as verbatim as the source allows**: turn order, roles,
+   message text, tool calls, tool results, and system content all kept; nothing
+   collapsed, truncated, or omitted. If the runtime has already compacted older
+   turns, only the surviving in-context view can be rendered — state that in
+   the file's header.
 
-If no path yields conversation content (no user/assistant turns), abort with:
-"Nothing to save — couldn't read this session's conversation content." Do not
-create a branch or PR.
+If no path yields conversation content, abort with: "Nothing to save — couldn't
+read this session's conversation content." Do not create a branch or PR.
 
 ### Summary
 
@@ -179,10 +182,11 @@ The session id makes re-saves idempotent: a session that was saved before is
    `mcp__github__create_or_update_file` per file (when overwriting, pass the
    existing blob `sha`).
    - **Large transcript:** the GitHub Contents API can't take a multi-MB
-     `.jsonl` via a tool call. When the runtime has a local checkout, do this
-     step via git instead: branch from `origin/<default>` (or fetch + reset the
-     existing branch), copy the transcript in, write the summary, commit, and
-     `git push`. Fall back to the API only for small renders.
+     `raw.jsonl` via a tool call. When the runtime has a local checkout, do
+     this step via git instead: branch from `origin/<default>` (or fetch +
+     reset the existing branch), copy the largest project `.jsonl` in as
+     `raw.jsonl`, write `summary.md`, commit, and `git push`. Use the API only
+     for the small `raw.md` render path.
 
 If any call fails, surface the error and stop — do not open/leave a PR pointing
 at a half-written branch.
@@ -233,9 +237,10 @@ Print:
   (re-save).
 - The branch name and the committed file path(s).
 - The PR URL.
-- Whether a `raw.jsonl` transcript was committed (and summarized via `caveman`
-  or directly) or the `raw.md` rendered fallback was used — note when the
-  fallback was forced by a hosted/cloud sandbox (`CLAUDE_CODE_REMOTE`).
+- Whether the verbatim artifact is `raw.jsonl` (which project transcript — name
+  - size) or the `raw.md` rendered fallback (and, for `raw.md`, whether older
+    turns were already compacted out), and how `summary.md` was produced
+    (`caveman` or directly).
 
 ---
 
