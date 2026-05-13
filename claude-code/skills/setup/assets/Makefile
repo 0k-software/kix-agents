@@ -6,7 +6,7 @@ setup:
 	@if [ -d .beads/hooks ]; then \
 		git config core.hooksPath .beads/hooks && chmod +x .beads/hooks/*; \
 	else \
-		mkdir -p .git/hooks && cp .git-hooks/* .git/hooks/ && chmod +x .git/hooks/*; \
+		hooks="$$(git rev-parse --git-path hooks)" && mkdir -p "$$hooks" && cp .git-hooks/* "$$hooks/" && chmod +x "$$hooks"/*; \
 	fi
 
 autofix:
