@@ -161,13 +161,17 @@ raw_transcript: raw.jsonl.gz
 ## <ISO-8601 timestamp> — update
 
 - <key decisions, what was built/changed so far>
-- <if new open questions surfaced this turn, note them here AND add to Open
-  Questions below>
+- <new open questions / action items surfaced this turn — also add them to the
+  checklist sections below>
 
 ## Open Questions
 
 - [ ] <question 1>
 - [ ] <question 2>
+
+## Action Items
+
+- [ ] <thing to remember to do>
 ```
 
 (Give `raw.md` the same frontmatter + `# <title>`; drop `raw_transcript` when
@@ -177,15 +181,23 @@ there's no `raw.jsonl.gz`, i.e. the rendered-fallback path.)
 leave every prior section byte-for-byte, and:
 
 1. **Insert a new `## <ISO-8601 timestamp> — update` section immediately
-   _before_ the `## Open Questions` section** (updates stay in time order; Open
-   Questions remains the tail).
+   _before_ the `## Open Questions` section** (updates stay in time order;
+   `## Open Questions` and `## Action Items` remain the trailing pair).
 2. **Update `## Open Questions`** as a GitHub-style checklist:
    - When a question gets answered this session, flip its bullet from `- [ ]`
      to `- [x]` and add the answer as a **sub-item** beneath it (don't delete
      the question — keep the trail). The discussion that led to the answer goes
      in the new update section above.
    - New questions surfaced this turn: add as fresh `- [ ]` items.
-3. Refresh only the frontmatter `saved_at`; touch the `# ` heading or `## Goal`
+3. **Update `## Action Items`** the same way — checklist of things to remember
+   to do (close a PR, follow up on a beads issue, ship a follow-up change, …):
+   - When an action item is done, flip to `- [x]` and add a sub-item with the
+     reference (e.g. `bd kxa-xyz`, PR #N, commit SHA) — don't delete the line,
+     so the trail stays.
+   - If a beads issue is filed for an action item, mark it `- [x]` with the
+     beads id as the sub-item; the issue tracker carries it from there.
+   - New action items surfaced this turn: add as fresh `- [ ]` items.
+4. Refresh only the frontmatter `saved_at`; touch the `# ` heading or `## Goal`
    only if the session's overall aim genuinely changed (the stem/slug never
    changes). The "what's new" boundary is whatever the last update section
    already covered.
