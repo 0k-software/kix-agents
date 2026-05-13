@@ -73,11 +73,13 @@ The state file is consumed (deleted) on a successful commit (Step 5) and on the
      chat session), reusing the [`kix:save-session`](../save-session/SKILL.md)
      machinery: pick the **largest** `*.jsonl` in the project dir (the complete
      cumulative transcript — save-session Step 2), `gzip` it to
-     `docs/conversations/<stem>/raw.jsonl.gz`, and write
-     `docs/conversations/<stem>/summary.md` **from context** (don't re-read the
-     `.jsonl` to summarize; use `caveman` if available). `<stem>` = an existing
-     `docs/conversations/<dir>/` ending in `-<short-id>` (re-save), else
-     `<YYYY-MM-DD>-<slug>-<short-id>`, with `<short-id>` derived from
+     `docs/conversations/<stem>/raw.jsonl.gz`, and update
+     `docs/conversations/<stem>/summary.md` **from context** — create it on the
+     first save, or **append** a new `## <timestamp> — update` section on a
+     re-save (never rewrite it; see save-session's `### Summary`). Don't
+     re-read the `.jsonl` to summarize; use `caveman` if available. `<stem>` =
+     an existing `docs/conversations/<dir>/` ending in `-<short-id>` (re-save),
+     else `<YYYY-MM-DD>-<slug>-<short-id>`, with `<short-id>` derived from
      `CLAUDE_CODE_REMOTE_SESSION_ID` (else `CLAUDE_CODE_SESSION_ID`) — see
      save-session Step 3. `git add docs/conversations/<stem>/` (and add
      `docs/conversations/` to `.prettierignore` if the repo runs Prettier and

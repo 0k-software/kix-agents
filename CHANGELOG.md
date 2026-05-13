@@ -17,21 +17,23 @@ The format is based on
   rides along with that branch's PR; only when there's no work branch — you
   started on the default branch, or there's no checkout (a chat session) — does
   it get its own `claude/save-session-<stem>` branch + PR. The folder holds a
-  `summary.md` (via the `caveman` summarizer if available, else summarized
-  directly) plus the verbatim conversation: the Claude Code transcript
-  `.jsonl`, gzipped and committed as `raw.jsonl.gz` (~4–5× smaller, keeps the
-  repo from ballooning — no Git LFS needed) — in a hosted/cloud sandbox
-  (`CLAUDE_CODE_REMOTE`) where each turn is a fresh `claude --resume`, the
-  largest file in the project dir (the complete cumulative transcript,
-  append-only across compactions); or, when there's no transcript at all (a
-  chat session), a verbatim `raw.md` render from the host's conversation tool /
-  Anthropic API (`ANTHROPIC_API_KEY`) / the in-context view. Archives are keyed
-  by the session id (`CLAUDE_CODE_REMOTE_SESSION_ID` in a hosted sandbox — the
-  only id stable across turns), so re-saving the same session updates that
-  folder in place instead of duplicating. Repo writes go through the available
-  GitHub tools; when the repo arg is omitted or a bare name is given the target
-  is resolved by searching accessible repos and confirmed with the user before
-  any write. Tracked in `kxa-bpt`.
+  `summary.md` — an append-only running history (first save creates it; each
+  re-save appends a `## <timestamp> — update` section rather than rewriting it,
+  built from context, via `caveman` if available) — plus the verbatim
+  conversation: the Claude Code transcript `.jsonl`, gzipped and committed as
+  `raw.jsonl.gz` (~4–5× smaller, keeps the repo from ballooning — no Git LFS
+  needed) — in a hosted/cloud sandbox (`CLAUDE_CODE_REMOTE`) where each turn is
+  a fresh `claude --resume`, the largest file in the project dir (the complete
+  cumulative transcript, append-only across compactions); or, when there's no
+  transcript at all (a chat session), a verbatim `raw.md` render from the
+  host's conversation tool / Anthropic API (`ANTHROPIC_API_KEY`) / the
+  in-context view. Archives are keyed by the session id
+  (`CLAUDE_CODE_REMOTE_SESSION_ID` in a hosted sandbox — the only id stable
+  across turns), so re-saving the same session updates that folder in place
+  instead of duplicating. Repo writes go through the available GitHub tools;
+  when the repo arg is omitted or a bare name is given the target is resolved
+  by searching accessible repos and confirmed with the user before any write.
+  Tracked in `kxa-bpt`.
 - Caveman plugin wired into the repo dev setup — `.claude/settings.json` now
   registers the `caveman` marketplace (`JuliusBrussee/caveman`) via
   `extraKnownMarketplaces` and enables `caveman@caveman`, so cloud and local
@@ -43,11 +45,13 @@ The format is based on
 
 - `kix:commit` now bundles the current Claude Code session's archive into every
   commit it makes — `gzip`s the largest project transcript to
-  `docs/conversations/<stem>/raw.jsonl.gz` and writes `summary.md` (from
-  context), `git add`s them, and commits the lot together with the rest of the
+  `docs/conversations/<stem>/raw.jsonl.gz`, creates/appends `summary.md` (from
+  context; a new `## <timestamp> — update` section per commit on the same
+  session), `git add`s them, and commits the lot together with the rest of the
   staged changes (the session is the work behind the commit). No-op for plain
   chat sessions (no transcript). Skip behaviour and the stem / session-id rules
-  follow `kix:save-session`.
+  follow `kix:save-session`. `docs/conversations/**/raw.jsonl.gz` is marked
+  `binary` in `.gitattributes` so diffs stay clean.
 
 ## [0.2.2] — 2026-05-11
 
