@@ -13,8 +13,16 @@ render) — and open a pull request summarizing the session.
 Invoked as `/kix:save-session [owner/repo]`. The repo argument is optional —
 when omitted, the skill infers a likely target and asks the user to confirm
 before any write. Re-running it on a session that was saved before **updates
-that archive in place** — same file, same branch, same PR — instead of creating
-a duplicate (the session id is the key).
+that archive in place** — same folder, same branch — instead of creating a
+duplicate (the session id is the key).
+
+When run from Claude Code on a feature branch — i.e. the branch that holds the
+work this very session did — the archive is committed **straight onto that
+branch**, so it rides along with that branch's PR rather than getting its own.
+A standalone `claude/save-session-<stem>` branch + PR is created only when
+there's no work branch to attach to: you started Claude Code on the default
+branch, or there's no checkout at all (a chat session, where the repo is the
+one you confirmed above).
 
 The skill runs from **either** a Claude chat session or Claude Code. It uses
 the GitHub tools the host exposes (the `mcp__github__*` names below are the
@@ -144,73 +152,87 @@ raw_transcript: raw.jsonl.gz
 
 ---
 
-## Step 3 — Title, paths, and branch (with re-save lookup)
+## Step 3 — Destination, title, paths (with re-save lookup)
 
-The session id makes re-saves idempotent: a session that was saved before is
-**updated in place**, not duplicated.
-
-1. **Short id** — strip any prefix like `cse_`, lowercase, keep the first 8
+1. **Destination mode.** If the runtime has a **local git checkout** of the
+   target repo and the current branch (`git branch --show-current`) is **not**
+   the repo's default branch → this is a **work-branch save**: the session is
+   the work behind that branch, so the archive is committed onto it. Otherwise
+   (on the default branch, or no checkout — a chat session) → a **standalone
+   save**: the archive gets its own `claude/save-session-<stem>` branch + PR.
+2. **Short id** — strip any prefix like `cse_`, lowercase, keep the first 8
    alphanumerics of the session id.
-2. **Existing archive?** Look under `docs/conversations/` for a directory whose
-   name ends with `-<short-id>` (or whose `summary.md` / `raw.md` frontmatter
-   carries `session_id: <full id>`). If found, this is a **re-save**: reuse
-   that directory's exact **stem** and the **branch** from step 7 — do not
-   rename, do not append a uniqueness suffix. Skip to step 7.
-3. **Title** — a concise summary of the session's main topic, ≤ 70 characters,
-   used as the PR title and the summary's `# ` heading. Derive it from what the
-   session actually accomplished, not the first message. (On a re-save the
-   title may be refreshed inside the file body, but the stem stays put.)
-4. **Slug** — lowercase the title, replace runs of non-alphanumerics with `-`,
-   trim leading/trailing `-`, cap at ~50 chars.
-5. **Stem** (new archive only) — `<YYYY-MM-DD>-<slug>-<short-id>` (today's
-   date, UTC). The trailing `-<short-id>` is what later re-saves match on. If
-   another archive somehow already uses this exact stem, append `-2`, `-3`, …
-6. **Archive directory** — `docs/conversations/<stem>/` — always a `summary.md`
-   plus the verbatim artifact:
-   - Transcript available → `raw.jsonl.gz` (the gzipped byte-for-byte
-     transcript).
-   - Otherwise → `raw.md` (the verbatim markdown render).
-7. **Branch** — `claude/save-session-<stem>` (stable: a re-save reuses it).
+3. **Existing archive? (re-save check.)** Look for a
+   `docs/conversations/<dir>/` whose name ends with `-<short-id>` (or whose
+   `summary.md` / `raw.md` frontmatter carries `session_id: <full id>`) — in
+   the **current branch's working tree** for a work-branch save, or on the
+   **default branch** (via `mcp__github__get_file_contents`) for a standalone
+   save. If found, this is a **re-save**: reuse that exact directory **stem**
+   (and, for a standalone save, the `claude/save-session-<stem>` branch). Don't
+   rename, don't suffix. Skip to step 6.
+4. **Title** — a concise summary of the session's main topic, ≤ 70 characters
+   (the `# ` heading in `summary.md` / `raw.md`; and the PR title for a
+   standalone save). Derive it from what the session accomplished, not the
+   first message. (On a re-save the title may be refreshed in the file body;
+   the stem stays put.)
+5. **Stem & paths** (new archive only) — stem =
+   `<YYYY-MM-DD>-<slug>-<short-id>` (slug = lowercased title, non-alphanumerics
+   → `-`, trimmed, ≤ ~50 chars; date UTC); if that exact stem is already taken,
+   append `-2`, `-3`, … The archive directory is `docs/conversations/<stem>/`,
+   holding `summary.md` plus `raw.jsonl.gz` (transcript path) **or** `raw.md`
+   (no-transcript fallback).
+6. **Branch.** Work-branch save → the current branch. Standalone save →
+   `claude/save-session-<stem>` (stable: a re-save reuses it).
 
 ---
 
-## Step 4 — Create or update the branch and commit the file(s)
+## Step 4 — Commit the archive
 
-1. **Branch.** If `claude/save-session-<stem>` already exists on the remote
-   (re-save), use it as-is. Otherwise create it from the repo's default branch
+**Work-branch save.** Write
+`docs/conversations/<stem>/{summary.md, raw.jsonl.gz}` into the current
+checkout, `git add` them, `git commit -m "docs: save session — <title>"`
+(re-save: `docs: update saved session — <title>`), `git push`. If an open PR
+already covers this branch, it picks up the commit — **leave that PR's title
+and body alone** (it's the PR for the actual work; the archive just rides
+along). **You're done — skip Step 5.**
+
+**Standalone save.**
+
+1. **Branch.** Reuse `claude/save-session-<stem>` if it already exists on the
+   remote (re-save), else create it from the repo's default branch
    (`mcp__github__create_branch`).
-2. **Commit.** Write the Step 3 artifact(s) into `docs/conversations/<stem>/`
-   on that branch — message `docs: save session — <title>` for a new archive,
-   `docs: update saved session — <title>` for a re-save. Use
-   `mcp__github__push_files` for both files at once, or
-   `mcp__github__create_or_update_file` per file (when overwriting, pass the
-   existing blob `sha`).
-   - **Transcript via git:** the gzipped transcript is ~hundreds of KB, but
-     it's still easiest when the runtime has a local checkout: branch from
-     `origin/<default>` (or fetch + reset the existing branch), `gzip` the
-     largest project `.jsonl` to `docs/conversations/<stem>/raw.jsonl.gz`,
-     write `summary.md`, commit, `git push`. Use the Contents API directly only
-     for the `raw.md` render path (or a small `raw.jsonl.gz` when there's no
-     checkout).
+2. **Commit** `docs/conversations/<stem>/…` onto it — message as above — via
+   `mcp__github__push_files` / `mcp__github__create_or_update_file` (pass the
+   existing blob `sha` when overwriting), or via a local git checkout if
+   available (branch from `origin/<default>` / fetch + reset, write the files,
+   commit, `git push`). The gzipped transcript is sub-MB; the `raw.md` fallback
+   is small too — the Contents API handles either.
+   - If the target repo runs Prettier with a prose-wrap rule and
+     `docs/conversations/` isn't in its `.prettierignore`, add that line in the
+     same commit (the `raw.md` fallback would otherwise be reflowed).
+3. Proceed to Step 5.
 
-If any call fails, surface the error and stop — do not open/leave a PR pointing
-at a half-written branch.
+If any call fails, surface the error and stop — do not leave a PR pointing at a
+half-written branch.
 
 ---
 
-## Step 5 — Open or update the pull request
+## Step 5 — Open or update the pull request (standalone save only)
+
+(Work-branch saves stopped at Step 4 — the archive is already on the work
+branch and its PR.)
 
 1. If an **open** PR already exists for `claude/save-session-<stem>`
-   (`mcp__github__list_pull_requests` / `pull_request_read`), update it — the
-   push from Step 4 already added the new commit; refresh the title/body so
-   they reflect the current session state (`mcp__github__update_pull_request`).
-2. Otherwise (no PR, or a prior one was merged/closed), open a new PR
+   (`mcp__github__list_pull_requests` / `pull_request_read`), update it
+   (`mcp__github__update_pull_request`) — the Step 4 push already added the
+   commit; refresh the title/body to the current state.
+2. Otherwise (none, or a prior one was merged/closed) open a new PR
    (`mcp__github__create_pull_request`) from `claude/save-session-<stem>` into
    the repo's default branch.
 
 PR fields:
 
-- **Title** — the Step 3 title (the session's main topic, ≤ 70 chars).
+- **Title** — the Step 4 title (the session's main topic, ≤ 70 chars).
 - **Body** — one paragraph summarizing the session's outcome (what was decided,
   built, or resolved), then relative links to the archive files:
 
@@ -228,8 +250,8 @@ PR fields:
   `docs/conversations/<stem>/raw.md` instead.
 
 If the repo argument was **inferred** (Step 1 path 2), the user has already
-confirmed the repo — proceed. If anything about the inferred target still feels
-ambiguous, re-confirm via `AskUserQuestion` before creating/updating the PR.
+confirmed the repo — proceed; if anything about the target still feels
+ambiguous, re-confirm via `AskUserQuestion` before creating the PR.
 
 ---
 
@@ -238,15 +260,13 @@ ambiguous, re-confirm via `AskUserQuestion` before creating/updating the PR.
 Print:
 
 - The target `owner/repo` and whether it was explicit or inferred+confirmed.
-- Whether this **created a new archive** or **updated an existing one**
-  (re-save).
-- The branch name and the committed file path(s).
-- The PR URL.
-- Whether the verbatim artifact is `raw.jsonl.gz` (which project transcript —
-  name
-  - size) or the `raw.md` rendered fallback (and, for `raw.md`, whether older
-    turns were already compacted out), and how `summary.md` was produced
-    (`caveman` or directly).
+- **Destination:** work-branch save (which branch; "added to PR #N" if one
+  covers it) or standalone save (the `claude/save-session-<stem>` branch + PR
+  URL).
+- New archive or re-save (which `docs/conversations/<stem>/`).
+- Whether the artifact is `raw.jsonl.gz` (which project transcript — filename +
+  size) or the `raw.md` fallback (and, for `raw.md`, whether older turns were
+  compacted out), and how `summary.md` was produced (`caveman` or directly).
 
 ---
 
