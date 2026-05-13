@@ -196,6 +196,9 @@ The session id makes re-saves idempotent: a session that was saved before is
    API handles it; if the runtime has a local checkout, doing it via git
    (branch from `origin/<default>` / fetch + reset the existing branch, write
    the files, commit, `git push`) is also fine.
+3. **Prettier guard.** If the target repo formats markdown with Prettier and
+   `docs/conversations/` isn't in its `.prettierignore`, add that line in the
+   same commit — a prose-wrap rule would otherwise reflow the transcript dump.
 
 If any call fails, surface the error and stop — do not open/leave a PR pointing
 at a half-written branch.
