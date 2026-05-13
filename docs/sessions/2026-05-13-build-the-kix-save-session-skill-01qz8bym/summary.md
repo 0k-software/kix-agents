@@ -1,5 +1,5 @@
 ---
-saved_at: 2026-05-13T10:24:29Z
+saved_at: 2026-05-13T10:38:41Z
 session_id: cse_01Qz8ByMxYiCeBo6KQz2Ez5L
 raw_transcript: raw.jsonl.gz
 ---
@@ -8,82 +8,59 @@ raw_transcript: raw.jsonl.gz
 
 ## Goal
 
-Create `/kix:save-session [owner/repo]` — archive a Claude session into a GitHub
-repo and open (or update) a PR for it — plus the beads issue tracking it.
+Ship `/kix:save-session [owner/repo] [--no-commit]` — archive a Claude session
+(chat or Claude Code) into `docs/sessions/<stem>/` in a target repo as
+`raw.jsonl.gz` (the gzipped Claude Code transcript) + an append-only
+`summary.md`, opening a PR for it or riding along on the current branch's PR.
+Plus wire `kix:commit` to bundle the archive into every commit via the
+`--no-commit` mode.
 
-## What happened
+## 2026-05-13T10:38Z — update
 
-- Filed beads issue `kxa-bpt` after clarifying four choices: Anthropic API
-  conversation fetch, a `kix:`-namespaced skill, a `docs/conversations/`
-  date-slug layout, infer-and-confirm repo resolution.
-- Implemented `claude-code/skills/save-session/SKILL.md` plus a `CHANGELOG`
-  entry; opened **PR #34**.
-- Worked through review (@kelvinst, several rounds): resolve a bare repo arg by
-  searching repo names (don't guess the owner); runtime-agnostic (chat sessions
-  too); artifacts under `docs/conversations/`; drop Claude-Code-only
-  assumptions; render the session verbatim — never collapse tool calls; name
-  the `caveman:caveman` skill explicitly in the summary step.
-- Iterated heavily on the artifact design — landing on:
-  - one folder per session, `docs/conversations/<stem>/`, keyed by the session
-    id so a re-save overwrites in place;
-  - `summary.md` every time (via `caveman` if available, else summarized
-    directly);
-  - the conversation stored as `raw.jsonl.gz` — the largest Claude Code project
-    transcript, gzipped (considered a rendered `raw.md` — ~6× smaller — but a
-    render costs LLM tokens and a gzipped raw `.jsonl` stays searchable via
-    `zcat | grep` and is the true raw record; repo-size handled by moving old
-    transcripts to a backup repo if it ever matters); `raw.md` kept only as the
-    no-transcript chat-session fallback;
-  - hosted-sandbox handling: each web turn is a fresh `claude --resume` that
-    copies the prior transcript forward and appends, so the project dir holds
-    many `.jsonl` files — the largest is the complete cumulative transcript
-    (append-only across compactions, so more complete than the live context);
-    `CLAUDE_CODE_REMOTE` flags the sandbox and `CLAUDE_CODE_REMOTE_SESSION_ID`
-    is the only id stable across turns, so it's the re-save key.
-- Added the **work-branch behavior**: when run from Claude Code on a feature
-  branch (the branch holding this session's work), the archive is committed
-  straight onto that branch so it rides along with that branch's PR — leaving
-  that PR's title/body alone — rather than getting its own; a standalone
-  `claude/save-session-<stem>` branch + PR is created only on the default branch
-  or when there's no checkout (a chat session).
-- Walked the user through testing the skill in Claude Code and claude.ai chat;
-  dry-ran it (PR #41, since closed; PR #43 as a standalone-save demo) and
-  rebased PR #34's branch onto `main` more than once.
-- This commit: a work-branch save of this conversation onto PR #34's branch —
-  `raw.jsonl.gz` is the gzipped cumulative transcript (`gunzip` to read).
+- Filed beads issue `kxa-bpt` after clarifying four design choices.
+- Built the skill at `claude-code/skills/save-session/SKILL.md`; worked through
+  several rounds of review (search-by-repo-name, runtime-agnostic, drop
+  Claude-Code-only assumptions, render the session verbatim, name
+  `caveman:caveman` explicitly).
+- Settled the artifact design:
+  - one folder per session, `docs/sessions/<stem>/`, keyed by the session id
+    (`CLAUDE_CODE_REMOTE_SESSION_ID` in a hosted sandbox — only id stable across
+    turns) so re-saves overwrite in place;
+  - `raw.jsonl.gz` = the **largest** `.jsonl` in the Claude Code project dir,
+    gzipped (~4–5×); each `claude --resume` copies the prior transcript forward
+    and appends, so the biggest file is the complete cumulative transcript —
+    more complete than the live in-context view after compactions; raw
+    `.jsonl.gz` stays searchable via `zcat | grep`;
+  - `summary.md` is **append-only** — first save creates a Goal paragraph + a
+    `## <timestamp> — update` section; each re-save appends a new update section
+    rather than rewriting, preserving step-by-step history and avoiding LLM
+    drift in old content;
+  - `raw.md` only as the no-transcript fallback (a plain chat session).
+- **Destination logic** in Claude Code: on a feature branch (≠ default), commit
+  the archive straight onto that branch — rides along with its PR; on the
+  default branch (protected) or no checkout (chat session) → standalone
+  `claude/save-session-<stem>` branch + new PR.
+- **`--no-commit`** mode: stage-only (write archive + `git add`, no
+  commit/push/PR — caller commits).
+- **`kix:commit`** Step 1 collapsed to one bullet: invoke `/kix:save-session
+  --no-commit`. Placement is *after* staging so in the mixed-index case the
+  archive isn't swept into the auto-stash. Session-scoped ≠ commit-scoped — a
+  session split across multiple commits carries an updated archive on each,
+  with the last commit holding the complete view.
+- **`.gitattributes`** marks `docs/sessions/**/raw.jsonl.gz binary` so diffs
+  stay clean. **`.prettierignore`** ignores `docs/sessions/`.
+- Renamed `docs/conversations/` → `docs/sessions/` repo-wide (the skill stays
+  `kix:save-session`).
+- This archive itself was regenerated from scratch to demonstrate the
+  first-save output shape — replaces the prior hand-written `summary.md`.
 
 ## Open follow-ups
 
-- A gzipped `.jsonl` isn't directly searchable/rendered in the GitHub UI —
-  clone + `zcat | grep` (acceptable trade vs. a multi-MB raw `.jsonl`).
-- When there's no transcript file (a plain chat session) `raw.md` is only as
-  complete as the in-context view — partial if older turns were compacted out.
-- Plan for scale: prune old archives to just `summary.md` (spec/plan files cover
-  them too) or move raw transcripts to a separate backup repo before the repo
-  nears GitHub's 1 GB nudge.
-- PR #43 duplicates this session's archive (under a `2026-05-12-…` stem) — close
-  it once this lands.
+- Gzipped `.jsonl` isn't directly rendered/searchable in the GitHub UI — clone
+  + `zcat | grep`. Acceptable trade.
+- At scale (~few thousand sessions ≈ 1 GB), prune older archives to just
+  `summary.md` or move raw transcripts to a separate backup repo. No Git LFS
+  needed at any realistic volume.
+- PR #43 (standalone-save demo) still uses the old `docs/conversations/` path
+  and predates the latest changes — close or refresh it.
 - `kxa-bpt` stays in progress until PR #34 merges.
-
-## 2026-05-13T10:24Z — update
-
-- Made `summary.md` **append-only**: re-saves add a `## <timestamp> — update`
-  section, never rewrite the file (clean diff, preserved history, no LLM drift
-  in old content). `kix:save-session` `### Summary` and `kix:commit` Step 1
-  updated to match.
-- Added **`/kix:save-session --no-commit`** (stage-only mode): writes the
-  archive + `git add` and stops; caller commits. `kix:commit` Step 1 collapsed
-  to a one-line invocation of it, dropping the duplicated capture/stem/summary
-  prose.
-- Renamed **`docs/conversations/` → `docs/sessions/`** everywhere (SKILL.md,
-  kix:commit, `.prettierignore`, `.gitattributes`, CHANGELOG, the committed
-  archive folder). PR-body link relabeled `Session summary:`. Skill name stays
-  `kix:save-session`.
-- Added **`.gitattributes`** marking `docs/sessions/**/raw.jsonl.gz binary` so
-  diffs stay clean (binary blob, no useful diff anyway).
-- Confirmed the **"after staging" placement** in `kix:commit` is deliberate:
-  in the mixed-index case, writing the archive *before* the stash would let
-  `git stash --include-untracked` sweep it away. Session-scoped archives ≠
-  commit-scoped — a session split across multiple commits carries an updated
-  archive on each (gz re-gzipped, `summary.md` appends a section); the final
-  commit holds the complete view.
