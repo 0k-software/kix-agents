@@ -6,8 +6,10 @@
 #   - Prettier CI workflow     .github/workflows/check.yml (only if absent)
 #   - Prettier Makefile        Makefile (only if absent — otherwise reports the
 #                              targets it needs so a human can merge them)
-#   - git pre-commit hook      .git-hooks/pre-commit  (also copied into the
-#                              repo's real hooks dir, like `make setup`)
+#   - pre-commit hook          merged beads-sync + Prettier gate — in
+#                              .beads/hooks/ + core.hooksPath if the repo has a
+#                              beads tracker, else .git-hooks/ + copied into the
+#                              repo's real hooks dir (the `make setup` way)
 #   - Claude Code hooks        .claude/hooks/{session-start,install-dolt,
 #                              install-bd,bootstrap-bd}.sh and the matching
 #                              SessionStart / PreCompact entries in
@@ -83,27 +85,52 @@ fi
 # Prettier CI workflow (mirrors the local `make check` gate).
 copy_if_absent check.yml .github/workflows/check.yml || true
 
-# --- 2. git pre-commit hook --------------------------------------------------
-if copy_if_absent git-pre-commit .git-hooks/pre-commit; then
-  chmod +x .git-hooks/pre-commit
-elif ! cmp -s "$ASSETS_DIR/git-pre-commit" .git-hooks/pre-commit; then
-  warn "an existing .git-hooks/pre-commit was left in place and differs from the kix one — make sure it runs the Prettier gate (or merge it with $ASSETS_DIR/git-pre-commit)"
-  needs_attention+=("review .git-hooks/pre-commit — kept the repo's existing hook; confirm it still enforces 'make check'")
-fi
-
-# Install repo hooks into the real hooks dir (equivalent to `make setup`).
-HOOKS_DIR="$(git rev-parse --git-path hooks)"
-mkdir -p "$HOOKS_DIR"
-for h in .git-hooks/*; do
-  [ -e "$h" ] || continue
-  name="$(basename "$h")"
-  if [ -e "$HOOKS_DIR/$name" ] && ! cmp -s "$h" "$HOOKS_DIR/$name"; then
-    warn "existing $HOOKS_DIR/$name differs from .git-hooks/$name — overwriting (the repo's source of truth is .git-hooks/)"
+# --- 2. pre-commit hook (beads sync + Prettier gate) -------------------------
+# One merged hook: beads' DB→JSONL sync section (managed by beads, between the
+# BEGIN/END markers) followed by the Prettier gate. The beads section is a
+# no-op when `bd` isn't installed, so the same file works either way.
+#
+#   - repo has a beads tracker (.beads/hooks/ exists): the hook lives in
+#     .beads/hooks/ and git is routed there via core.hooksPath, so beads' other
+#     hooks (post-merge, pre-push, …) run too.
+#   - otherwise: the hook lives in .git-hooks/ and is copied into the repo's
+#     real hooks dir (the classic `make setup` mechanism).
+if [ -d .beads/hooks ]; then
+  cp -f "$ASSETS_DIR/pre-commit" .beads/hooks/pre-commit
+  chmod +x .beads/hooks/* 2>/dev/null || true
+  note "wrote .beads/hooks/pre-commit (beads sync + Prettier gate)"
+  current_hp="$(git config --local --get core.hooksPath 2>/dev/null || true)"
+  if [ -z "$current_hp" ]; then
+    git config core.hooksPath .beads/hooks
+    note "set core.hooksPath = .beads/hooks"
+  elif [ "$current_hp" != ".beads/hooks" ]; then
+    warn "core.hooksPath is '$current_hp' — not changing it; wire the merged pre-commit (from $ASSETS_DIR/pre-commit) into that dir yourself"
+    needs_attention+=("core.hooksPath points at '$current_hp', not .beads/hooks — install the merged pre-commit ($ASSETS_DIR/pre-commit) into that path")
   fi
-  cp -f "$h" "$HOOKS_DIR/$name"
-  chmod +x "$HOOKS_DIR/$name" 2>/dev/null || true
-  note "installed git hook: $name"
-done
+  if [ -e .git-hooks/pre-commit ]; then
+    needs_attention+=("a stale .git-hooks/pre-commit exists but is now bypassed by core.hooksPath — delete .git-hooks/ if it isn't used for anything else")
+  fi
+else
+  if copy_if_absent pre-commit .git-hooks/pre-commit; then
+    chmod +x .git-hooks/pre-commit
+  elif ! cmp -s "$ASSETS_DIR/pre-commit" .git-hooks/pre-commit; then
+    warn "an existing .git-hooks/pre-commit was left in place and differs from the kix one — make sure it runs the Prettier gate (or merge it with $ASSETS_DIR/pre-commit)"
+    needs_attention+=("review .git-hooks/pre-commit — kept the repo's existing hook; confirm it still enforces 'make check'")
+  fi
+  # Install repo hooks into the real hooks dir (equivalent to `make setup`).
+  HOOKS_DIR="$(git rev-parse --git-path hooks)"
+  mkdir -p "$HOOKS_DIR"
+  for h in .git-hooks/*; do
+    [ -e "$h" ] || continue
+    name="$(basename "$h")"
+    if [ -e "$HOOKS_DIR/$name" ] && ! cmp -s "$h" "$HOOKS_DIR/$name"; then
+      warn "existing $HOOKS_DIR/$name differs from .git-hooks/$name — overwriting (the repo's source of truth is .git-hooks/)"
+    fi
+    cp -f "$h" "$HOOKS_DIR/$name"
+    chmod +x "$HOOKS_DIR/$name" 2>/dev/null || true
+    note "installed git hook: $name"
+  done
+fi
 
 # --- 3. Makefile (Prettier targets) -----------------------------------------
 if [ ! -e Makefile ]; then

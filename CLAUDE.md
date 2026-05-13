@@ -92,7 +92,7 @@ runtime and no test suite. The toolchain is Prettier + a small release
 pipeline:
 
 ```bash
-make setup     # install .git-hooks/* into .git/hooks/
+make setup     # point core.hooksPath at .beads/hooks/ (beads + Prettier gate)
 make autofix   # prettier --write .
 make check     # prettier --check .  (the formatting gate)
 make all       # autofix && check
@@ -165,5 +165,9 @@ kix-agents ships a Claude Code marketplace + plugin — no application code:
 - **Releases are tag-driven.** `make release` POSTs to GitHub's releases API;
   the plugin marketplace install path resolves via tags. Never force-tag or
   rewrite published tags.
-- **Pre-commit hook.** `.git-hooks/pre-commit` is installed by `make setup` —
-  run setup once after cloning so commits get the same checks CI runs.
+- **Pre-commit hook.** `.beads/hooks/pre-commit` is the single hook — beads' DB
+  → JSONL sync (managed section, between the `BEGIN/END BEADS INTEGRATION`
+  markers) followed by the Prettier gate (reject-if-dirty → `make autofix` →
+  re-stage → `make check`). `make setup` wires it up by pointing
+  `core.hooksPath` at `.beads/hooks/`; run setup once after cloning. Don't add
+  a `.git-hooks/` dir — it's gone.

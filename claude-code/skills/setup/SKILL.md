@@ -11,9 +11,12 @@ runs on SessionStart, then open a PR with the changes:
 - **Prettier formatting gate** — `.prettierrc.json`, `.prettierignore`, `setup`
   / `autofix` / `check` targets in the `Makefile`, and a
   `.github/workflows/check.yml` CI workflow that runs `make check`.
-- **git `pre-commit` hook** — `.git-hooks/pre-commit` (rejects a dirty tree,
-  runs `make autofix`, re-stages, runs `make check`), installed into the repo's
-  hooks dir.
+- **`pre-commit` hook** — one merged hook: beads' DB→JSONL sync section (a
+  no-op when `bd` isn't installed) followed by the Prettier gate (reject a
+  dirty tree → `make autofix` → re-stage → `make check`). Lives in
+  `.beads/hooks/` with `core.hooksPath` pointed at it when the repo has a beads
+  tracker (so beads' other hooks run too), otherwise in `.git-hooks/` and
+  copied into the repo's real hooks dir.
 - **Claude Code SessionStart / PreCompact hooks** — `.claude/settings.json`
   entries plus
   `.claude/hooks/{session-start,install-dolt,install-bd,bootstrap-bd}.sh`,
@@ -50,9 +53,10 @@ Parse `$ARGUMENTS`: a leading `!` (it may be the whole of `$ARGUMENTS`) sets
    falling back to `main` (and `git fetch origin` so it's current).
 3. Note what's already present (so the report is accurate, and so Step 4 knows
    what the script will have skipped): `Makefile`, `.prettierrc.json`,
-   `.prettierignore`, `.github/workflows/check.yml`, `.git-hooks/pre-commit`,
-   `.claude/settings.json`, `.claude/hooks/`, `.beads/`, `CLAUDE.md` /
-   `AGENTS.md`.
+   `.prettierignore`, `.github/workflows/check.yml`, an existing `pre-commit`
+   hook (`.git-hooks/pre-commit`, `.beads/hooks/pre-commit`, or whatever
+   `core.hooksPath` points at), `.claude/settings.json`, `.claude/hooks/`,
+   `.beads/`, `CLAUDE.md` / `AGENTS.md`.
 4. Locate the bundled assets. This skill ships with a sibling `setup.sh` and an
    `assets/` directory. Resolve `SKILL_DIR` to the directory containing this
    `SKILL.md` — for a plugin install that is
@@ -91,10 +95,13 @@ Work through the script's `needs manual attention` list, plus:
   Preserve the repo's own targets and `.PHONY` line; if a target name collides
   with one the repo already defines, stop and ask the user how to reconcile
   rather than guessing.
-- **Existing `pre-commit` hook** (`.git-hooks/pre-commit` or the repo's real
-  hooks dir) that does something else — don't clobber it. Explain the conflict
-  and ask the user whether to (a) chain the Prettier steps into the existing
-  hook, (b) replace it, or (c) skip the hook part of this install.
+- **Existing `pre-commit` hook that does something else** (in `.git-hooks/`,
+  the repo's real hooks dir, or wherever `core.hooksPath` points) — don't
+  clobber it. Explain the conflict and ask the user whether to (a) chain the
+  beads-sync + Prettier steps into the existing hook, (b) replace it, or (c)
+  skip the hook part of this install. Same for a `core.hooksPath` already
+  pointing somewhere other than `.beads/hooks/` — the script won't repoint it;
+  wire the merged hook (`$SKILL_DIR/assets/pre-commit`) into that dir yourself.
 - **`.claude/settings.json`** — open it and sanity-check the merge. If it now
   has a near-duplicate `SessionStart` entry (e.g. the repo already had one with
   a slightly different path to `session-start.sh`), de-dupe by hand. Optionally
@@ -123,6 +130,12 @@ If you do run `bd init` (or `.beads/` already existed), make sure
 staged in Step 8, and that `.beads/`'s own `.gitignore` (created by `bd init`)
 is committed.
 
+If `bd init` ran **just now** in this step, re-run `bash "$SKILL_DIR/setup.sh"`
+— it's idempotent, and now that `.beads/hooks/` exists it relocates the merged
+`pre-commit` hook into `.beads/hooks/pre-commit` and points `core.hooksPath`
+there (so beads' own hooks run too). Then `git rm` the now-bypassed
+`.git-hooks/pre-commit` (and the empty `.git-hooks/` dir).
+
 ## Step 6 — CLAUDE.md / AGENTS.md (optional)
 
 Offer to add a Beads / session-completion / non-interactive-shell section to
@@ -139,9 +152,10 @@ If the file already has a Beads section, leave it alone.
 
 ## Step 7 — Verify
 
-1. The script already copied `.git-hooks/*` into the repo's real hooks dir —
-   confirm the `pre-commit` hook is there and executable
-   (`test -x "$(git rev-parse --git-path hooks)/pre-commit"`).
+1. Confirm the merged `pre-commit` hook is active and executable:
+   `hd="$(git config --get core.hooksPath || git rev-parse --git-path hooks)"; test -x "$hd/pre-commit"`.
+   (`core.hooksPath` is `.beads/hooks` when there's a beads tracker, otherwise
+   unset and the hook sits in the repo's real hooks dir.)
 2. Run the formatting gate: `make autofix` then `make check`. (If you ended up
    not creating/merging a `Makefile`, run `npx prettier --write .` then
    `npx prettier --check .` instead.) Fix any drift `autofix` introduces in the
@@ -171,7 +185,7 @@ If the file already has a Beads section, leave it alone.
    Adds the baseline Kix tooling (mirrors kix-agents' SessionStart setup):
 
    - **Prettier formatting gate** — `.prettierrc.json`, `.prettierignore`, `make autofix` / `make check`, and a `.github/workflows/check.yml` CI workflow.
-   - **git `pre-commit` hook** — rejects a dirty tree, runs `make autofix`, re-stages, runs `make check`.
+   - **`pre-commit` hook** — beads DB→JSONL sync (no-op without `bd`) + Prettier gate (reject a dirty tree → `make autofix` → re-stage → `make check`); wired via `core.hooksPath` → `.beads/hooks/` if there's a beads tracker, else copied into the repo's hooks dir.
    - **Claude Code SessionStart / PreCompact hooks** — `.claude/hooks/*.sh` that install the `dolt` + `bd` CLIs into `~/.local/bin` and bootstrap the beads DB; `bd prime` on session start / pre-compact.
 
    ## After merging

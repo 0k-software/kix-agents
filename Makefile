@@ -6,8 +6,8 @@ PLUGIN_VERSION := $(shell jq -r '.version' claude-code/.claude-plugin/plugin.jso
 all: autofix check
 
 setup:
-	cp .git-hooks/* .git/hooks/
-	chmod +x .git/hooks/*
+	git config core.hooksPath .beads/hooks
+	chmod +x .beads/hooks/*
 
 autofix:
 	npx prettier --write .

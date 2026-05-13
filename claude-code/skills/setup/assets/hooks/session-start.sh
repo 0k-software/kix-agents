@@ -6,9 +6,12 @@ set -euo pipefail
 
 cd "$CLAUDE_PROJECT_DIR"
 
-# Install repo git hooks (equivalent to `make setup`, but without depending on
+# Wire up repo git hooks (equivalent to `make setup`, but without depending on
 # the Makefile so this still works if the Prettier targets weren't merged in).
-if [ -d .git-hooks ] && ls .git-hooks/* >/dev/null 2>&1; then
+if [ -d .beads/hooks ]; then
+  git config core.hooksPath .beads/hooks 2>/dev/null || true
+  chmod +x .beads/hooks/* 2>/dev/null || true
+elif [ -d .git-hooks ] && ls .git-hooks/* >/dev/null 2>&1; then
   hooks_dir="$(git rev-parse --git-path hooks 2>/dev/null || echo .git/hooks)"
   mkdir -p "$hooks_dir"
   cp -f .git-hooks/* "$hooks_dir"/ 2>/dev/null || true
