@@ -60,7 +60,7 @@ Other commands that may prompt: `apt-get -y`, `ssh -o BatchMode=yes`,
 Formatting is enforced by Prettier via a `pre-commit` hook and `make check`:
 
 ```bash
-make setup     # install .git-hooks/* into .git/hooks/ (run once after cloning)
+make setup     # wire up the git pre-commit hook (run once after cloning)
 make autofix   # prettier --write .
 make check     # prettier --check .  (the formatting gate)
 ```

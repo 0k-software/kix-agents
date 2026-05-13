@@ -45,12 +45,23 @@ The format is based on
   still written normally.
 - `kix:setup` skill (`claude-code/skills/setup/SKILL.md`) — installs the
   baseline Kix repo tooling into the current repository (Prettier formatting
-  gate + `make` targets + a `.github/workflows/check.yml` CI workflow,
-  `.git-hooks/pre-commit`, `.claude` SessionStart/PreCompact hooks that install
-  `dolt` + `bd` and bootstrap beads, plus optional `bd init` and a `CLAUDE.md`
-  Beads section), then opens a PR. Ships a bundled `setup.sh` that does the
-  idempotent file changes and an `assets/` directory holding the canonical hook
-  scripts, Makefile, CI workflow, and Prettier config it deploys.
+  gate + `make` targets + a `.github/workflows/check.yml` CI workflow, a merged
+  beads-sync + Prettier `pre-commit` hook, `.claude` SessionStart/PreCompact
+  hooks that install `dolt` + `bd` and bootstrap beads, plus optional `bd init`
+  and a `CLAUDE.md` Beads section), then opens a PR. Ships a bundled `setup.sh`
+  that does the idempotent file changes and an `assets/` directory holding the
+  canonical hook scripts, Makefile, CI workflow, and Prettier config it
+  deploys.
+
+### Changed
+
+- Pre-commit hook consolidated — the beads DB→JSONL sync hook
+  (`.beads/hooks/pre-commit`) and the Prettier gate (`.git-hooks/pre-commit`)
+  are now one file at `.beads/hooks/pre-commit` (beads' managed section
+  followed by the Prettier gate), and `make setup` points `core.hooksPath` at
+  `.beads/hooks/` instead of copying into `.git/hooks/`. The `.git-hooks/`
+  directory is removed. Fixes the bug where the beads pre-commit hook never ran
+  because the Prettier hook owned `.git/hooks/pre-commit`.
 
 ### Changed
 
