@@ -124,25 +124,12 @@ read this session's conversation content." Do not create a branch or PR.
 
 ### Summary
 
-Always generate a human-readable `summary.md` of the conversation — alongside
-`raw.jsonl.gz` or `raw.md`, whichever verbatim artifact was committed. Source
-it from the conversation **in context** — what's in working memory (the
-compacted view of older turns included) is plenty for a summary; do **not**
-re-read the transcript `.jsonl` just to summarize (that's the verbatim
-artifact's job and wastes tokens).
+`summary.md` is an **append-only running history** of the session — never
+regenerated. Build it **from context** (what's in working memory, compacted
+older turns included, is plenty; don't re-read the transcript `.jsonl` to
+summarize).
 
-- **If the `caveman` skill is available** (the `caveman:caveman` compression
-  mode — invocable as `/caveman`; check the host's skill list), invoke it and
-  write the summary in its compressed format. It strips filler while keeping
-  every technical fact, code block, URL, and decision intact. Note in the
-  summary itself that `caveman` was used (e.g. a one-line blockquote at the
-  top).
-- **Otherwise**, write the summary directly: the goal, the key decisions, what
-  was built or changed, and any open follow-ups — a few short sections, not a
-  blow-by-blow replay.
-
-Prepend this header to `summary.md` and to `raw.md` (drop `raw_transcript` when
-there is no `raw.jsonl.gz` — i.e. the rendered-fallback path):
+**First save** — create `summary.md` with this layout:
 
 ```markdown
 ---
@@ -152,7 +139,33 @@ raw_transcript: raw.jsonl.gz
 ---
 
 # <Session title — see Step 3>
+
+## Goal
+
+<one short paragraph: what this session set out to do>
+
+## <ISO-8601 timestamp> — update
+
+- <key decisions, what was built/changed so far>
+- <open follow-ups>
 ```
+
+(Give `raw.md` the same frontmatter + `# <title>`; drop `raw_transcript` when
+there's no `raw.jsonl.gz`, i.e. the rendered-fallback path.)
+
+**Re-save** — do **not** rewrite the file. Read the existing `summary.md`,
+leave every prior section byte-for-byte, and **append one new
+`## <ISO-8601 timestamp> — update` section** covering only what's happened
+since the previous update section (clean diff, preserved history, no LLM drift
+in the old content). Update only the frontmatter `saved_at`; touch the `# `
+heading or `## Goal` only if the session's overall aim genuinely changed (the
+stem/slug never changes). The "what's new" boundary is whatever the last update
+section already covered.
+
+If the `caveman` skill is available (the `caveman:caveman` compression mode —
+invocable as `/caveman`; check the host's skill list), run it over the
+new-since-last-update turns and use its output as the section body; note
+`caveman` was used.
 
 ---
 
