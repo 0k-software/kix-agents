@@ -33,6 +33,17 @@ note() { printf 'kix-setup: %s\n' "$*"; }
 warn() { printf 'kix-setup: WARNING: %s\n' "$*" >&2; }
 die()  { printf 'kix-setup: error: %s\n' "$*" >&2; exit 1; }
 
+# --- banner ------------------------------------------------------------------
+# Surface what this script does NOT do, so users running it directly know what
+# /kix:setup adds on top. The skill sets KIX_SETUP_QUIET=1 to suppress.
+if [ -z "${KIX_SETUP_QUIET:-}" ]; then
+  cat >&2 <<'BANNER'
+kix-setup: running setup.sh directly — mechanical file ops only.
+kix-setup: full workflow (branch + `bd init` + CLAUDE.md content + commit + PR)
+kix-setup: lives in the /kix:setup skill. Set KIX_SETUP_QUIET=1 to hide this.
+BANNER
+fi
+
 # --- locate bundled assets ---------------------------------------------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ASSETS_DIR="${KIX_SETUP_ASSETS:-$SCRIPT_DIR/assets}"
