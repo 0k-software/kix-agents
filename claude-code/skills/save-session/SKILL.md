@@ -299,64 +299,56 @@ half-written branch.
 **Handoff (chat session, no checkout).** Triggered when there's no checkout to
 push from (typically a Claude chat session). You can't push, so don't try —
 produce the archive as chat output and hand off to a Claude Code session that
-_can_ push. The reply has three parts, in this order:
+_can_ push. **Two turns**, so the user only ever copies one block at the end:
 
-1. **Tell the user how to get the session URL** (one short paragraph at the top
-   of the reply, before the files and prompt):
+**Turn A — ask for the session URL.** Stop and ask plainly (no
+`AskUserQuestion` — there's nothing to disambiguate):
 
-   > Open this chat in **claude.ai** in your browser and copy its **private
-   > chat URL** (`https://claude.ai/chat/<uuid>` — the URL in the address bar,
-   > not the public "Share" link). Paste it into the `<paste session URL here>`
-   > slot in the Claude Code prompt below before running it — the CC session
-   > will record it as `session_url:` in `log.md`'s frontmatter so the archive
-   > points back at the original session.
+> Before I build the handoff package: open this chat in **claude.ai** in your
+> browser and copy the **private chat URL** from the address bar
+> (`https://claude.ai/chat/<uuid>` — _not_ the public "Share" link). Paste it
+> in your next message and I'll bake it into the files and the Claude-Code
+> prompt so you only need to copy one block.
 
-2. **The two files**, each as a fenced markdown block preceded by its intended
-   path:
+Wait for the user's reply with the URL. (If they reply with a Share-link URL
+anyway, accept it — it's still a valid pointer — but note it.)
 
-   ````markdown
-   File: `docs/sessions/<stem>/transcript.md`
-   ```markdown
-   <transcript.md content>
-   ```
+**Turn B — emit a single copy-paste block.** With the URL in hand, render the
+final `transcript.md` and `log.md` with the URL substituted into the
+frontmatter `session_url:` and the `> Source:` blockquote (no placeholders
+left). Then emit **one outer fenced block** (use a 4-backtick fence so the
+inner 3-backtick fences survive) the user copies once and pastes into a Claude
+Code session checked out at the target repo. Template:
 
-   File: `docs/sessions/<stem>/log.md`
-   ```markdown
-   <log.md content>
-   ```
-   ````
+````markdown
+I'm handing off a Claude chat session to archive in the current repo (this
+checkout). Session URL: <pasted URL>.
 
-   Leave a literal `<paste session URL here>` placeholder in `log.md`'s
-   frontmatter `session_url:` and in the `> Source:` blockquote — the CC
-   session will swap it for the URL the user pasted in the prompt.
+Create the per-session folder `docs/sessions/<stem>/` containing the two
+files below, then commit + push following
+`claude-code/skills/save-session/SKILL.md` Step 3 (work-branch save if on a
+feature branch, standalone otherwise) and open/update the PR. Use
+`/kix:commit` so the archive rides along with whatever's already in the
+index.
 
-3. **The Claude-Code handoff prompt** for the user to paste into a CC session
-   checked out at the target repo:
+File: `docs/sessions/<stem>/transcript.md`
+```markdown
+<final transcript.md content, URL already inlined>
+```
 
-   ````markdown
-   I'm handing off a Claude chat session to archive in the current repo
-   (this checkout). Session URL: `<paste session URL here>`.
+File: `docs/sessions/<stem>/log.md`
+```markdown
+<final log.md content, URL already inlined>
+```
+````
 
-   Create the per-session folder `docs/sessions/<stem>/` containing the
-   two files below, replace every `<paste session URL here>` placeholder
-   in `log.md` with the URL above, then commit + push following
-   `claude-code/skills/save-session/SKILL.md` Step 3 (work-branch save if
-   on a feature branch, standalone otherwise) and open/update the PR.
-
-   File: `docs/sessions/<stem>/transcript.md`
-   ```markdown
-   <transcript.md content>
-   ```
-
-   File: `docs/sessions/<stem>/log.md`
-   ```markdown
-   <log.md content>
-   ```
-   ````
+Above the block in the chat reply, a single one-liner: "Copy the block below
+and paste it into a Claude Code session at `<owner/repo>`." Nothing else above
+it — the user shouldn't have to scroll past anything to copy.
 
 **Don't** create a branch, file, or PR yourself — there's no way to. Skip
-Step 5. Report: chat output handed off; the user pastes the session URL into
-the prompt and runs it in CC to land the archive.
+Step 5. Report: handoff package emitted; the user pastes it into CC to land the
+archive.
 
 ---
 
