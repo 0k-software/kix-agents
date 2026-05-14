@@ -1,5 +1,5 @@
 ---
-saved_at: 2026-05-14T15:01:43Z
+saved_at: 2026-05-14T17:06:41Z
 session_id: cse_01Qz8ByMxYiCeBo6KQz2Ez5L
 transcript: transcript.jsonl.gz
 ---
@@ -322,6 +322,28 @@ differ".
   `claude-code/skills/save-session/SKILL.md`: tell the user to copy the URL
   from the browser address bar (`https://claude.ai/chat/<uuid>`) and
   explicitly **not** the Share link.
+
+## 2026-05-14T17:06Z — update
+
+### Handoff: one copy-paste block (two-turn flow)
+
+- User: present the handoff as a **single block** that's pasted into Claude
+  Code in one go — no instructions-then-files-then-prompt scavenger hunt.
+- Step 4 Handoff rewritten as two turns:
+  - **Turn A:** stop and ask the user for the **private** chat URL from the
+    browser address bar (`https://claude.ai/chat/<uuid>` — not the public
+    Share link). Wait for the reply.
+  - **Turn B:** with the URL in hand, render the final `transcript.md` +
+    `log.md` with the URL already substituted into `session_url:` frontmatter
+    and the `> Source:` blockquote — no `<paste session URL here>`
+    placeholders left. Emit **one outer fenced block** (4-backtick fence so
+    the inner 3-backtick fences survive) containing the CC prompt + both
+    files inline. The chat reply has only a one-liner above the block:
+    "Copy the block below and paste it into a Claude Code session at
+    `<owner/repo>`."
+- The CC prompt instructs CC to use `/kix:commit` so the archive rides along
+  with whatever's already in the index (work-branch save when on a feature
+  branch, standalone otherwise).
 
 ## Open Questions
 
