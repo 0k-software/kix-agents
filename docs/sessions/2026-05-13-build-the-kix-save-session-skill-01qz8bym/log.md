@@ -1,5 +1,5 @@
 ---
-saved_at: 2026-05-14T17:17:28Z
+saved_at: 2026-05-14T20:58:57Z
 session_id: cse_01Qz8ByMxYiCeBo6KQz2Ez5L
 transcript: transcript.jsonl.gz
 ---
@@ -373,6 +373,22 @@ differ".
   save-session skill lands first.
 - The Open Question is flipped to `[x]` with `bd kxa-9nh` as the sub-item;
   the tracker carries it from here.
+
+## 2026-05-14T20:58Z — update
+
+### Handoff Turn B: drop outer 4-backtick fence, use BEGIN/END COPY sentinels
+
+- User: 4-backtick outer fence doesn't actually fix rendering on claude.ai —
+  the inner 3-backtick fences render mangled inside it.
+- Step 4 Turn B reworked: drop the outer code fence entirely. Emit the handoff
+  payload as plain markdown between two visible sentinels —
+  `--- BEGIN COPY ---` and `--- END COPY ---`. The two 3-backtick fences
+  inside (for `transcript.md` and `log.md`) render as their own code blocks;
+  the prose around them renders as prose; the user selects the whole region
+  between the sentinels and copies once.
+- One-liner above the region: "Copy everything between
+  `--- BEGIN COPY ---` and `--- END COPY ---` and paste it into a Claude Code
+  session at `<owner/repo>`."
 
 ## Open Questions
 
