@@ -25,16 +25,17 @@ The format is based on
   LFS needed) — in a hosted/cloud sandbox (`CLAUDE_CODE_REMOTE`) where each
   turn is a fresh `claude --resume`, the largest file in the project dir (the
   complete cumulative transcript, append-only across compactions); or, when
-  there's no transcript at all (a chat session), a verbatim `transcript.md`
-  render from the host's conversation tool / Anthropic API
-  (`ANTHROPIC_API_KEY`) / the in-context view. Archives are keyed by the
-  session id (`CLAUDE_CODE_REMOTE_SESSION_ID` in a hosted sandbox — the only id
-  stable across turns), so re-saving the same session updates that folder in
-  place instead of duplicating. A `--no-commit` flag stages the archive into
-  the current checkout without committing (used by `kix:commit`). Repo writes
-  go through the available GitHub tools; when the repo arg is omitted or a bare
-  name is given the target is resolved by searching accessible repos and
-  confirmed with the user before any write. Tracked in `kxa-bpt`.
+  there's no transcript file (a chat session), a verbatim `transcript.md`
+  render from the conversation in context. Archives are keyed by the session id
+  (`CLAUDE_CODE_REMOTE_SESSION_ID` in a hosted sandbox — the only id stable
+  across turns), so re-saving the same session updates that folder in place
+  instead of duplicating. A `--no-commit` flag stages the archive into the
+  current checkout without committing (used by `kix:commit`). Repo writes go
+  through the available GitHub tools, falling back to GitHub REST API +
+  `GITHUB_TOKEN`/`GH_TOKEN` when MCP can't reach the repo; if neither is
+  available (e.g. a Claude chat session with no GitHub connector), the skill
+  switches to **handoff mode** — emits `transcript.md` + `log.md` + a
+  Claude-Code paste prompt in chat instead of pushing. Tracked in `kxa-bpt`.
 - Caveman plugin wired into the repo dev setup — `.claude/settings.json` now
   registers the `caveman` marketplace (`JuliusBrussee/caveman`) via
   `extraKnownMarketplaces` and enables `caveman@caveman`, so cloud and local

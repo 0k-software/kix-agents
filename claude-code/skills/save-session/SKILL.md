@@ -47,10 +47,6 @@ Tokens are read from the environment (or the plugin's secret storage) —
 **never** hard-coded, logged, echoed into commands, or written into a committed
 file, the commit message, or the PR body.
 
-- `ANTHROPIC_API_KEY` — used by the rendered-fallback path (Step 2) to fetch
-  conversation content via the Anthropic API when no local transcript is used.
-  If that path is taken and the key is missing or rejected (401), abort with:
-  "Set `ANTHROPIC_API_KEY` to a key with access to this conversation."
 - GitHub auth — preferred path is the GitHub MCP server's own credential
   storage; all repo writes go through the `mcp__github__*` tools
   (`create_branch`, `create_or_update_file` / `push_files`,
@@ -67,10 +63,9 @@ via `curl` with `${GITHUB_TOKEN:-${GH_TOKEN}}` for every subsequent write
 equivalents (e.g. `POST /repos/{o}/{r}/git/refs` for `create_branch`,
 `PUT /repos/{o}/{r}/contents/{path}` for `create_or_update_file`,
 `POST /repos/{o}/{r}/pulls` for `create_pull_request`). Never invoke the `gh`
-CLI. If neither MCP nor a token is available, abort with: "`{owner}/{repo}`
-isn't reachable via the GitHub MCP server (out of allowlist?) and no
-`GITHUB_TOKEN` / `GH_TOKEN` is set — add the repo to the allowlist or set a
-token."
+CLI. If neither MCP nor a token is available (e.g. running inside a Claude chat
+session with no GitHub connector and no token), the skill switches to **handoff
+mode** — see Step 4 — and does not attempt to push.
 
 ---
 
@@ -108,13 +103,14 @@ confirmation (the caller is driving). Otherwise resolve the repo as below.
 4. Verify the chosen repo is reachable: try a cheap read (e.g.
    `mcp__github__get_file_contents` on `/`). One of three outcomes:
    - **OK** → use the MCP tools for all subsequent writes.
-   - **Outside the MCP allowlist** (or no MCP tools at all) → fall back to the
-     GitHub REST API with `${GITHUB_TOKEN:-${GH_TOKEN}}` + `curl` for every
-     subsequent write — see the Credentials section. **Do not abort** just
-     because the repo isn't in the allowlist.
-   - **Neither MCP nor a token reaches it** → abort with: "`{owner}/{repo}`
-     isn't reachable via the GitHub MCP server (out of allowlist?) and no
-     `GITHUB_TOKEN` / `GH_TOKEN` is set."
+   - **Outside the MCP allowlist** (or no MCP tools at all) but a token is
+     available → fall back to the GitHub REST API with
+     `${GITHUB_TOKEN:-${GH_TOKEN}}` + `curl` for every subsequent write — see
+     the Credentials section.
+   - **Neither MCP nor a token reaches it** (e.g. a Claude chat session with no
+     GitHub connector and no token) → switch to **handoff mode** in Step 4:
+     produce the archive files in chat + a Claude-Code prompt the user can run.
+     **Do not abort.**
 
 Record the repo's **default branch** — a new branch is cut from it and the PR
 targets it.
@@ -144,14 +140,12 @@ Pick the content source, in order:
    gzipped, and write-once — a compressed blob in git is fine and keeps the
    repo from ballooning (no Git LFS needed at any realistic volume).
 2. **Rendered fallback** — only when there is no transcript file at all (e.g. a
-   Claude chat session). Fall back to the conversation tool the host exposes —
-   the Claude API / conversation tool, authenticated with `ANTHROPIC_API_KEY` —
-   or, failing that, the conversation already in context. Render it to markdown
+   Claude chat session). Render the conversation already in context to markdown
    in `transcript.md`, **as verbatim as the source allows**: turn order, roles,
    message text, tool calls, tool results, and system content all kept; nothing
    collapsed, truncated, or omitted. If the runtime has already compacted older
-   turns, only the surviving in-context view can be rendered — state that in
-   the file's header.
+   turns, only the surviving in-context view can be rendered — say so in the
+   file's header.
 
 If no path yields conversation content, abort with: "Nothing to save — couldn't
 read this session's conversation content." Do not create a branch or PR.
@@ -179,10 +173,15 @@ re-saves would have produced.
 ---
 saved_at: <ISO-8601 timestamp>
 session_id: <id>
+session_url: <https://claude.ai/chat/<id> for a chat session; omit for Claude Code>
 transcript: transcript.jsonl.gz
 ---
 
 # <Session title — see Step 3>
+
+> **Source:** [Claude session `<short-id>`](<session_url>) — or, for a Claude
+> Code session, `~/.claude/projects/<project-slug>/<session-id>.jsonl` (local;
+> not a public link).
 
 ## Goal
 
@@ -246,14 +245,16 @@ new-since-last-update turns and use its output as the section body; note
 
 ## Step 3 — Destination, title, paths (with re-save lookup)
 
-1. **Destination mode.** In `--no-commit` mode it's always a **work-branch
-   save** (the caller commits onto the current branch). Otherwise: if the
-   runtime has a **local git checkout** of the target repo and the current
-   branch (`git branch --show-current`) is **not** the repo's default branch →
-   **work-branch save** (the session is the work behind that branch, so the
-   archive is committed onto it); on the default branch, or no checkout (a chat
-   session) → **standalone save** (the archive gets its own
-   `claude/save-session-<stem>` branch + PR).
+1. **Destination mode.** Pick one:
+   - `--no-commit` flag → **work-branch save** (caller commits onto the current
+     branch).
+   - Step 1 #4 ended in outcome (c) (no MCP write access, no token) →
+     **handoff** (chat-session output + a CC paste prompt; Step 4 handoff
+     branch).
+   - Local git checkout of the target repo + current branch ≠ default →
+     **work-branch save** (the session is the work behind that branch).
+   - Otherwise (default branch, or no checkout but GitHub access exists) →
+     **standalone save** (own `claude/save-session-<stem>` branch + PR).
 2. **Short id** — strip any prefix like `cse_`, lowercase, keep the first 8
    alphanumerics of the session id.
 3. **Existing archive? (re-save check.)** Look for a `docs/sessions/<dir>/`
@@ -314,6 +315,40 @@ its `.prettierignore`, add that line too), then `git add` those paths.
 If any call fails, surface the error and stop — do not leave a PR pointing at a
 half-written branch.
 
+**Handoff (chat session, no GitHub access).** Triggered when Step 1 #4 outcome
+(c) fired: no MCP write access AND no `GITHUB_TOKEN` / `GH_TOKEN`. You can't
+push, so don't try — produce the archive as chat output and hand off to a
+Claude Code session that _can_ push.
+
+1. Emit both `transcript.md` and `log.md` as **fenced markdown blocks** in the
+   reply, each preceded by its intended path
+   (`docs/sessions/<stem>/transcript.md` / `…/log.md`), so the user can copy or
+   download them.
+2. Emit a **Claude-Code handoff prompt** the user can paste into a CC session
+   that has access to `<owner/repo>`. Template:
+
+   ````markdown
+   I'm handing off a Claude chat session to archive in `<owner/repo>`. Create
+   the per-session archive folder `docs/sessions/<stem>/` containing the two
+   files below, commit them on a branch `claude/save-session-<stem>` (or onto
+   the current work branch if there is one — see
+   `claude-code/skills/save-session/SKILL.md` Step 3), and open (or update) the
+   PR.
+
+   File: `docs/sessions/<stem>/transcript.md`
+   ```markdown
+   <transcript.md content>
+   ```
+
+   File: `docs/sessions/<stem>/log.md`
+   ```markdown
+   <log.md content>
+   ```
+   ````
+
+3. **Don't** create a branch, file, or PR — there's no way to. Skip Step 5.
+   Report: chat output handed off; the user runs the prompt in CC to land it.
+
 ---
 
 ## Step 5 — Open or update the pull request (standalone save only)
@@ -361,7 +396,8 @@ Print:
 - The target `owner/repo` and whether it was explicit or inferred+confirmed.
 - **Destination:** `--no-commit` → the staged file paths + "caller will commit
   them"; work-branch save → which branch ("added to PR #N" if one covers it);
-  standalone save → the `claude/save-session-<stem>` branch + PR URL.
+  standalone save → the `claude/save-session-<stem>` branch + PR URL; handoff →
+  "files emitted in chat + Claude-Code paste prompt; nothing pushed."
 - New archive or re-save (which `docs/sessions/<stem>/`).
 - Whether the artifact is `transcript.jsonl.gz` (which project transcript —
   filename + size) or the `transcript.md` fallback (and, for `transcript.md`,
@@ -372,15 +408,15 @@ Print:
 
 ## Error handling summary
 
-| Situation                                                              | Behavior                                                                                      |
-| ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| No repo arg and no plausible candidate / user declines                 | Abort: ask the user to pass `owner/repo`.                                                     |
-| Repo outside MCP allowlist                                             | Fall back to GitHub REST API with `GITHUB_TOKEN` / `GH_TOKEN`; abort only if no token is set. |
-| Rendered-fallback path taken and `ANTHROPIC_API_KEY` missing/rejected  | Abort: instruct the user to set the env var.                                                  |
-| GitHub MCP tools return 401/403 (and no `GITHUB_TOKEN` fallback works) | Abort: instruct the user to re-auth the GitHub MCP server.                                    |
-| Empty session (no conversation content from either path)               | Abort before creating any branch or PR.                                                       |
-| `--no-commit` with no local checkout                                   | Abort: "`--no-commit` needs a local git checkout."                                            |
-| Branch / file / PR creation fails midway                               | Surface the error, stop; do not leave a PR pointing at a half-written branch.                 |
+| Situation                                                              | Behavior                                                                                                      |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| No repo arg and no plausible candidate / user declines                 | Abort: ask the user to pass `owner/repo`.                                                                     |
+| Repo outside MCP allowlist (token available)                           | Fall back to GitHub REST API with `GITHUB_TOKEN` / `GH_TOKEN`.                                                |
+| No MCP write access AND no `GITHUB_TOKEN`/`GH_TOKEN` (chat session)    | Switch to **handoff mode** (Step 4): emit `transcript.md` + `log.md` + a CC paste prompt in chat. Don't push. |
+| GitHub MCP tools return 401/403 (and no `GITHUB_TOKEN` fallback works) | Abort: instruct the user to re-auth the GitHub MCP server.                                                    |
+| Empty session (no conversation content from either path)               | Abort before creating any branch or PR.                                                                       |
+| `--no-commit` with no local checkout                                   | Abort: "`--no-commit` needs a local git checkout."                                                            |
+| Branch / file / PR creation fails midway                               | Surface the error, stop; do not leave a PR pointing at a half-written branch.                                 |
 
 Never write any token (or other secret) into a committed file, the commit
 message, the PR title/body, or terminal output.

@@ -1,5 +1,5 @@
 ---
-saved_at: 2026-05-14T11:51:43Z
+saved_at: 2026-05-14T12:27:15Z
 session_id: cse_01Qz8ByMxYiCeBo6KQz2Ez5L
 transcript: transcript.jsonl.gz
 ---
@@ -239,6 +239,39 @@ differ".
   `rebase`, `fix-pr`, `triage`, `address`, `address-pr`, `fix`); name value
   = the folder basename. Done by `sed -i "1a name: $name" "$f"` after a
   `grep -q '^name:'` guard so re-runs are idempotent.
+
+## 2026-05-14T12:27Z — update
+
+### Dropped Anthropic API path; chat sessions go to "handoff mode"
+
+- User: the Anthropic-API conversation-fetch path doesn't apply — the skill is
+  always called from inside the session being saved, never to fetch a foreign
+  one. Removed `ANTHROPIC_API_KEY` from the Credentials section and the
+  matching error-table row in `claude-code/skills/save-session/SKILL.md`. Also
+  removed the API mention from CHANGELOG.
+- Step 2 #2 rewritten: rendered fallback now reads only "the conversation
+  already in context" (chat session) — no API call.
+- **New chat-session behavior — handoff mode.** A chat-session caller has no
+  GITHUB_TOKEN/MCP write access, so the skill can't push. Step 1 #4 outcome
+  (c) ("no MCP write access AND no token") now switches to **handoff mode**
+  instead of aborting:
+  - Produce `transcript.md` (verbatim render of the in-context conversation)
+    + `log.md` (same step-by-step shape as for any first save).
+  - Emit both files as fenced markdown blocks in the chat reply, each preceded
+    by its intended `docs/sessions/<stem>/<file>` path.
+  - Emit a paste-able Claude-Code handoff prompt that tells a CC session to
+    create the per-session folder + commit + push + PR with those two files.
+  - Don't try to push/PR; the CC paste does that.
+- Step 3 destination-mode reworked to include handoff as a first-class branch
+  alongside work-branch / standalone / `--no-commit`. Step 6 report and the
+  error table updated.
+
+### Source-link in `log.md`
+
+- User: every `log.md` should link back to the actual session that produced
+  it. Added an optional `session_url:` frontmatter field (claude.ai sessions →
+  `https://claude.ai/chat/<conversation-id>`; Claude Code → omit) and a
+  `> Source: …` blockquote right under the `# Title` heading.
 
 ## Open Questions
 
