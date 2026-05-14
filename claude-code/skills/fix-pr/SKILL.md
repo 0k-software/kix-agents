@@ -1,4 +1,5 @@
 ---
+name: fix-pr
 description: Address unresolved review comments on a pull request — verify before implementing, push back when technically wrong, route commits through /kix:commit
 argument-hint: { PR number or URL }
 ---

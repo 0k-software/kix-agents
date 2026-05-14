@@ -1,4 +1,5 @@
 ---
+name: commit
 description: Commit current work using the project's commit procedure (staging strategy, message generation, pre-commit hook auto-fix). Also bundles the current Claude Code session's archive into the commit.
 argument-hint: [!] [reason for the change]
 ---

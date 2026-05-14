@@ -1,4 +1,5 @@
 ---
+name: address-pr
 description: Address unresolved review comments on a pull request (alias for kix:fix-pr)
 argument-hint: { PR number or URL }
 ---
