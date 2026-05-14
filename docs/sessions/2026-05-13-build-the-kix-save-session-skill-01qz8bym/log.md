@@ -1,5 +1,5 @@
 ---
-saved_at: 2026-05-14T17:09:37Z
+saved_at: 2026-05-14T17:17:28Z
 session_id: cse_01Qz8ByMxYiCeBo6KQz2Ez5L
 transcript: transcript.jsonl.gz
 ---
@@ -356,6 +356,24 @@ differ".
   button". Whichever the user pastes is what gets baked into `session_url:`
   and the `> Source:` blockquote.
 
+## 2026-05-14T17:17Z — update
+
+### Pruning split out as a separate skill (`kxa-9nh`)
+
+- The trailing Open Question "prune older archives at scale or move raw
+  transcripts to a backup repo" is real future work but not in scope for
+  `kxa-bpt` itself. Filed **`kxa-9nh`** (feature, P3) for a
+  `/kix:prune-sessions` skill: lists archives under `docs/sessions/`
+  oldest-first, takes a user-picked threshold (older-than-date / oldest-N /
+  above-total-size), and either prunes in place (`git rm` the
+  `transcript.jsonl.gz` / `transcript.md`, keep `log.md`) or moves the
+  verbatim files to a backup repo configured via env var
+  `KIX_SESSION_BACKUP_REPO=<owner/repo>`. User-driven (destructive),
+  idempotent, commits through `/kix:commit`. Blocked-by `kxa-bpt` so the
+  save-session skill lands first.
+- The Open Question is flipped to `[x]` with `bd kxa-9nh` as the sub-item;
+  the tracker carries it from here.
+
 ## Open Questions
 
 - [x] Is a gzipped `.jsonl` (not directly rendered/searchable in the
@@ -363,8 +381,11 @@ differ".
   - **Resolved (2026-05-13):** yes — clone + `zcat | grep` is the accepted
     trade-off; the gz blob keeps the repo small and is the true raw
     record.
-- [ ] At scale (~few thousand sessions ≈ 1 GB), prune older archives down
+- [x] At scale (~few thousand sessions ≈ 1 GB), prune older archives down
       to just `log.md` or move raw transcripts to a separate backup repo?
+  - **Resolved (2026-05-14):** filed as a separate skill —
+    `bd kxa-9nh` (`/kix:prune-sessions`, feature, P3, blocked-by `kxa-bpt`).
+    The tracker carries it from here.
 
 ## Action Items
 
