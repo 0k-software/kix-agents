@@ -1,5 +1,5 @@
 ---
-saved_at: 2026-05-14T17:06:41Z
+saved_at: 2026-05-14T17:09:37Z
 session_id: cse_01Qz8ByMxYiCeBo6KQz2Ez5L
 transcript: transcript.jsonl.gz
 ---
@@ -344,6 +344,17 @@ differ".
 - The CC prompt instructs CC to use `/kix:commit` so the archive rides along
   with whatever's already in the index (work-branch save when on a feature
   branch, standalone otherwise).
+
+## 2026-05-14T17:09Z — update
+
+### Handoff URL: accept both address-bar URL and Share-button link
+
+- User: the earlier "private chat URL, not the Share link" wording was too
+  restrictive. Share-button links from claude.ai are fine too.
+- Turn-A prompt in Step 4 reworded: "copy a link to it — either the URL from
+  the address bar (`https://claude.ai/chat/<uuid>`) or one from the **Share**
+  button". Whichever the user pastes is what gets baked into `session_url:`
+  and the `> Source:` blockquote.
 
 ## Open Questions
 
