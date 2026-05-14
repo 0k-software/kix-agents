@@ -305,13 +305,13 @@ _can_ push. **Two turns**, so the user only ever copies one block at the end:
 `AskUserQuestion` — there's nothing to disambiguate):
 
 > Before I build the handoff package: open this chat in **claude.ai** in your
-> browser and copy the **private chat URL** from the address bar
-> (`https://claude.ai/chat/<uuid>` — _not_ the public "Share" link). Paste it
+> browser and copy a link to it — either the URL from the address bar
+> (`https://claude.ai/chat/<uuid>`) or one from the **Share** button. Paste it
 > in your next message and I'll bake it into the files and the Claude-Code
 > prompt so you only need to copy one block.
 
-Wait for the user's reply with the URL. (If they reply with a Share-link URL
-anyway, accept it — it's still a valid pointer — but note it.)
+Wait for the user's reply with the URL. Either form (address-bar chat URL or
+Share-button link) is accepted; record whatever they pasted.
 
 **Turn B — emit a single copy-paste block.** With the URL in hand, render the
 final `transcript.md` and `log.md` with the URL substituted into the
