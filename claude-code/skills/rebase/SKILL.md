@@ -1,4 +1,5 @@
 ---
+name: rebase
 description: Rebase current branch onto another, handling pre-commit hook failures
 argument-hint: [!] [target-branch]
 ---

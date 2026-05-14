@@ -1,4 +1,5 @@
 ---
+name: save-session
 description: Archive the current Claude session in a GitHub repo — a log plus the verbatim conversation (transcript file, or a markdown render) — and open (or update) a PR for it. Re-saving the same session overwrites its archive in place.
 argument-hint: [owner/repo] [--no-commit]
 ---

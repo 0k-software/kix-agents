@@ -1,5 +1,5 @@
 ---
-saved_at: 2026-05-13T12:07:40Z
+saved_at: 2026-05-14T11:51:43Z
 session_id: cse_01Qz8ByMxYiCeBo6KQz2Ez5L
 transcript: transcript.jsonl.gz
 ---
@@ -227,6 +227,18 @@ differ".
 - Credentials section updated to spell out the three states explicitly.
 - Error-table row "Repo not accessible / outside MCP allowlist" relaxed:
   fall back to REST API + token; abort only when no token is set.
+
+## 2026-05-14T11:51Z — update
+
+### `name:` field added to every skill frontmatter
+
+- User: add a `name` field to all skill files' frontmatter (previously
+  implicit from the folder name).
+- Inserted `name: <skill>` as the first frontmatter line under `---` in each
+  `claude-code/skills/*/SKILL.md` (eight files: `save-session`, `commit`,
+  `rebase`, `fix-pr`, `triage`, `address`, `address-pr`, `fix`); name value
+  = the folder basename. Done by `sed -i "1a name: $name" "$f"` after a
+  `grep -q '^name:'` guard so re-runs are idempotent.
 
 ## Open Questions
 

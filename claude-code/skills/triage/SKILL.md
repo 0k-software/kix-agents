@@ -1,4 +1,5 @@
 ---
+name: triage
 description: Triage open `bd todo` items — assign each a real type (bug/feature/chore) + priority, promote to epic, group under a new epic, slot under an existing epic, or close.
 ---
 
