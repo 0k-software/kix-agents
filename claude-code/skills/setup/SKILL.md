@@ -79,7 +79,7 @@ the script is idempotent.
 ## Step 3 — Run the installer script
 
 ```bash
-bash "$SKILL_DIR/setup.sh"
+KIX_SETUP_QUIET=1 bash "$SKILL_DIR/setup.sh"
 ```
 
 Read its output carefully. It reports each file it created, each it left
@@ -132,11 +132,12 @@ If you do run `bd init` (or `.beads/` already existed), make sure
 staged in Step 8, and that `.beads/`'s own `.gitignore` (created by `bd init`)
 is committed.
 
-If `bd init` ran **just now** in this step, re-run `bash "$SKILL_DIR/setup.sh"`
-— it's idempotent, and now that `.beads/hooks/` exists it relocates the merged
-`pre-commit` hook into `.beads/hooks/pre-commit` and points `core.hooksPath`
-there (so beads' own hooks run too). Then `git rm` the now-bypassed
-`.git-hooks/pre-commit` (and the empty `.git-hooks/` dir).
+If `bd init` ran **just now** in this step, re-run
+`KIX_SETUP_QUIET=1 bash "$SKILL_DIR/setup.sh"` — it's idempotent, and now that
+`.beads/hooks/` exists it relocates the merged `pre-commit` hook into
+`.beads/hooks/pre-commit` and points `core.hooksPath` there (so beads' own
+hooks run too). Then `git rm` the now-bypassed `.git-hooks/pre-commit` (and the
+empty `.git-hooks/` dir).
 
 ## Step 6 — CLAUDE.md / AGENTS.md (optional)
 
