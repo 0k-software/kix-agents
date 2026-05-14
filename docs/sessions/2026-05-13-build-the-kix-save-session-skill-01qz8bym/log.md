@@ -1,5 +1,5 @@
 ---
-saved_at: 2026-05-14T12:34:17Z
+saved_at: 2026-05-14T15:01:43Z
 session_id: cse_01Qz8ByMxYiCeBo6KQz2Ez5L
 transcript: transcript.jsonl.gz
 ---
@@ -309,6 +309,19 @@ differ".
      URL here>` near the top so the swap is mechanical.
 - Prompt no longer takes an `<owner/repo>` — it commits in "the current repo
   of the CC session."
+
+## 2026-05-14T15:01Z — update
+
+### Handoff: tell user to copy the private chat URL, not the Share link
+
+- User: the handoff paragraph offered "either the chat URL or the public Share
+  link" — change to **private chat URL only**. Share links are public
+  snapshots (don't update; expose the conversation), whereas the private chat
+  URL points back at the live conversation in the user's account.
+- Edited Step 4's handoff paragraph in
+  `claude-code/skills/save-session/SKILL.md`: tell the user to copy the URL
+  from the browser address bar (`https://claude.ai/chat/<uuid>`) and
+  explicitly **not** the Share link.
 
 ## Open Questions
 

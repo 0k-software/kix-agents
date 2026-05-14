@@ -304,12 +304,12 @@ _can_ push. The reply has three parts, in this order:
 1. **Tell the user how to get the session URL** (one short paragraph at the top
    of the reply, before the files and prompt):
 
-   > Open this chat in **claude.ai** in your browser and copy its URL
-   > (`https://claude.ai/chat/<uuid>`), **or** click **Share** in the top-right
-   > and copy the public share link. Paste it into the
-   > `<paste session URL here>` slot in the Claude Code prompt below before
-   > running it — the CC session will record it as `session_url:` in `log.md`'s
-   > frontmatter so the archive points back at the original session.
+   > Open this chat in **claude.ai** in your browser and copy its **private
+   > chat URL** (`https://claude.ai/chat/<uuid>` — the URL in the address bar,
+   > not the public "Share" link). Paste it into the `<paste session URL here>`
+   > slot in the Claude Code prompt below before running it — the CC session
+   > will record it as `session_url:` in `log.md`'s frontmatter so the archive
+   > points back at the original session.
 
 2. **The two files**, each as a fenced markdown block preceded by its intended
    path:
