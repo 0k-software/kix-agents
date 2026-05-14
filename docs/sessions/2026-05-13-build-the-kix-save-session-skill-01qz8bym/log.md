@@ -1,5 +1,5 @@
 ---
-saved_at: 2026-05-14T21:00:45Z
+saved_at: 2026-05-14T21:18:32Z
 session_id: cse_01Qz8ByMxYiCeBo6KQz2Ez5L
 transcript: transcript.jsonl.gz
 ---
@@ -405,6 +405,15 @@ differ".
 - Added a note to Step 4 acknowledging the streaming cost: handoff payload
   can be very large (full `transcript.md` inlined), so emitting it to chat is
   slow — that's a feature-cost, not a renderer bug.
+
+## 2026-05-14T21:18Z — update
+
+### Strip stray fence in Step 5
+
+- Stray triple-backtick at line 389 of
+  `claude-code/skills/save-session/SKILL.md` (orphan fence sitting after the
+  PR-body example block's closing fence, before the "On the rendered-fallback
+  path…" sentence). Removed it.
 
 ## Open Questions
 
