@@ -1,5 +1,5 @@
 ---
-saved_at: 2026-05-14T20:58:57Z
+saved_at: 2026-05-14T21:00:45Z
 session_id: cse_01Qz8ByMxYiCeBo6KQz2Ez5L
 transcript: transcript.jsonl.gz
 ---
@@ -389,6 +389,22 @@ differ".
 - One-liner above the region: "Copy everything between
   `--- BEGIN COPY ---` and `--- END COPY ---` and paste it into a Claude Code
   session at `<owner/repo>`."
+
+## 2026-05-14T21:00Z — update
+
+### Revert: 4-backtick outer fence works, was just slow to print
+
+- Correction to the previous turn: claude.ai **does** render nested 3-backtick
+  fences inside a 4-backtick outer fence correctly. The earlier diagnosis
+  ("renders mangled") was wrong — the symptom was slow streaming of a very
+  large payload, not a rendering bug; once printing finishes the fences nest
+  fine.
+- Step 4 Turn B reverted to the **4-backtick outer fence** template (single
+  copy-paste block). `--- BEGIN COPY ---` / `--- END COPY ---` sentinels
+  removed.
+- Added a note to Step 4 acknowledging the streaming cost: handoff payload
+  can be very large (full `transcript.md` inlined), so emitting it to chat is
+  slow — that's a feature-cost, not a renderer bug.
 
 ## Open Questions
 
