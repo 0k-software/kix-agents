@@ -1,43 +1,45 @@
 ---
 name: save-session
 description: Archive the current Claude session in a GitHub repo — a log plus the verbatim conversation (transcript file, or a markdown render) — and open (or update) a PR for it. Re-saving the same session overwrites its archive in place.
-argument-hint: [owner/repo] [--no-commit]
+argument-hint: [--no-commit]
 ---
 
 # Save Session
 
 Capture the content of the current chat / Claude Code session and commit it to
-a target GitHub repository — a `log.md` plus the verbatim conversation (the
-transcript file when one exists, otherwise a markdown render) — landing on the
-work branch when there is one, or on its own branch + PR otherwise.
+the surrounding GitHub repository — a `log.md` plus the verbatim conversation
+(the transcript file when one exists, otherwise a markdown render) — landing on
+the work branch when there is one, or on its own branch + PR otherwise.
 
-Invoked as `/kix:save-session [owner/repo]`. The repo argument is optional —
-when omitted, the skill infers a likely target and asks the user to confirm
-before any write. Re-running it on a session that was saved before **updates
-that archive in place** — same folder, same branch — instead of creating a
-duplicate (the session id is the key).
+Invoked as `/kix:save-session [--no-commit]`. **No repo argument.** When run
+from Claude Code, the target is the repo of the current checkout (read
+`git remote get-url origin`); chat-session callers can't push from chat, so the
+skill switches to **handoff mode** and emits a Claude-Code paste prompt that
+lands the archive in whatever repo _that_ CC session points at. Re-running it
+on a session that was saved before **updates that archive in place** — same
+folder, same branch — instead of creating a duplicate (the session id is the
+key).
 
 When run from Claude Code on a feature branch — i.e. the branch that holds the
 work this very session did — the archive is committed **straight onto that
 branch**, so it rides along with that branch's PR rather than getting its own.
 A standalone `claude/save-session-<stem>` branch + PR is created only when
 there's no work branch to attach to: you started Claude Code on the default
-branch, or there's no checkout at all (a chat session, where the repo is the
-one you confirmed above).
+branch.
 
 **`--no-commit`** (stage-only mode): do everything up to and including
 `git add` of the archive files into the current checkout, then **stop** — no
 commit, no push, no PR; the caller commits. `kix:commit` uses this so the
 archive lands in the same commit as the code. Requires a local checkout.
 
-The skill runs from **either** a Claude chat session or Claude Code. It uses
-the GitHub tools the host exposes (the `mcp__github__*` names below are the
-concrete tools when running in Claude Code — substitute the equivalent the host
-provides) rather than assuming a shell or a checked-out git repo. The verbatim
-artifact is the Claude Code transcript `.jsonl`, gzipped to
-`transcript.jsonl.gz` (in a hosted sandbox, the largest file in the project dir
-— the complete cumulative transcript); a chat session with no transcript
-renders the conversation in context to `transcript.md` instead.
+The skill is meant to run from a Claude Code session (or be handed off to one
+from a chat session). It uses the GitHub tools the host exposes (the
+`mcp__github__*` names below are the concrete tools when running in Claude Code
+— substitute the equivalent the host provides). The verbatim artifact is the
+Claude Code transcript `.jsonl`, gzipped to `transcript.jsonl.gz` (in a hosted
+sandbox, the largest file in the project dir — the complete cumulative
+transcript); a chat session with no transcript renders the conversation in
+context to `transcript.md` instead.
 
 ---
 
@@ -71,46 +73,25 @@ mode** — see Step 4 — and does not attempt to push.
 
 ## Step 1 — Resolve the target repository
 
-**`--no-commit` flag.** If `$ARGUMENTS` contains `--no-commit`, strip that
-token (whatever remains is the `owner/repo`, if any) and run in **stage-only
-mode** — see Steps 3 & 4. Stage-only mode requires a local git checkout; if
-there isn't one, abort: "`--no-commit` needs a local git checkout." When no
-repo arg is given in this mode, derive `owner/repo` from
-`git remote get-url origin` of the current checkout and **do not** prompt for
-confirmation (the caller is driving). Otherwise resolve the repo as below.
+Parse `$ARGUMENTS` for the `--no-commit` flag (the only argument); anything
+else is ignored.
 
-1. **Explicit arg.** If `$ARGUMENTS` (trimmed, `--no-commit` removed) is
-   non-empty:
-   - If it contains a `/`, parse it as `owner/repo` — that is the target.
-   - If it's a bare name, search the repos the GitHub tools can reach for one
-     whose name matches case-insensitively (e.g.
-     `mcp__github__search_repositories`). Repo names are effectively unique
-     across a user's orgs, so a single match is the target. If several match,
-     ask the user to pick (`AskUserQuestion`); if none match, abort with: "No
-     accessible repo named `{name}` — pass `owner/repo`."
-   - Once resolved, skip to Step 2.
-2. **Inference.** If no arg was given:
-   - Enumerate repositories the GitHub tools can reach (e.g.
-     `mcp__github__search_repositories` / `list_*`; respect any allowlist).
-   - Rank candidates against the conversation content (repo names, paths, and
-     topics mentioned in the session; the current working directory's remote,
-     if any).
-   - Present the top candidate (and up to 3 runners-up) to the user via
-     `AskUserQuestion` and **wait for confirmation**. Do not create a branch,
-     file, or PR until the user confirms a repo.
-3. If no plausible candidate exists, or the user declines all of them, abort
-   with: "Specify the target repo: `/kix:save-session owner/repo`."
-4. Verify the chosen repo is reachable: try a cheap read (e.g.
-   `mcp__github__get_file_contents` on `/`). One of three outcomes:
+1. **From a local checkout (Claude Code, the normal path):** derive
+   `owner/repo` from `git remote get-url origin` of the current checkout. No
+   user prompt — the repo is the one you're sitting in.
+   - `--no-commit` requires a local checkout; if there isn't one, abort:
+     "`--no-commit` needs a local git checkout."
+2. **Verify reachability** of `owner/repo` — try a cheap read (e.g.
+   `mcp__github__get_file_contents` on `/`):
    - **OK** → use the MCP tools for all subsequent writes.
    - **Outside the MCP allowlist** (or no MCP tools at all) but a token is
      available → fall back to the GitHub REST API with
      `${GITHUB_TOKEN:-${GH_TOKEN}}` + `curl` for every subsequent write — see
      the Credentials section.
-   - **Neither MCP nor a token reaches it** (e.g. a Claude chat session with no
-     GitHub connector and no token) → switch to **handoff mode** in Step 4:
-     produce the archive files in chat + a Claude-Code prompt the user can run.
-     **Do not abort.**
+   - **Neither MCP nor a token reaches it, or there's no checkout at all (chat
+     session)** → switch to **handoff mode** in Step 4: produce the archive
+     files in chat + a Claude-Code paste prompt the user can run in a CC
+     session that _does_ have access. **Do not abort.**
 
 Record the repo's **default branch** — a new branch is cut from it and the PR
 targets it.
@@ -315,25 +296,52 @@ its `.prettierignore`, add that line too), then `git add` those paths.
 If any call fails, surface the error and stop — do not leave a PR pointing at a
 half-written branch.
 
-**Handoff (chat session, no GitHub access).** Triggered when Step 1 #4 outcome
-(c) fired: no MCP write access AND no `GITHUB_TOKEN` / `GH_TOKEN`. You can't
-push, so don't try — produce the archive as chat output and hand off to a
-Claude Code session that _can_ push.
+**Handoff (chat session, no checkout).** Triggered when there's no checkout to
+push from (typically a Claude chat session). You can't push, so don't try —
+produce the archive as chat output and hand off to a Claude Code session that
+_can_ push. The reply has three parts, in this order:
 
-1. Emit both `transcript.md` and `log.md` as **fenced markdown blocks** in the
-   reply, each preceded by its intended path
-   (`docs/sessions/<stem>/transcript.md` / `…/log.md`), so the user can copy or
-   download them.
-2. Emit a **Claude-Code handoff prompt** the user can paste into a CC session
-   that has access to `<owner/repo>`. Template:
+1. **Tell the user how to get the session URL** (one short paragraph at the top
+   of the reply, before the files and prompt):
+
+   > Open this chat in **claude.ai** in your browser and copy its URL
+   > (`https://claude.ai/chat/<uuid>`), **or** click **Share** in the top-right
+   > and copy the public share link. Paste it into the
+   > `<paste session URL here>` slot in the Claude Code prompt below before
+   > running it — the CC session will record it as `session_url:` in `log.md`'s
+   > frontmatter so the archive points back at the original session.
+
+2. **The two files**, each as a fenced markdown block preceded by its intended
+   path:
 
    ````markdown
-   I'm handing off a Claude chat session to archive in `<owner/repo>`. Create
-   the per-session archive folder `docs/sessions/<stem>/` containing the two
-   files below, commit them on a branch `claude/save-session-<stem>` (or onto
-   the current work branch if there is one — see
-   `claude-code/skills/save-session/SKILL.md` Step 3), and open (or update) the
-   PR.
+   File: `docs/sessions/<stem>/transcript.md`
+   ```markdown
+   <transcript.md content>
+   ```
+
+   File: `docs/sessions/<stem>/log.md`
+   ```markdown
+   <log.md content>
+   ```
+   ````
+
+   Leave a literal `<paste session URL here>` placeholder in `log.md`'s
+   frontmatter `session_url:` and in the `> Source:` blockquote — the CC
+   session will swap it for the URL the user pasted in the prompt.
+
+3. **The Claude-Code handoff prompt** for the user to paste into a CC session
+   checked out at the target repo:
+
+   ````markdown
+   I'm handing off a Claude chat session to archive in the current repo
+   (this checkout). Session URL: `<paste session URL here>`.
+
+   Create the per-session folder `docs/sessions/<stem>/` containing the
+   two files below, replace every `<paste session URL here>` placeholder
+   in `log.md` with the URL above, then commit + push following
+   `claude-code/skills/save-session/SKILL.md` Step 3 (work-branch save if
+   on a feature branch, standalone otherwise) and open/update the PR.
 
    File: `docs/sessions/<stem>/transcript.md`
    ```markdown
@@ -346,8 +354,9 @@ Claude Code session that _can_ push.
    ```
    ````
 
-3. **Don't** create a branch, file, or PR — there's no way to. Skip Step 5.
-   Report: chat output handed off; the user runs the prompt in CC to land it.
+**Don't** create a branch, file, or PR yourself — there's no way to. Skip
+Step 5. Report: chat output handed off; the user pastes the session URL into
+the prompt and runs it in CC to land the archive.
 
 ---
 
@@ -383,17 +392,13 @@ PR fields:
   On the rendered-fallback path, point "Raw transcript" at
   `docs/sessions/<stem>/transcript.md` instead.
 
-If the repo argument was **inferred** (Step 1 path 2), the user has already
-confirmed the repo — proceed; if anything about the target still feels
-ambiguous, re-confirm via `AskUserQuestion` before creating the PR.
-
 ---
 
 ## Step 6 — Report
 
 Print:
 
-- The target `owner/repo` and whether it was explicit or inferred+confirmed.
+- The target `owner/repo` (derived from `git remote get-url origin`).
 - **Destination:** `--no-commit` → the staged file paths + "caller will commit
   them"; work-branch save → which branch ("added to PR #N" if one covers it);
   standalone save → the `claude/save-session-<stem>` branch + PR URL; handoff →
@@ -410,9 +415,8 @@ Print:
 
 | Situation                                                              | Behavior                                                                                                      |
 | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| No repo arg and no plausible candidate / user declines                 | Abort: ask the user to pass `owner/repo`.                                                                     |
 | Repo outside MCP allowlist (token available)                           | Fall back to GitHub REST API with `GITHUB_TOKEN` / `GH_TOKEN`.                                                |
-| No MCP write access AND no `GITHUB_TOKEN`/`GH_TOKEN` (chat session)    | Switch to **handoff mode** (Step 4): emit `transcript.md` + `log.md` + a CC paste prompt in chat. Don't push. |
+| No checkout, or no MCP/GITHUB_TOKEN reach (chat session)               | Switch to **handoff mode** (Step 4): emit `transcript.md` + `log.md` + a CC paste prompt in chat. Don't push. |
 | GitHub MCP tools return 401/403 (and no `GITHUB_TOKEN` fallback works) | Abort: instruct the user to re-auth the GitHub MCP server.                                                    |
 | Empty session (no conversation content from either path)               | Abort before creating any branch or PR.                                                                       |
 | `--no-commit` with no local checkout                                   | Abort: "`--no-commit` needs a local git checkout."                                                            |

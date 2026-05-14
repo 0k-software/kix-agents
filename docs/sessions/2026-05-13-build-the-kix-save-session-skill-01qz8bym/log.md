@@ -1,5 +1,5 @@
 ---
-saved_at: 2026-05-14T12:27:15Z
+saved_at: 2026-05-14T12:34:17Z
 session_id: cse_01Qz8ByMxYiCeBo6KQz2Ez5L
 transcript: transcript.jsonl.gz
 ---
@@ -272,6 +272,43 @@ differ".
   it. Added an optional `session_url:` frontmatter field (claude.ai sessions →
   `https://claude.ai/chat/<conversation-id>`; Claude Code → omit) and a
   `> Source: …` blockquote right under the `# Title` heading.
+
+## 2026-05-14T12:34Z — update
+
+### Dropped the `[owner/repo]` argument
+
+- User: the repo argument is redundant. In CC, the repo is obvious from the
+  checkout's `git remote get-url origin`. In chat, the skill emits a handoff
+  prompt — the user pastes it into a CC session that *already knows* its repo.
+  So there's nothing left for the argument to do.
+- `argument-hint:` frontmatter → `[--no-commit]`.
+- Step 1 collapsed: no more explicit-arg parsing, no inference, no
+  `AskUserQuestion` confirmation. Just `git remote get-url origin`. Verify
+  reachability + branch into MCP / token fallback / handoff exactly as before.
+- Step 5's "if the repo argument was inferred …" paragraph removed.
+- Step 6 report line shortened to "target = git remote".
+- Error-table row "No repo arg and no plausible candidate / user declines"
+  removed (no longer reachable).
+- CHANGELOG bullet updated: `[owner/repo]` → `[--no-commit]`.
+
+### Handoff prompt: paste the chat URL into it
+
+- User: before the paste-prompt in the chat reply, instruct the user to grab
+  their claude.ai chat URL (or click **Share** for a public link) and paste
+  it into the prompt so CC can record it as `session_url:`.
+- Step 4 Handoff branch reordered into three parts:
+  1. A short paragraph at the top of the chat reply: open the chat in
+     claude.ai, copy the URL or share link, paste it into the
+     `<paste session URL here>` slot in the prompt below.
+  2. The two files (`transcript.md` + `log.md`) as fenced blocks under their
+     intended `docs/sessions/<stem>/…` paths. `log.md` frontmatter leaves a
+     literal `<paste session URL here>` placeholder in `session_url:` and in
+     the `> Source:` blockquote — the CC session replaces both when it lands
+     the archive.
+  3. The Claude-Code paste prompt itself, with `Session URL: <paste session
+     URL here>` near the top so the swap is mechanical.
+- Prompt no longer takes an `<owner/repo>` — it commits in "the current repo
+  of the CC session."
 
 ## Open Questions
 

@@ -10,32 +10,33 @@ The format is based on
 ### Added
 
 - `kix:save-session` skill (`claude-code/skills/save-session/SKILL.md`) —
-  invoked as `/kix:save-session [owner/repo]`; archives the current session
-  into a per-session folder `docs/sessions/<stem>/` in a target repo. When run
-  from Claude Code on a feature branch (the branch that holds this session's
-  work) the archive is committed straight onto that branch so it rides along
-  with that branch's PR; only when there's no work branch — you started on the
-  default branch, or there's no checkout (a chat session) — does it get its own
-  `claude/save-session-<stem>` branch + PR. The folder holds a `log.md` — an
-  append-only running history (first save creates it; each re-save appends a
-  `## <timestamp> — update` section rather than rewriting it, built from
-  context, via `caveman` if available) — plus the verbatim conversation: the
-  Claude Code transcript `.jsonl`, gzipped and committed as
-  `transcript.jsonl.gz` (~4–5× smaller, keeps the repo from ballooning — no Git
-  LFS needed) — in a hosted/cloud sandbox (`CLAUDE_CODE_REMOTE`) where each
-  turn is a fresh `claude --resume`, the largest file in the project dir (the
-  complete cumulative transcript, append-only across compactions); or, when
-  there's no transcript file (a chat session), a verbatim `transcript.md`
-  render from the conversation in context. Archives are keyed by the session id
-  (`CLAUDE_CODE_REMOTE_SESSION_ID` in a hosted sandbox — the only id stable
-  across turns), so re-saving the same session updates that folder in place
-  instead of duplicating. A `--no-commit` flag stages the archive into the
-  current checkout without committing (used by `kix:commit`). Repo writes go
-  through the available GitHub tools, falling back to GitHub REST API +
-  `GITHUB_TOKEN`/`GH_TOKEN` when MCP can't reach the repo; if neither is
-  available (e.g. a Claude chat session with no GitHub connector), the skill
-  switches to **handoff mode** — emits `transcript.md` + `log.md` + a
-  Claude-Code paste prompt in chat instead of pushing. Tracked in `kxa-bpt`.
+  invoked as `/kix:save-session [--no-commit]`; archives the current session
+  into a per-session folder `docs/sessions/<stem>/` in the surrounding repo
+  (target = `git remote get-url origin` of the current checkout — no repo
+  argument). When run from Claude Code on a feature branch (the branch that
+  holds this session's work) the archive is committed straight onto that branch
+  so it rides along with that branch's PR; on the default branch (no work
+  branch to attach to) it gets its own `claude/save-session-<stem>` branch +
+  PR. The folder holds a `log.md` — an append-only running history (first save
+  creates it; each re-save appends a `## <timestamp> — update` section rather
+  than rewriting it, built from context, via `caveman` if available) — plus the
+  verbatim conversation: the Claude Code transcript `.jsonl`, gzipped and
+  committed as `transcript.jsonl.gz` (~4–5× smaller, keeps the repo from
+  ballooning — no Git LFS needed) — in a hosted/cloud sandbox
+  (`CLAUDE_CODE_REMOTE`) where each turn is a fresh `claude --resume`, the
+  largest file in the project dir (the complete cumulative transcript,
+  append-only across compactions); or, when there's no transcript file (a chat
+  session), a verbatim `transcript.md` render from the conversation in context.
+  Archives are keyed by the session id (`CLAUDE_CODE_REMOTE_SESSION_ID` in a
+  hosted sandbox — the only id stable across turns), so re-saving the same
+  session updates that folder in place instead of duplicating. A `--no-commit`
+  flag stages the archive into the current checkout without committing (used by
+  `kix:commit`). Repo writes go through the available GitHub tools, falling
+  back to GitHub REST API + `GITHUB_TOKEN`/`GH_TOKEN` when MCP can't reach the
+  repo; if neither is available (e.g. a Claude chat session with no GitHub
+  connector), the skill switches to **handoff mode** — emits `transcript.md` +
+  `log.md` + a Claude-Code paste prompt in chat instead of pushing. Tracked in
+  `kxa-bpt`.
 - Caveman plugin wired into the repo dev setup — `.claude/settings.json` now
   registers the `caveman` marketplace (`JuliusBrussee/caveman`) via
   `extraKnownMarketplaces` and enables `caveman@caveman`, so cloud and local
