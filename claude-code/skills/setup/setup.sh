@@ -14,6 +14,9 @@
 #                              install-bd,bootstrap-bd}.sh and the matching
 #                              SessionStart / PreCompact entries in
 #                              .claude/settings.json
+#   - Codex hooks              .codex/hooks/{session-start,install-dolt,
+#                              install-bd,bootstrap-bd}.sh and a repo-local
+#                              .codex/config.toml SessionStart entry
 #   - AGENTS.md alias          AGENTS.md → CLAUDE.md symlink (so the two don't
 #                              drift); creates an empty CLAUDE.md if neither
 #                              file exists yet
@@ -22,8 +25,8 @@
 # PR. The /kix:setup skill drives those steps and handles merges this script
 # can't do safely.
 #
-# Re-running is safe: existing non-managed files are kept; the Claude hook
-# scripts and the settings.json hook entries are upserted.
+# Re-running is safe: existing non-managed files are kept; the Claude/Codex hook
+# scripts and hook config entries are upserted.
 #
 # Bundled assets are looked up next to this script (./assets); override with
 # KIX_SETUP_ASSETS=/path/to/assets.
@@ -171,7 +174,51 @@ copy_force hooks/install-dolt.sh   .claude/hooks/install-dolt.sh
 copy_force hooks/install-bd.sh     .claude/hooks/install-bd.sh
 copy_force hooks/bootstrap-bd.sh   .claude/hooks/bootstrap-bd.sh
 
-# --- 5. .claude/settings.json hook entries ----------------------------------
+# --- 5. Codex hook scripts + .codex/config.toml ------------------------------
+copy_force codex/hooks/session-start.sh .codex/hooks/session-start.sh
+copy_force codex/hooks/install-dolt.sh  .codex/hooks/install-dolt.sh
+copy_force codex/hooks/install-bd.sh    .codex/hooks/install-bd.sh
+copy_force codex/hooks/bootstrap-bd.sh  .codex/hooks/bootstrap-bd.sh
+
+CODEX_CONFIG=.codex/config.toml
+CODEX_START='# BEGIN KIX CODEX HOOKS'
+CODEX_END='# END KIX CODEX HOOKS'
+mkdir -p .codex
+[ -e "$CODEX_CONFIG" ] || { printf '' > "$CODEX_CONFIG"; note "created $CODEX_CONFIG"; }
+tmp="$(mktemp)"
+awk -v start="$CODEX_START" -v end="$CODEX_END" '
+  $0 == start { skip = 1; next }
+  $0 == end { skip = 0; next }
+  !skip { print }
+' "$CODEX_CONFIG" > "$tmp" || { rm -f "$tmp"; die "failed to merge $CODEX_CONFIG"; }
+{
+  cat "$tmp"
+  if [ -s "$tmp" ]; then printf '\n'; fi
+  cat <<'CODEX_HOOKS'
+# BEGIN KIX CODEX HOOKS
+# Codex loads repo-local hooks when the project .codex/ layer is trusted;
+# use /hooks in Codex to review/trust them.
+[[hooks.SessionStart]]
+matcher = "startup|resume|clear"
+
+[[hooks.SessionStart.hooks]]
+type = "command"
+command = 'bash "$(git rev-parse --show-toplevel)/.codex/hooks/session-start.sh"'
+timeout = 600
+statusMessage = "Bootstrapping Kix session"
+# END KIX CODEX HOOKS
+CODEX_HOOKS
+} > "$tmp.merged"
+if cmp -s "$tmp.merged" "$CODEX_CONFIG"; then
+  rm -f "$tmp" "$tmp.merged"
+  note "$CODEX_CONFIG already has the Kix SessionStart hook"
+else
+  mv -f "$tmp.merged" "$CODEX_CONFIG"
+  rm -f "$tmp"
+  note "merged Kix SessionStart hook into $CODEX_CONFIG"
+fi
+
+# --- 6. .claude/settings.json hook entries ----------------------------------
 command -v jq >/dev/null 2>&1 || die "jq is required to merge .claude/settings.json"
 SETTINGS=".claude/settings.json"
 mkdir -p .claude
@@ -199,14 +246,14 @@ else
   note "merged SessionStart + PreCompact hooks into $SETTINGS"
 fi
 
-# --- 6. .beads permissions ---------------------------------------------------
+# --- 7. .beads permissions ---------------------------------------------------
 # bd warns when .beads is group/other-readable; tighten it if the repo already
 # has a beads tracker (this script does not run `bd init` — the skill does).
 if [ -d .beads ]; then
   chmod 700 .beads 2>/dev/null && note "set .beads to 0700" || true
 fi
 
-# --- 7. AGENTS.md ↔ CLAUDE.md alias -----------------------------------------
+# --- 8. AGENTS.md ↔ CLAUDE.md alias -----------------------------------------
 # Mirror kix-agents convention: AGENTS.md is a symlink to CLAUDE.md so agent
 # instructions don't drift between the two files. The skill's Step 6 fills the
 # CLAUDE.md content; this section just enforces the symlink.
@@ -243,4 +290,5 @@ note "not done by this script (the /kix:setup skill handles these):"
 note "  - bd init   (give this repo a beads issue tracker, if it doesn't have one)"
 note "  - add a Beads section to CLAUDE.md (AGENTS.md is now a symlink to it)"
 note "  - enable the kix plugin for the repo ('kix@kix-agents': true under enabledPlugins)"
+note "  - review/trust the repo-local Codex hooks via /hooks on first Codex run"
 note "  - commit, push, open the PR"

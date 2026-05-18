@@ -235,7 +235,7 @@ claude-code/                      ← Claude Code plugin (manifest + skills + �
   .claude-plugin/plugin.json
   skills/
   templates/
-codex/                            ← Codex layout (analogous, when added)
+.codex/                           ← Codex repo-local SessionStart hooks
 docs/                             ← Run-specific implementation docs
 ```
 

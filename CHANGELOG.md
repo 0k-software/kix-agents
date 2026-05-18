@@ -11,6 +11,13 @@ The format is based on
 
 ### Added
 
+- Codex SessionStart bootstrap parity — repo-local `.codex/config.toml` now
+  wires startup/resume/clear into `.codex/hooks/session-start.sh`, which
+  mirrors the Claude Code bootstrap by installing `dolt` + `bd`, wiring git
+  hooks, bootstrapping beads, and running `bd prime`. `kix:setup` now installs
+  the same Codex hook assets into target repos and reminds users to trust them
+  via `/hooks`.
+
 - `kix:save-session` skill (`claude-code/skills/save-session/SKILL.md`) —
   invoked as `/kix:save-session [--no-commit]`; archives the current session
   into a per-session folder `docs/sessions/<stem>/` in the surrounding repo

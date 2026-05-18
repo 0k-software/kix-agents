@@ -26,6 +26,8 @@ This repo declares itself as a Claude Code marketplace via
 ```text
 .claude-plugin/marketplace.json   ← marketplace declaration
 .claude/settings.json             ← enables the kix@kix-agents plugin locally
+.codex/config.toml                ← Codex SessionStart hook configuration
+.codex/hooks/                     ← Codex bootstrap hooks for bd/dolt
 claude-code/                      ← Claude Code plugin (manifest + skills + …)
   .claude-plugin/plugin.json
   skills/
