@@ -54,3 +54,5 @@
 # - github.repo
 
 sync.remote: "git@github.com:0k-software/kix-agents.git"
+
+export.git-add: false
