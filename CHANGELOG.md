@@ -7,6 +7,8 @@ The format is based on
 
 ## [Unreleased]
 
+## [0.2.3] — 2026-05-18
+
 ### Added
 
 - `kix:save-session` skill (`claude-code/skills/save-session/SKILL.md`) —
@@ -67,9 +69,6 @@ The format is based on
   `.beads/hooks/` instead of copying into `.git/hooks/`. The `.git-hooks/`
   directory is removed. Fixes the bug where the beads pre-commit hook never ran
   because the Prettier hook owned `.git/hooks/pre-commit`.
-
-### Changed
-
 - `kix:commit` now bundles the current Claude Code session's archive into every
   commit it makes — it invokes `/kix:save-session --no-commit` (a new
   stage-only mode that writes
