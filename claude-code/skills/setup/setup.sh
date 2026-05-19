@@ -10,13 +10,12 @@
 #                              .beads/hooks/ + core.hooksPath if the repo has a
 #                              beads tracker, else .git-hooks/ + copied into the
 #                              repo's real hooks dir (the `make setup` way)
-#   - Claude Code hooks        .claude/hooks/{session-start,install-dolt,
-#                              install-bd,bootstrap-bd}.sh and the matching
+#   - Shared agent hooks       .claude/hooks/{session-start,install-dolt,
+#                              install-bd,bootstrap-bd}.sh, Claude Code
 #                              SessionStart / PreCompact entries in
-#                              .claude/settings.json
-#   - Codex hooks              .codex/hooks/{session-start,install-dolt,
-#                              install-bd,bootstrap-bd}.sh and a repo-local
-#                              .codex/config.toml SessionStart entry
+#                              .claude/settings.json, and a Codex
+#                              .codex/config.toml entry that reuses the same
+#                              session-start.sh
 #   - AGENTS.md alias          AGENTS.md → CLAUDE.md symlink (so the two don't
 #                              drift); creates an empty CLAUDE.md if neither
 #                              file exists yet
@@ -25,8 +24,8 @@
 # PR. The /kix:setup skill drives those steps and handles merges this script
 # can't do safely.
 #
-# Re-running is safe: existing non-managed files are kept; the Claude/Codex hook
-# scripts and hook config entries are upserted.
+# Re-running is safe: existing non-managed files are kept; the shared hook
+# scripts and Claude/Codex hook config entries are upserted.
 #
 # Bundled assets are looked up next to this script (./assets); override with
 # KIX_SETUP_ASSETS=/path/to/assets.
@@ -168,18 +167,16 @@ else
   fi
 fi
 
-# --- 4. Claude Code hook scripts --------------------------------------------
-copy_force hooks/session-start.sh  .claude/hooks/session-start.sh
-copy_force hooks/install-dolt.sh   .claude/hooks/install-dolt.sh
-copy_force hooks/install-bd.sh     .claude/hooks/install-bd.sh
-copy_force hooks/bootstrap-bd.sh   .claude/hooks/bootstrap-bd.sh
+# --- 4. Shared agent hook scripts -------------------------------------------
+# Claude Code calls .claude/hooks/session-start.sh via .claude/settings.json.
+# Codex calls that same script via .codex/config.toml so the bootstrap logic
+# stays in one place.
+copy_force hooks/session-start.sh .claude/hooks/session-start.sh
+copy_force hooks/install-dolt.sh  .claude/hooks/install-dolt.sh
+copy_force hooks/install-bd.sh    .claude/hooks/install-bd.sh
+copy_force hooks/bootstrap-bd.sh  .claude/hooks/bootstrap-bd.sh
 
-# --- 5. Codex hook scripts + .codex/config.toml ------------------------------
-copy_force codex/hooks/session-start.sh .codex/hooks/session-start.sh
-copy_force codex/hooks/install-dolt.sh  .codex/hooks/install-dolt.sh
-copy_force codex/hooks/install-bd.sh    .codex/hooks/install-bd.sh
-copy_force codex/hooks/bootstrap-bd.sh  .codex/hooks/bootstrap-bd.sh
-
+# --- 5. Codex .codex/config.toml entry ---------------------------------------
 CODEX_CONFIG=.codex/config.toml
 CODEX_START='# BEGIN KIX CODEX HOOKS'
 CODEX_END='# END KIX CODEX HOOKS'
@@ -197,13 +194,14 @@ awk -v start="$CODEX_START" -v end="$CODEX_END" '
   cat <<'CODEX_HOOKS'
 # BEGIN KIX CODEX HOOKS
 # Codex loads repo-local hooks when the project .codex/ layer is trusted;
-# use /hooks in Codex to review/trust them.
+# use /hooks in Codex to review/trust them. Codex reuses the same Kix
+# SessionStart script as Claude Code so bootstrap behavior cannot drift.
 [[hooks.SessionStart]]
 matcher = "startup|resume|clear"
 
 [[hooks.SessionStart.hooks]]
 type = "command"
-command = 'bash "$(git rev-parse --show-toplevel)/.codex/hooks/session-start.sh"'
+command = 'bash "$(git rev-parse --show-toplevel)/.claude/hooks/session-start.sh"'
 timeout = 600
 statusMessage = "Bootstrapping Kix session"
 # END KIX CODEX HOOKS
