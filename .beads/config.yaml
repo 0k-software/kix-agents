@@ -53,4 +53,4 @@
 # - github.org
 # - github.repo
 
-sync.remote: "git@github.com:0k-software/kix-agents.git"
+sync.remote: "https://doltremoteapi.dolthub.com/kelvinst/kix-agents"
