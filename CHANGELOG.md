@@ -12,8 +12,8 @@ The format is based on
 ### Added
 
 - Codex SessionStart bootstrap parity — repo-local `.codex/config.toml` now
-  wires startup/resume/clear into the same `.claude/hooks/session-start.sh`
-  script that Claude Code uses, avoiding duplicated bootstrap logic while still
+  wires startup/resume/clear into the same `.kix/hooks/session-start.sh` script
+  that Claude Code uses, avoiding duplicated bootstrap logic while still
   installing `dolt` + `bd`, wiring git hooks, bootstrapping beads, and running
   `bd prime`. `kix:setup` now installs the Codex config block into target repos
   and reminds users to trust repo-local hooks via `/hooks`.
