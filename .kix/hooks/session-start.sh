@@ -36,9 +36,9 @@ elif [ -d .git-hooks ] && find .git-hooks -maxdepth 1 -type f 2>/dev/null | grep
   chmod +x "$hooks_dir"/* 2>/dev/null || true
 fi
 
-"$project_dir/.claude/hooks/install-dolt.sh" || true
-"$project_dir/.claude/hooks/install-bd.sh" || true
-"$project_dir/.claude/hooks/bootstrap-bd.sh" || true
+"$project_dir/.kix/hooks/install-dolt.sh" || true
+"$project_dir/.kix/hooks/install-bd.sh" || true
+"$project_dir/.kix/hooks/bootstrap-bd.sh" || true
 
 if command -v bd >/dev/null 2>&1; then
   bd prime || true

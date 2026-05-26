@@ -19,7 +19,7 @@ runs on SessionStart, then open a PR with the changes:
   copied into the repo's real hooks dir.
 - **Shared Claude Code / Codex SessionStart hook** —
   `.kix/hooks/session-start.sh` plus
-  `.claude/hooks/{install-dolt,install-bd,bootstrap-bd}.sh`,
+  `.kix/hooks/{install-dolt,install-bd,bootstrap-bd}.sh`,
   `.claude/settings.json` for Claude Code, and `.codex/config.toml` for Codex.
   Both agents call the same `session-start.sh`, which installs the `dolt` and
   `bd` CLIs into `~/.local/bin`, bootstraps the beads database, and runs
@@ -202,7 +202,7 @@ If the file already has a Beads section, leave it alone.
 
    - **Prettier formatting gate** — `.prettierrc.json`, `.prettierignore`, `make autofix` / `make check`, and a `.github/workflows/check.yml` CI workflow.
    - **`pre-commit` hook** — beads DB→JSONL sync (no-op without `bd`) + Prettier gate (reject a dirty tree → `make autofix` → re-stage → `make check`); wired via `core.hooksPath` → `.beads/hooks/` if there's a beads tracker, else copied into the repo's hooks dir.
-   - **Shared Claude Code / Codex SessionStart hook** — `.kix/hooks/session-start.sh` plus `.claude/hooks/{install-dolt,install-bd,bootstrap-bd}.sh` that install the `dolt` + `bd` CLIs into `~/.local/bin`, bootstrap the beads DB, and run `bd prime`; Claude Code wires them through `.claude/settings.json`, while Codex wires the same script through `.codex/config.toml`.
+   - **Shared Claude Code / Codex SessionStart hook** — `.kix/hooks/session-start.sh` plus `.kix/hooks/{install-dolt,install-bd,bootstrap-bd}.sh` that install the `dolt` + `bd` CLIs into `~/.local/bin`, bootstrap the beads DB, and run `bd prime`; Claude Code wires them through `.claude/settings.json`, while Codex wires the same script through `.codex/config.toml`.
 
    ## After merging
 
