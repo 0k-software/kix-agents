@@ -10,8 +10,9 @@
 #                              .beads/hooks/ + core.hooksPath if the repo has a
 #                              beads tracker, else .git-hooks/ + copied into the
 #                              repo's real hooks dir (the `make setup` way)
-#   - Shared agent hooks       .claude/hooks/{session-start,install-dolt,
-#                              install-bd,bootstrap-bd}.sh, Claude Code
+#   - Shared agent hooks       .kix/hooks/session-start.sh plus
+#                              .claude/hooks/{install-dolt,install-bd,
+#                              bootstrap-bd}.sh, Claude Code
 #                              SessionStart / PreCompact entries in
 #                              .claude/settings.json, and a Codex
 #                              .codex/config.toml entry that reuses the same
@@ -168,10 +169,10 @@ else
 fi
 
 # --- 4. Shared agent hook scripts -------------------------------------------
-# Claude Code calls .claude/hooks/session-start.sh via .claude/settings.json.
+# Claude Code calls .kix/hooks/session-start.sh via .claude/settings.json.
 # Codex calls that same script via .codex/config.toml so the bootstrap logic
 # stays in one place.
-copy_force hooks/session-start.sh .claude/hooks/session-start.sh
+copy_force kix/hooks/session-start.sh .kix/hooks/session-start.sh
 copy_force hooks/install-dolt.sh  .claude/hooks/install-dolt.sh
 copy_force hooks/install-bd.sh    .claude/hooks/install-bd.sh
 copy_force hooks/bootstrap-bd.sh  .claude/hooks/bootstrap-bd.sh
@@ -201,7 +202,7 @@ matcher = "startup|resume|clear"
 
 [[hooks.SessionStart.hooks]]
 type = "command"
-command = 'bash "$(git rev-parse --show-toplevel)/.claude/hooks/session-start.sh"'
+command = 'bash "$(git rev-parse --show-toplevel)/.kix/hooks/session-start.sh"'
 timeout = 600
 statusMessage = "Bootstrapping Kix session"
 # END KIX CODEX HOOKS
@@ -222,7 +223,7 @@ SETTINGS=".claude/settings.json"
 mkdir -p .claude
 [ -e "$SETTINGS" ] || { printf '{}\n' > "$SETTINGS"; note "created $SETTINGS"; }
 
-SS_HOOK='$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh'
+SS_HOOK='$CLAUDE_PROJECT_DIR/.kix/hooks/session-start.sh'
 tmp="$(mktemp)"
 jq --arg ss "$SS_HOOK" '
   def cmds($arr): [ ($arr // [])[]?.hooks[]?.command // empty ];
