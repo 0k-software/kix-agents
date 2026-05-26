@@ -100,10 +100,9 @@ The format is based on
   closure, then applies the plan via `bd update` / `bd create` / `bd close` /
   `bd dep add`.
 - Beads (`bd`) issue tracker integration — `.beads/` directory with config,
-  hooks, and seed issues, plus `.claude/hooks/install-bd.sh`,
-  `install-dolt.sh`, and `bootstrap-bd.sh` invoked from the `SessionStart` hook
-  so remote/cloud Claude Code sessions can run beads commands without manual
-  setup.
+  hooks, and seed issues, plus `.kix/hooks/install-bd.sh`, `install-dolt.sh`,
+  and `bootstrap-bd.sh` invoked from the `SessionStart` hook so remote/cloud
+  Claude Code sessions can run beads commands without manual setup.
 
 ### Changed
 

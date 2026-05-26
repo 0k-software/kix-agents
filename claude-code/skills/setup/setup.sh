@@ -11,7 +11,7 @@
 #                              beads tracker, else .git-hooks/ + copied into the
 #                              repo's real hooks dir (the `make setup` way)
 #   - Shared agent hooks       .kix/hooks/session-start.sh plus
-#                              .claude/hooks/{install-dolt,install-bd,
+#                              .kix/hooks/{install-dolt,install-bd,
 #                              bootstrap-bd}.sh, Claude Code
 #                              SessionStart / PreCompact entries in
 #                              .claude/settings.json, and a Codex
@@ -173,9 +173,9 @@ fi
 # Codex calls that same script via .codex/config.toml so the bootstrap logic
 # stays in one place.
 copy_force kix/hooks/session-start.sh .kix/hooks/session-start.sh
-copy_force hooks/install-dolt.sh  .claude/hooks/install-dolt.sh
-copy_force hooks/install-bd.sh    .claude/hooks/install-bd.sh
-copy_force hooks/bootstrap-bd.sh  .claude/hooks/bootstrap-bd.sh
+copy_force kix/hooks/install-dolt.sh  .kix/hooks/install-dolt.sh
+copy_force kix/hooks/install-bd.sh    .kix/hooks/install-bd.sh
+copy_force kix/hooks/bootstrap-bd.sh  .kix/hooks/bootstrap-bd.sh
 
 # --- 5. Codex .codex/config.toml entry ---------------------------------------
 CODEX_CONFIG=.codex/config.toml
