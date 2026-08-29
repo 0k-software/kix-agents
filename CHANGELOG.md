@@ -27,7 +27,11 @@ The format is based on
   — and puts it in the body, since that context is otherwise lost when the
   session ends. It explains only what the diff in front of it contains and
   never invents a rationale, so the headless case (no prior conversation)
-  degrades to a plain diff-derived message.
+  degrades to a plain diff-derived message. When the reasoning is already
+  written down in a committed file (a spec, ADR, design doc, or plan — in this
+  repo `docs/kix/<bd-id>/spec.md`), the body states what was decided and points
+  at it — `More information in <file>` — rather than restating a document that
+  will keep being updated.
 
 - `commit-message.sh` wrapper bundled with the skill
   (`${CLAUDE_PLUGIN_ROOT}/skills/commit-message/commit-message.sh`) — runs

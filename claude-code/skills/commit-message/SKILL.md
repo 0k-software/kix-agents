@@ -62,6 +62,31 @@ Two rules keep this honest:
   diff supports and stop; a short honest message beats a plausible fabricated
   one.
 
+### When the why is already written down
+
+Sometimes the reasoning lives in a file that is _in the repository_ — a spec,
+an ADR, a design doc, a plan (in this repo, `docs/kix/<bd-id>/spec.md`), either
+added by this very commit or already committed and being implemented by it. If
+such a file records the decision in detail — the options weighed, the drawbacks
+accepted, the trade-offs made — **do not restate it in the body**. A commit
+message is a poor copy of a document that will keep being updated.
+
+Instead the body carries a short statement of _what was decided_, then a
+pointer in this form:
+
+```text
+More information in docs/kix/kxa-f4m/spec.md
+```
+
+Rules for the pointer:
+
+- The file must be **committed** — tracked in the repository, at a path a
+  future reader can actually open. Never point at an untracked scratch file, a
+  path outside the repo, or a chat transcript.
+- Use the repo-relative path, exactly as it appears in the tree.
+- Still say what was decided. A body that is only a pointer forces every reader
+  to open the file just to learn the headline.
+
 ## Steps
 
 1. Run `git status --porcelain` once to pick the diff source. Each line is
