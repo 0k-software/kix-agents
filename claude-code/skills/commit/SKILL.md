@@ -79,11 +79,15 @@ The state file is consumed (deleted) on a successful commit (Step 5) and on the
      post-staging index with `git write-tree` and remember the SHA as
      `ORIG_INDEX_TREE` (you may need it in Step 6 to roll back fix attempts).
 2. Run `git diff --no-ext-diff --staged` to get the diff to be committed.
-3. Write a commit message following `Commit message` instructions in
-   `AGENTS.md`/`CLAUDE.md`. If none, base yourself from
-   `git log -1 --pretty=%B`.
-   - **NEVER ADD** `Co-Authored-By` footer note, as you're actually helping me
-     generate the commit message, not writing the code yourself.
+3. Generate the commit message by following
+   [`/kix:commit-message`](../commit-message/SKILL.md) with the context text as
+   its arguments. Read that skill and apply its steps here — style resolution
+   (`Commit message` section in `AGENTS.md`/`CLAUDE.md`, else the repo's own
+   history), the no-`Co-Authored-By` rule, and the rest — instead of
+   duplicating them. Its _output contract_ does not apply here: this skill is
+   interactive, so the message goes into Step 4's code block rather than being
+   the whole response. Its diff-source rule resolves to the staged diff, since
+   Step 1 already staged everything that belongs in the commit.
 4. Display the generated commit message inside a fenced code block (open and
    close with three backticks on their own lines) so it renders as a distinct
    block and preserves literal formatting (commit messages often contain `#`,

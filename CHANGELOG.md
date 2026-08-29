@@ -7,6 +7,35 @@ The format is based on
 
 ## [Unreleased]
 
+### Added
+
+- `kix:commit-message` skill (`claude-code/skills/commit-message/SKILL.md`) —
+  invoked as `/kix:commit-message [reason for the change]`; generates a commit
+  message for the current uncommitted changes and prints it, with nothing else
+  in the response. It is read-only: it never stages, commits, or otherwise
+  touches the repo. If anything is staged it describes the staged diff only;
+  otherwise it describes every uncommitted change, untracked files included.
+  Style resolution is unchanged from `kix:commit` — a `Commit message` section
+  in `AGENTS.md`/`CLAUDE.md` wins, else the repo's own history, else imperative
+  subject ≤ 72 chars plus a 72-wrapped body — and no `Co-Authored-By` footer is
+  ever added. The strict output contract makes it usable headlessly
+  (`claude -p "/kix:commit-message"`) so shell scripts, git hooks, and editors
+  such as Obsidian Git can consume the raw message from stdout.
+
+- `commit-message.sh` wrapper bundled with the skill
+  (`${CLAUDE_PLUGIN_ROOT}/skills/commit-message/commit-message.sh`) — runs
+  `claude -p` with a read-only tool allowlist, trims stray fencing and blank
+  padding, and exits `2` when there is nothing to commit so callers can skip
+  cleanly. Takes `-C <repo-dir>` and free-text context, and honours
+  `KIX_CLAUDE_BIN` / `KIX_COMMIT_MESSAGE_MODEL`.
+
+### Changed
+
+- `kix:commit` no longer spells out its own message-writing rules — Step 3 now
+  delegates to `kix:commit-message`, so message style lives in exactly one
+  place. Behaviour is unchanged: the message is still generated from the staged
+  diff and displayed for review before committing.
+
 ## [0.2.3] — 2026-05-18
 
 ### Added
