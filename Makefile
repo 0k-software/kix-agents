@@ -1,6 +1,10 @@
 .PHONY: all setup autofix check bump release
 
 PART ?= patch
+# Pin Prettier: an unpinned `npx prettier` resolves to whatever is in the local
+# npx cache, so a stale cache passes the pre-commit gate while CI (always latest)
+# fails on the same tree. Bump this deliberately, then run `make autofix`.
+PRETTIER := npx --yes prettier@3.9.6
 PLUGIN_VERSION := $(shell jq -r '.version' claude-code/.claude-plugin/plugin.json 2>/dev/null)
 
 all: autofix check
@@ -10,10 +14,10 @@ setup:
 	chmod +x .beads/hooks/*
 
 autofix:
-	npx prettier --write .
+	$(PRETTIER) --write .
 
 check:
-	npx prettier --check .
+	$(PRETTIER) --check .
 
 bump:
 	@node scripts/bump-plugin.js $(PART)

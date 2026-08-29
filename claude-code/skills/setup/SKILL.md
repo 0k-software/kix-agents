@@ -173,9 +173,11 @@ If the file already has a Beads section, leave it alone.
    (`core.hooksPath` is `.beads/hooks` when there's a beads tracker, otherwise
    unset and the hook sits in the repo's real hooks dir.)
 2. Run the formatting gate: `make autofix` then `make check`. (If you ended up
-   not creating/merging a `Makefile`, run `npx prettier --write .` then
-   `npx prettier --check .` instead.) Fix any drift `autofix` introduces in the
-   files this skill added.
+   not creating/merging a `Makefile`, run `npx --yes prettier@3.9.6 --write .`
+   then `npx --yes prettier@3.9.6 --check .` instead — pin the version, an
+   unpinned `npx prettier` picks up whatever the local npx cache holds and will
+   disagree with CI.) Fix any drift `autofix` introduces in the files this
+   skill added.
 3. `git status` — review the **complete** set of changes. Everything about to
    be staged should be intentional. If the script overwrote an existing file
    you didn't expect, resolve it now.
