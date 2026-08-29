@@ -7,6 +7,8 @@ The format is based on
 
 ## [Unreleased]
 
+## [0.2.4] — 2026-08-29
+
 ### Fixed
 
 - Pin Prettier to `3.9.6` in the `Makefile` (and in the `Makefile` that
