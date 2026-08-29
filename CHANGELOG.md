@@ -20,7 +20,14 @@ The format is based on
   subject ≤ 72 chars plus a 72-wrapped body — and no `Co-Authored-By` footer is
   ever added. The strict output contract makes it usable headlessly
   (`claude -p "/kix:commit-message"`) so shell scripts, git hooks, and editors
-  such as Obsidian Git can consume the raw message from stdout.
+  such as Obsidian Git can consume the raw message from stdout. When invoked
+  from inside a live session (typed directly, or reached via `kix:commit`), it
+  mines that conversation for the reasoning behind the change — the approaches
+  dropped, the constraints found mid-way, the trade-offs the user chose between
+  — and puts it in the body, since that context is otherwise lost when the
+  session ends. It explains only what the diff in front of it contains and
+  never invents a rationale, so the headless case (no prior conversation)
+  degrades to a plain diff-derived message.
 
 - `commit-message.sh` wrapper bundled with the skill
   (`${CLAUDE_PLUGIN_ROOT}/skills/commit-message/commit-message.sh`) — runs
