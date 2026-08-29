@@ -29,9 +29,38 @@ Announce nothing. Explain nothing. Emit the message.
 ## Argument parsing
 
 The whole of `$ARGUMENTS` is **context text** — the reason/motivation behind
-the changes. When non-empty, use it to write the body; it outranks anything you
-infer from the diff, since the author knows why they made the change and the
-diff only shows what changed.
+the changes. When non-empty, use it to write the body; it outranks everything
+else, since the author knows why they made the change.
+
+## Where the "why" comes from
+
+A diff shows _what_ changed. It cannot show why, which alternative was
+rejected, or which constraint forced an odd-looking decision. Those come from
+outside the diff, in this order of authority:
+
+1. **`$ARGUMENTS`** — the author said it explicitly. Highest authority.
+2. **The current conversation**, when there is one. If this skill was invoked
+   from inside a live session (typed as `/kix:commit-message`, or reached via
+   [`/kix:commit`](../commit/SKILL.md)), that session's conversation is the
+   record of why the work happened: the problem being solved, the approaches
+   tried and abandoned, the constraints discovered mid-way, the trade-offs the
+   user chose between, and any correction the user made to your first attempt.
+   Mine it and put that reasoning in the body — it is the single richest source
+   available and it is thrown away the moment the session ends. Prefer it over
+   anything you would otherwise infer from reading the code.
+3. **The diff itself** — the fallback. Describe intent as best it can be read
+   from the change.
+
+Two rules keep this honest:
+
+- **Only what this commit contains.** A session usually covers more than the
+  changes being committed — earlier commits, abandoned edits, unrelated
+  digressions, tool output. Explain the diff in front of you, not the session.
+  If a decision from the conversation isn't visible in this diff, leave it out.
+- **Never invent a rationale.** Running headless (`claude -p`) there is no
+  prior conversation at all, and that is a normal, expected case. Say what the
+  diff supports and stop; a short honest message beats a plausible fabricated
+  one.
 
 ## Steps
 
@@ -60,10 +89,15 @@ diff only shows what changed.
    - If the history is empty or gives no clear signal, default to: imperative
      mood, subject ≤ 72 characters with no trailing period, a blank line, then
      a body wrapped at 72 characters.
-4. Write the message. Say **what changed and why**; skip the body entirely when
-   the subject already says everything (small, self-evident changes). Never pad
-   the body by restating the diff file by file.
-5. Print it, following the output contract above.
+4. Gather the **why** from the sources ranked in `Where the "why" comes from`
+   above — `$ARGUMENTS` first, then the current conversation if this is a live
+   session, then the diff.
+5. Write the message. The subject says **what changed**; the body says **why**,
+   including any decision from step 4 that the diff alone would leave
+   unexplained. Skip the body entirely when the subject already says everything
+   (small, self-evident changes) — but a non-obvious decision is exactly when a
+   body earns its place. Never pad the body by restating the diff file by file.
+6. Print it, following the output contract above.
 
 ## Headless use
 
