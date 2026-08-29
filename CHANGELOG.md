@@ -11,6 +11,12 @@ The format is based on
 
 ### Fixed
 
+- Fix the repo-slug extraction in `make release`. The `(\.git)?` group never
+  matched, because the greedy `[^/]+` before it already consumed `.git`, so an
+  SSH remote yielded `owner/repo.git` and every GitHub API call 404'd — the
+  target aborted with "HEAD is not on origin" on a commit that was on origin.
+  Strip the suffix in a second `sed` expression instead.
+
 - Pin Prettier to `3.9.6` in the `Makefile` (and in the `Makefile` that
   `kix:setup` installs into other repos). `npx prettier` with no version
   resolves to whatever the local npx cache happens to hold, so a stale cache
