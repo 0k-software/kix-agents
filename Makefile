@@ -29,7 +29,7 @@ release:
 	@set -e; \
 	TOKEN="$${GITHUB_TOKEN:-$${GH_TOKEN:-$$(gh auth token 2>/dev/null)}}"; \
 	test -n "$$TOKEN" || { echo "error: no GitHub token (set GITHUB_TOKEN or GH_TOKEN, or run 'gh auth login')"; exit 1; }; \
-	REPO=$$(git config --get remote.origin.url | sed -E 's#^.+[:/]([^:/]+/[^/]+)(\.git)?$$#\1#'); \
+	REPO=$$(git config --get remote.origin.url | sed -E -e 's#^.+[:/]([^:/]+/[^/]+)$$#\1#' -e 's#\.git$$##'); \
 	SHA=$$(git rev-parse HEAD); \
 	HTTP=$$(curl -sS -o /dev/null -w "%{http_code}" \
 		-H "Authorization: Bearer $$TOKEN" \
