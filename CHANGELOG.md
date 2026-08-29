@@ -7,6 +7,14 @@ The format is based on
 
 ## [Unreleased]
 
+### Fixed
+
+- Pin Prettier to `3.9.6` in the `Makefile` (and in the `Makefile` that
+  `kix:setup` installs into other repos). `npx prettier` with no version
+  resolves to whatever the local npx cache happens to hold, so a stale cache
+  passed the pre-commit gate on a tree that CI — which always installs the
+  latest — rejected. `CLAUDE.md` had drifted this way and only surfaced in CI.
+
 ### Added
 
 - `kix:commit-message` skill (`claude-code/skills/commit-message/SKILL.md`) —
