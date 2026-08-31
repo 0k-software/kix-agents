@@ -239,9 +239,10 @@ new-since-last-update turns and use its output as the section body; note
 
 **Work-branch save.** Write the log at the path Step 3 resolved —
 `docs/sessions/<stem>/log.md` for a new archive, the existing path on a re-save
-— into the current checkout, then `git add` that path. It's ordinary prose
-markdown: let the repo's formatter own it like any other doc, and don't add an
-ignore rule for it.
+— into the current checkout, run the repo's formatter over that path (e.g.
+`make autofix`, or `npx prettier --write <path>`), then `git add` it. The log
+is ordinary prose markdown: it belongs under the repo's format gate like any
+other doc, so don't add an ignore rule for it.
 
 - **`--no-commit` (stage-only):** **stop here** — do not `git commit`, push, or
   open a PR. Report the staged path and return to the caller; skip Step 5.
@@ -262,6 +263,13 @@ ignore rule for it.
    existing blob `sha` when overwriting), or via a local git checkout if
    available (branch from `origin/<default>` / fetch + reset, write the file,
    commit, `git push`).
+   - **Format before the commit**, or the PR opened in Step 5 lands with a
+     failing format gate and nobody in the loop to fix it. With a checkout, run
+     the repo's formatter over the file. Through the Contents API there's no
+     formatter to run, so match the target repo's Prettier settings (read
+     `.prettierrc*` / the `prettier` key in `package.json`) while rendering the
+     log — hard-wrap the prose at its `printWidth` (default 80) when
+     `proseWrap` is `always`.
 3. Proceed to Step 5.
 
 If any call fails, surface the error and stop — do not leave a PR pointing at a
