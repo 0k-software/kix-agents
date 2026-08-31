@@ -237,9 +237,11 @@ new-since-last-update turns and use its output as the section body; note
 
 ## Step 4 — Commit the log
 
-**Work-branch save.** Write `docs/sessions/<stem>.md` into the current checkout
-(if the repo runs Prettier with a prose-wrap rule and `docs/sessions/` isn't in
-its `.prettierignore`, add that line too), then `git add` that path.
+**Work-branch save.** Write the log at the path Step 3 resolved —
+`docs/sessions/<stem>.md` for a new log, the existing path on a re-save — into
+the current checkout (if the repo runs Prettier with a prose-wrap rule and
+`docs/sessions/` isn't in its `.prettierignore`, add that line too), then
+`git add` that path.
 
 - **`--no-commit` (stage-only):** **stop here** — do not `git commit`, push, or
   open a PR. Report the staged path and return to the caller; skip Step 5.
@@ -254,7 +256,8 @@ its `.prettierignore`, add that line too), then `git add` that path.
 1. **Branch.** Reuse `claude/save-session-<stem>` if it already exists on the
    remote (re-save), else create it from the repo's default branch
    (`mcp__github__create_branch`).
-2. **Commit** `docs/sessions/<stem>.md` onto it — message as above — via
+2. **Commit** the Step 3 log path (`docs/sessions/<stem>.md` for a new log, the
+   existing path on a re-save) onto it — message as above — via
    `mcp__github__create_or_update_file` / `mcp__github__push_files` (pass the
    existing blob `sha` when overwriting), or via a local git checkout if
    available (branch from `origin/<default>` / fetch + reset, write the file,
