@@ -115,6 +115,18 @@ session archive is a single `log.md` — no `transcript.jsonl.gz`, no
 - No new issue filed for the release — it's the process in `CLAUDE.md`, not
   tracked work, and it's already the standing action item below.
 
+## 2026-08-31 — update (file the follow-ups)
+
+- Filed the release as `bd kxa-3lt` (chore, P2) instead of leaving it as a
+  loose action item — it has to happen after this branch merges, so it needs to
+  survive the session.
+- Filed `bd kxa-3r6` (feature, P2): add a `--no-pr` flag to `kix:save-session`.
+  Scope noted on the issue — it stops the standalone path after the push,
+  before Step 5, and is distinct from `--no-commit`, which stops earlier
+  (stage-only). The issue also carries the open sub-decision: whether `--no-pr`
+  is a no-op or an error when combined with `--no-commit` or with a
+  work-branch save, which never opens a PR anyway.
+
 ## Open Questions
 
 - [x] Should the legacy `transcript.jsonl.gz` in
@@ -126,8 +138,11 @@ session archive is a single `log.md` — no `transcript.jsonl.gz`, no
 
 ## Action Items
 
-- [ ] Cut a new release of this plugin so the change reaches installs —
+- [x] Cut a new release of this plugin so the change reaches installs —
       nothing to port to **kix** by hand. Do the release in a **separate
       session**, following the `Release Process` in `CLAUDE.md` (CHANGELOG
       stamp → `make bump PART=patch` → `release: vX.Y.Z` commit → push →
       `make release`).
+  - `bd kxa-3lt` — the tracker carries it from here.
+- [x] Add a `--no-pr` option to `kix:save-session`.
+  - `bd kxa-3r6`.
