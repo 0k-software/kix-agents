@@ -107,6 +107,14 @@ session archive is a single `log.md` — no `transcript.jsonl.gz`, no
 - `make check` (Prettier 3.9.6) passes on both, via the pre-commit gate.
 - `bd kxa-7io` stays `in_progress` — it closes when this branch merges.
 
+## 2026-08-31 — update (task review)
+
+- Listed the tracker at the user's request: 2 in progress (`kxa-7io`, this
+  branch; `kxa-8g7` beads remote), 17 open (11 P2 incl. the `kxa-tts`
+  superpowers epic and `kxa-vz0` fix-pr epic, 5 P3), 16 of them unblocked.
+- No new issue filed for the release — it's the process in `CLAUDE.md`, not
+  tracked work, and it's already the standing action item below.
+
 ## Open Questions
 
 - [x] Should the legacy `transcript.jsonl.gz` in
