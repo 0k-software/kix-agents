@@ -1,23 +1,24 @@
 ---
 name: save-session
-description: Archive the current Claude session in a GitHub repo as a single markdown log — an append-only running history of what was decided and why — and open (or update) a PR for it. Re-saving the same session appends to its log in place.
+description: Archive the current Claude session in a GitHub repo as a `log.md` — an append-only running history of what was decided and why — and open (or update) a PR for it. Re-saving the same session appends to its log in place.
 argument-hint: [--no-commit]
 ---
 
 # Save Session
 
 Capture what the current chat / Claude Code session did and commit it to the
-surrounding GitHub repository as a single markdown file,
-`docs/sessions/<stem>.md` — landing on the work branch when there is one, or on
-its own branch + PR otherwise. **The log is the only artifact**: no per-session
-folder, no transcript file, no raw conversation dump.
+surrounding GitHub repository as `docs/sessions/<stem>/log.md` — landing on the
+work branch when there is one, or on its own branch + PR otherwise. **The log
+is the only artifact today**: no transcript file, no raw conversation dump. The
+per-session folder stays, so anything a future save wants to keep alongside the
+log has a place to go.
 
 Invoked as `/kix:save-session [--no-commit]`. **No repo argument.** When run
 from Claude Code, the target is the repo of the current checkout (read
 `git remote get-url origin`); chat-session callers can't push from chat, so the
 skill switches to **handoff mode** and emits a Claude-Code paste prompt that
 lands the log in whatever repo _that_ CC session points at. Re-running it on a
-session that was saved before **appends to that log in place** — same file,
+session that was saved before **appends to that log in place** — same folder,
 same branch — instead of creating a duplicate (the session id is the key).
 
 When run from Claude Code on a feature branch — i.e. the branch that holds the
@@ -186,12 +187,11 @@ prior section byte-for-byte, and:
    changes). The "what's new" boundary is whatever the last update section
    already covered.
 
-Older archives may predate this layout: a `docs/sessions/<stem>/` folder
-holding `log.md`, possibly with a `transcript:` frontmatter field pointing at a
-`transcript.jsonl.gz` / `transcript.md` sibling. On a re-save, append to that
-`log.md` where it sits — migrating the folder to the flat path is a deliberate
-repo-wide cleanup, not something a save should do mid-flight. Never add a
-`transcript:` field to a new log.
+Older archives may carry a `transcript:` frontmatter field pointing at a
+`transcript.jsonl.gz` / `transcript.md` sibling. On a re-save, leave both where
+they are — pruning a transcript is a deliberate repo-wide cleanup, not
+something a save should do mid-flight. Never add a `transcript:` field to a new
+log.
 
 If the `caveman` skill is available (the `caveman:caveman` compression mode —
 invocable as `/caveman`; check the host's skill list), run it over the
@@ -213,23 +213,23 @@ new-since-last-update turns and use its output as the section body; note
      **standalone save** (own `claude/save-session-<stem>` branch + PR).
 2. **Short id** — strip any prefix like `cse_`, lowercase, keep the first 8
    alphanumerics of the session id.
-3. **Existing log? (re-save check.)** Look under `docs/sessions/` for a file
-   named `<…>-<short-id>.md`, or a legacy folder `<…>-<short-id>/` holding
-   `log.md`, or an entry whose frontmatter carries `session_id: <full id>`.
-   Search the **current branch's working tree** for a work-branch save, or the
-   **default branch** (via `mcp__github__get_file_contents`) for a standalone
-   save. If found, this is a **re-save**: append to that exact file, at that
-   exact path (and, for a standalone save, reuse the
-   `claude/save-session-<stem>` branch). Don't rename, don't move, don't
-   suffix. Skip to step 6.
+3. **Existing archive? (re-save check.)** Look for a `docs/sessions/<dir>/`
+   whose name ends with `-<short-id>`, or whose `log.md` frontmatter carries
+   `session_id: <full id>` — in the **current branch's working tree** for a
+   work-branch save, or on the **default branch** (via
+   `mcp__github__get_file_contents`) for a standalone save. If found, this is a
+   **re-save**: append to that folder's `log.md`, at that exact path (and, for
+   a standalone save, reuse the `claude/save-session-<stem>` branch). Don't
+   rename, don't move, don't suffix. Skip to step 6.
 4. **Title** — a concise summary of the session's main topic, ≤ 70 characters
    (the `# ` heading in the log; and the PR title for a standalone save).
    Derive it from what the session accomplished, not the first message. (On a
    re-save the title may be refreshed in the file body; the stem stays put.)
-5. **Stem & path** (new log only) — stem = `<YYYY-MM-DD>-<slug>-<short-id>`
-   (slug = lowercased title, non-alphanumerics → `-`, trimmed, ≤ ~50 chars;
-   date UTC); if that exact stem is already taken, append `-2`, `-3`, … The log
-   is `docs/sessions/<stem>.md` — one file, no folder.
+5. **Stem & paths** (new archive only) — stem =
+   `<YYYY-MM-DD>-<slug>-<short-id>` (slug = lowercased title, non-alphanumerics
+   → `-`, trimmed, ≤ ~50 chars; date UTC); if that exact stem is already taken,
+   append `-2`, `-3`, … The archive directory is `docs/sessions/<stem>/`,
+   holding `log.md` — the only file a save writes today.
 6. **Branch.** Work-branch save → the current branch. Standalone save →
    `claude/save-session-<stem>` (stable: a re-save reuses it).
 
@@ -238,10 +238,10 @@ new-since-last-update turns and use its output as the section body; note
 ## Step 4 — Commit the log
 
 **Work-branch save.** Write the log at the path Step 3 resolved —
-`docs/sessions/<stem>.md` for a new log, the existing path on a re-save — into
-the current checkout, then `git add` that path. It's ordinary prose markdown:
-let the repo's formatter own it like any other doc, and don't add an ignore
-rule for it.
+`docs/sessions/<stem>/log.md` for a new archive, the existing path on a re-save
+— into the current checkout, then `git add` that path. It's ordinary prose
+markdown: let the repo's formatter own it like any other doc, and don't add an
+ignore rule for it.
 
 - **`--no-commit` (stage-only):** **stop here** — do not `git commit`, push, or
   open a PR. Report the staged path and return to the caller; skip Step 5.
@@ -256,8 +256,8 @@ rule for it.
 1. **Branch.** Reuse `claude/save-session-<stem>` if it already exists on the
    remote (re-save), else create it from the repo's default branch
    (`mcp__github__create_branch`).
-2. **Commit** the Step 3 log path (`docs/sessions/<stem>.md` for a new log, the
-   existing path on a re-save) onto it — message as above — via
+2. **Commit** the Step 3 log path (`docs/sessions/<stem>/log.md` for a new
+   archive, the existing path on a re-save) onto it — message as above — via
    `mcp__github__create_or_update_file` / `mcp__github__push_files` (pass the
    existing blob `sha` when overwriting), or via a local git checkout if
    available (branch from `origin/<default>` / fetch + reset, write the file,
@@ -295,12 +295,13 @@ target repo. Template:
 I'm handing off a Claude chat session to archive in the current repo (this
 checkout). Session URL: <pasted URL>.
 
-Create the file below, then commit + push following
+Create the per-session folder `docs/sessions/<stem>/` with the file below,
+then commit + push following
 `claude-code/skills/save-session/SKILL.md` Step 3 (work-branch save if on a
 feature branch, standalone otherwise) and open/update the PR. Use
 `/kix:commit` so the log rides along with whatever's already in the index.
 
-File: `docs/sessions/<stem>.md`
+File: `docs/sessions/<stem>/log.md`
 ```markdown
 <final log content, URL already inlined>
 ```
@@ -338,7 +339,7 @@ PR fields:
   ```markdown
   <one-paragraph outcome summary>
 
-  Session log: [`docs/sessions/<stem>.md`](docs/sessions/<stem>.md)
+  Session log: [`docs/sessions/<stem>/log.md`](docs/sessions/<stem>/log.md)
 
   ---
 
@@ -356,7 +357,7 @@ Print:
   it"; work-branch save → which branch ("added to PR #N" if one covers it);
   standalone save → the `claude/save-session-<stem>` branch + PR URL; handoff →
   "log emitted in chat + Claude-Code paste prompt; nothing pushed."
-- New log or re-save (which `docs/sessions/` path).
+- New archive or re-save (which `docs/sessions/<stem>/`).
 - How the log was produced (`caveman` or directly), and whether older turns
   were compacted out of context when it was written.
 

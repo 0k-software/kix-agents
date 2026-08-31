@@ -127,6 +127,32 @@ session archive is a single `log.md` — no `transcript.jsonl.gz`, no
   is a no-op or an error when combined with `--no-commit` or with a
   work-branch save, which never opens a PR anyway.
 
+## 2026-08-31 — update (roll back the flattening)
+
+- **Reverted the flat-file layout.** Back to `docs/sessions/<stem>/log.md`. The
+  user's reasoning: the folder is worth keeping as a slot for files a future
+  save may want beside the log, and that option is cheap to hold open but
+  awkward to reintroduce once every archive is a bare `.md`. This overrides the
+  earlier "one file, so no folder" call from this same session.
+- Kept from the earlier work: the log is still the **only** artifact a save
+  writes, still built from context, and the pruned transcripts stay pruned
+  (`.gitattributes` stays deleted — nothing writes those blobs any more).
+- Reverted with it: the `<stem>.md` re-save match rule from review finding 1
+  goes back to matching a `docs/sessions/<dir>/` name, since directories have
+  no extension — that finding only existed because of the flat layout.
+- Kept from review: Step 4 still writes "the path Step 3 resolved" rather than
+  a hardcoded path (finding 2), and the `.prettierignore` instruction stays
+  deleted (finding 3) — neither depended on the layout.
+- The Step 2 legacy paragraph shrank to what still applies: older archives may
+  carry a `transcript:` field and a transcript sibling; a save leaves both
+  alone and never adds the field to a new log.
+- Both session logs moved back into their folders with `git mv`;
+  `claude-code/skills/commit/SKILL.md` and the `CHANGELOG.md` `[Unreleased]`
+  entry follow.
+- This repo's own `.prettierignore` still lists `docs/sessions/` — left alone
+  deliberately, since removing it would reflow both existing logs and that's
+  beyond the rollback.
+
 ## Open Questions
 
 - [x] Should the legacy `transcript.jsonl.gz` in
