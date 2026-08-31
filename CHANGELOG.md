@@ -7,6 +7,18 @@ The format is based on
 
 ## [Unreleased]
 
+### Changed
+
+- `/kix:save-session` now writes **only** `docs/sessions/<stem>/log.md`. The
+  verbatim conversation artifact is gone — no `transcript.jsonl.gz`, no
+  `transcript.md` render, on any path (work-branch save, standalone save,
+  `--no-commit`, handoff). The log is the whole archive, so it carries the
+  decisions, alternatives, and refs; it is still built from session context,
+  never by re-reading the transcript `.jsonl`. Existing archives keep their
+  transcript files and `transcript:` frontmatter — a re-save leaves both
+  untouched and doesn't add the field to new logs. `/kix:commit` updated to
+  match.
+
 ## [0.2.4] — 2026-08-29
 
 ### Fixed
