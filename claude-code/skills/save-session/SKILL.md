@@ -239,9 +239,9 @@ new-since-last-update turns and use its output as the section body; note
 
 **Work-branch save.** Write the log at the path Step 3 resolved —
 `docs/sessions/<stem>.md` for a new log, the existing path on a re-save — into
-the current checkout (if the repo runs Prettier with a prose-wrap rule and
-`docs/sessions/` isn't in its `.prettierignore`, add that line too), then
-`git add` that path.
+the current checkout, then `git add` that path. It's ordinary prose markdown:
+let the repo's formatter own it like any other doc, and don't add an ignore
+rule for it.
 
 - **`--no-commit` (stage-only):** **stop here** — do not `git commit`, push, or
   open a PR. Report the staged path and return to the caller; skip Step 5.
@@ -262,9 +262,6 @@ the current checkout (if the repo runs Prettier with a prose-wrap rule and
    existing blob `sha` when overwriting), or via a local git checkout if
    available (branch from `origin/<default>` / fetch + reset, write the file,
    commit, `git push`).
-   - If the target repo runs Prettier with a prose-wrap rule and
-     `docs/sessions/` isn't in its `.prettierignore`, add that line in the same
-     commit (the log would otherwise be reflowed).
 3. Proceed to Step 5.
 
 If any call fails, surface the error and stop — do not leave a PR pointing at a
