@@ -96,6 +96,17 @@ session archive is a single `log.md` — no `transcript.jsonl.gz`, no
   other repos that may still have folder-shaped archives. Migrating them is a
   deliberate repo-wide cleanup, not something a save should do mid-flight.
 
+## 2026-08-31 — update (refs)
+
+- Landed as two commits on `save-session-log-md-only-15febe`:
+  - `143e655` — "Save only log.md in the session archive" (drop the transcript
+    artifact; `bd kxa-7io`).
+  - `eaf88ab` — "Store session logs as flat files, prune transcripts" (flatten
+    to `docs/sessions/<stem>.md`; delete the 1.3 MB legacy blob and
+    `.gitattributes`).
+- `make check` (Prettier 3.9.6) passes on both, via the pre-commit gate.
+- `bd kxa-7io` stays `in_progress` — it closes when this branch merges.
+
 ## Open Questions
 
 - [x] Should the legacy `transcript.jsonl.gz` in
