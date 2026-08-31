@@ -213,15 +213,15 @@ new-since-last-update turns and use its output as the section body; note
      **standalone save** (own `claude/save-session-<stem>` branch + PR).
 2. **Short id** — strip any prefix like `cse_`, lowercase, keep the first 8
    alphanumerics of the session id.
-3. **Existing log? (re-save check.)** Look under `docs/sessions/` for an entry
-   whose name ends with `-<short-id>` — a `<stem>.md` file, or a legacy
-   `<stem>/` folder holding `log.md` — or whose frontmatter carries
-   `session_id: <full id>`. Search the **current branch's working tree** for a
-   work-branch save, or the **default branch** (via
-   `mcp__github__get_file_contents`) for a standalone save. If found, this is a
-   **re-save**: append to that exact file, at that exact path (and, for a
-   standalone save, reuse the `claude/save-session-<stem>` branch). Don't
-   rename, don't move, don't suffix. Skip to step 6.
+3. **Existing log? (re-save check.)** Look under `docs/sessions/` for a file
+   named `<…>-<short-id>.md`, or a legacy folder `<…>-<short-id>/` holding
+   `log.md`, or an entry whose frontmatter carries `session_id: <full id>`.
+   Search the **current branch's working tree** for a work-branch save, or the
+   **default branch** (via `mcp__github__get_file_contents`) for a standalone
+   save. If found, this is a **re-save**: append to that exact file, at that
+   exact path (and, for a standalone save, reuse the
+   `claude/save-session-<stem>` branch). Don't rename, don't move, don't
+   suffix. Skip to step 6.
 4. **Title** — a concise summary of the session's main topic, ≤ 70 characters
    (the `# ` heading in the log; and the PR title for a standalone save).
    Derive it from what the session accomplished, not the first message. (On a
