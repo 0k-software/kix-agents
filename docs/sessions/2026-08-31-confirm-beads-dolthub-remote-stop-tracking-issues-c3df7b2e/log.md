@@ -47,9 +47,9 @@ auto-exported JSONL from leaking back into git.
   catching it either.
 - **Fix, chosen over alternatives.** Considered leaving it tracked (rejected —
   contradicts the kxa-8g7 decision to make Dolt the source of truth and would
-  reintroduce merge noise) and a negation pattern (rejected — `.beads/.gitignore`
-  explicitly warns that negations override fork protection in
-  `.git/info/exclude`). Went with the plain two-step:
+  reintroduce merge noise) and a negation pattern (rejected —
+  `.beads/.gitignore` explicitly warns that negations override fork protection
+  in `.git/info/exclude`). Went with the plain two-step:
   1. `git -C ~/Developer/kix-agents rm --cached .beads/issues.jsonl` — unstages
      it in the main checkout, leaves the file on disk (now `?? `).
   2. Added a plain ignore line at `.beads/.gitignore:56-57`:
@@ -67,8 +67,7 @@ auto-exported JSONL from leaking back into git.
 - [ ] Should `.beads/interactions.jsonl` (also present untracked in the main
       checkout) get the same treatment, or is it already covered? It is —
       `.beads/.gitignore` lists it under "Interactions log (runtime, not
-      versioned)" — but worth confirming no other bd auto-export is
-      unignored.
+      versioned)" — but worth confirming no other bd auto-export is unignored.
 
 ## Action Items
 
