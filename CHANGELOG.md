@@ -9,15 +9,26 @@ The format is based on
 
 ### Changed
 
-- `/kix:save-session` now writes **only** `docs/sessions/<stem>/log.md`. The
-  verbatim conversation artifact is gone — no `transcript.jsonl.gz`, no
-  `transcript.md` render, on any path (work-branch save, standalone save,
-  `--no-commit`, handoff). The log is the whole archive, so it carries the
-  decisions, alternatives, and refs; it is still built from session context,
-  never by re-reading the transcript `.jsonl`. Existing archives keep their
-  transcript files and `transcript:` frontmatter — a re-save leaves both
-  untouched and doesn't add the field to new logs. `/kix:commit` updated to
-  match.
+- `/kix:save-session` now writes **only** a log, as a single flat file
+  `docs/sessions/<stem>.md`. The verbatim conversation artifact is gone — no
+  `transcript.jsonl.gz`, no `transcript.md` render, on any path (work-branch
+  save, standalone save, `--no-commit`, handoff) — and with one file left there
+  is no reason for a per-session folder. The log is the whole archive, so it
+  carries the decisions, alternatives, and refs; it is still built from session
+  context, never by re-reading the transcript `.jsonl`. Existing archives stay
+  where they are: a re-save appends to the `log.md` inside the old
+  `docs/sessions/<stem>/` folder and leaves its transcript and `transcript:`
+  frontmatter untouched. `/kix:commit` updated to match.
+
+### Removed
+
+- Prune the saved session transcripts from this repo: delete
+  `docs/sessions/2026-05-13-…-01qz8bym/transcript.jsonl.gz` (1.3 MB), drop the
+  now-dangling `transcript:` frontmatter from its log, migrate that log to the
+  flat `docs/sessions/<stem>.md` path, and delete `.gitattributes`, whose only
+  rule marked those blobs binary. Nothing under `docs/sessions/` is a folder
+  any more. This only stops the working tree from growing — the blob stays in
+  git history, since rewriting published history is not worth it.
 
 ## [0.2.4] — 2026-08-29
 

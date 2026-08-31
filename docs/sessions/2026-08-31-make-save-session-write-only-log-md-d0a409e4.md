@@ -59,13 +59,56 @@ session archive is a single `log.md` — no `transcript.jsonl.gz`, no
   there. `make autofix && make check` pass.
 - Added an `[Unreleased] / Changed` entry to `CHANGELOG.md`.
 
+## 2026-08-31 — update (flatten the archive path)
+
+- With the transcript gone, a per-session **folder** holding exactly one file
+  was dead weight. Changed the layout from `docs/sessions/<stem>/log.md` to a
+  flat `docs/sessions/<stem>.md`. The stem is unchanged
+  (`<YYYY-MM-DD>-<slug>-<short-id>`), so `docs/sessions/` now reads as a dated,
+  sorted list of session logs.
+- Alternative considered: keep the folder for future per-session attachments
+  (diagrams, exported artifacts). Rejected — nothing writes them today, and a
+  folder can be reintroduced for the one session that ever needs it without
+  disturbing the flat ones.
+- Skill edits: re-save lookup in Step 3 now matches **either** a `<stem>.md`
+  file **or** a legacy `<stem>/` folder holding `log.md`; Step 4's heading is
+  "Commit the log"; the handoff paste block names the flat path; Step 5's PR
+  body and Step 6's report follow.
+- Migration rule, made explicit in the skill: legacy folders are **not** moved.
+  A re-save of an old session appends to the `log.md` inside its folder and
+  leaves the transcript sibling alone. Moving them would rewrite merged
+  archives and break any link pointing at them, for no gain.
+- `docs/sessions/2026-05-13-…-01qz8bym/` therefore stays a folder. This
+  session's own log moved to the flat path via `git mv` (dogfooding).
+- `claude-code/skills/commit/SKILL.md` and the `CHANGELOG.md` `[Unreleased]`
+  entry updated to the flat path.
+- **Pruned the legacy transcripts** on the user's call, which also settled the
+  legacy-folder question: deleted
+  `docs/sessions/2026-05-13-…-01qz8bym/transcript.jsonl.gz` (1.3 MB), dropped
+  the now-dangling `transcript:` frontmatter from its log, moved that log to
+  `docs/sessions/2026-05-13-build-the-kix-save-session-skill-01qz8bym.md`, and
+  deleted `.gitattributes` (its only rule marked those blobs binary). Nothing
+  under `docs/sessions/` is a folder any more. Caveat recorded: this shrinks
+  the working tree only — the blob is still in git history, and rewriting
+  published history isn't worth it.
+- The skill keeps tolerating the old layout on re-save (append to the `log.md`
+  inside a legacy folder rather than moving it), because the plugin ships to
+  other repos that may still have folder-shaped archives. Migrating them is a
+  deliberate repo-wide cleanup, not something a save should do mid-flight.
+
 ## Open Questions
 
-- [ ] Should the legacy `transcript.jsonl.gz` in
+- [x] Should the legacy `transcript.jsonl.gz` in
       `docs/sessions/2026-05-13-…-01qz8bym/` be pruned in a follow-up (and
       `.gitattributes` dropped with it), or kept as history?
+  - Prune all of them, now rather than in a follow-up (user's call). Done in
+    this session; `.gitattributes` deleted, the archive flattened with the
+    rest.
 
 ## Action Items
 
-- [ ] Manually port this change to **kix** and to the **standalone
-      save-session skill** — this repo only holds the plugin copy.
+- [ ] Cut a new release of this plugin so the change reaches installs —
+      nothing to port to **kix** by hand. Do the release in a **separate
+      session**, following the `Release Process` in `CLAUDE.md` (CHANGELOG
+      stamp → `make bump PART=patch` → `release: vX.Y.Z` commit → push →
+      `make release`).
