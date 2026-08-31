@@ -7,6 +7,16 @@ The format is based on
 
 ## [Unreleased]
 
+### Added
+
+- `/kix:save-session` takes a `--no-pr` flag: a standalone save still commits
+  and pushes its `claude/save-session-<stem>` branch, but stops before opening
+  or updating a pull request — for when the archive should land on a branch
+  without a review request. It is distinct from `--no-commit`, which stops
+  earlier (stage-only, no commit or push). On any path that never opens a PR
+  (`--no-commit`, a work-branch save, handoff) the flag is a no-op rather than
+  an error, and the run report says so.
+
 ### Changed
 
 - `/kix:save-session` now writes **only** `docs/sessions/<stem>/log.md`. The

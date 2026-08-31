@@ -1,7 +1,7 @@
 ---
 name: save-session
 description: Archive the current Claude session in a GitHub repo as a `log.md` — an append-only running history of what was decided and why — and open (or update) a PR for it. Re-saving the same session appends to its log in place.
-argument-hint: [--no-commit]
+argument-hint: [--no-commit] [--no-pr]
 ---
 
 # Save Session
@@ -13,8 +13,8 @@ is the only artifact today**: no transcript file, no raw conversation dump. The
 per-session folder stays, so anything a future save wants to keep alongside the
 log has a place to go.
 
-Invoked as `/kix:save-session [--no-commit]`. **No repo argument.** When run
-from Claude Code, the target is the repo of the current checkout (read
+Invoked as `/kix:save-session [--no-commit] [--no-pr]`. **No repo argument.**
+When run from Claude Code, the target is the repo of the current checkout (read
 `git remote get-url origin`); chat-session callers can't push from chat, so the
 skill switches to **handoff mode** and emits a Claude-Code paste prompt that
 lands the log in whatever repo _that_ CC session points at. Re-running it on a
@@ -32,6 +32,14 @@ branch.
 `git add` of the log file into the current checkout, then **stop** — no commit,
 no push, no PR; the caller commits. `kix:commit` uses this so the log lands in
 the same commit as the code. Requires a local checkout.
+
+**`--no-pr`**: commit and push as usual, but **stop before Step 5** — no PR is
+opened or updated. Only a standalone save is affected, since that's the only
+path that ever opens one; on every other path (`--no-commit`, work-branch save,
+handoff) there is no PR to begin with, so the flag is a **no-op**, never an
+error. Combining it with `--no-commit` is likewise a no-op: `--no-commit` stops
+earlier and already implies no PR. Use it when the archive should land on its
+own branch without a review request.
 
 The skill is meant to run from a Claude Code session (or be handed off to one
 from a chat session). It uses the GitHub tools the host exposes (the
@@ -70,8 +78,8 @@ mode** — see Step 4 — and does not attempt to push.
 
 ## Step 1 — Resolve the target repository
 
-Parse `$ARGUMENTS` for the `--no-commit` flag (the only argument); anything
-else is ignored.
+Parse `$ARGUMENTS` for the `--no-commit` and `--no-pr` flags (the only
+arguments; they may be combined, in either order); anything else is ignored.
 
 1. **From a local checkout (Claude Code, the normal path):** derive
    `owner/repo` from `git remote get-url origin` of the current checkout. No
@@ -210,7 +218,8 @@ new-since-last-update turns and use its output as the section body; note
    - Local git checkout of the target repo + current branch ≠ default →
      **work-branch save** (the session is the work behind that branch).
    - Otherwise (default branch, or no checkout but GitHub access exists) →
-     **standalone save** (own `claude/save-session-<stem>` branch + PR).
+     **standalone save** (own `claude/save-session-<stem>` branch + PR — branch
+     only, no PR, under `--no-pr`).
 2. **Short id** — strip any prefix like `cse_`, lowercase, keep the first 8
    alphanumerics of the session id.
 3. **Existing archive? (re-save check.)** Look for a `docs/sessions/<dir>/`
@@ -270,7 +279,9 @@ other doc, so don't add an ignore rule for it.
      `.prettierrc*` / the `prettier` key in `package.json`) while rendering the
      log — hard-wrap the prose at its `printWidth` (default 80) when
      `proseWrap` is `always`.
-3. Proceed to Step 5.
+3. Proceed to Step 5 — unless `--no-pr` was passed, in which case **stop
+   here**: the branch is pushed, no PR is opened or updated. Report it in
+   Step 6.
 
 If any call fails, surface the error and stop — do not leave a PR pointing at a
 half-written branch.
@@ -328,7 +339,8 @@ log.
 ## Step 5 — Open or update the pull request (standalone save only)
 
 (Work-branch saves stopped at Step 4 — the log is already on the work branch
-and its PR.)
+and its PR. So did standalone saves run with `--no-pr` — skip this step
+entirely for those; the pushed branch is the whole deliverable.)
 
 1. If an **open** PR already exists for `claude/save-session-<stem>`
    (`mcp__github__list_pull_requests` / `pull_request_read`), update it
@@ -363,8 +375,11 @@ Print:
 - The target `owner/repo` (derived from `git remote get-url origin`).
 - **Destination:** `--no-commit` → the staged log path + "caller will commit
   it"; work-branch save → which branch ("added to PR #N" if one covers it);
-  standalone save → the `claude/save-session-<stem>` branch + PR URL; handoff →
-  "log emitted in chat + Claude-Code paste prompt; nothing pushed."
+  standalone save → the `claude/save-session-<stem>` branch + PR URL, or, under
+  `--no-pr`, the branch alone + "no PR opened (`--no-pr`)"; handoff → "log
+  emitted in chat + Claude-Code paste prompt; nothing pushed."
+- If `--no-pr` was passed on a path that never opens a PR (`--no-commit`,
+  work-branch save, handoff), say it was a no-op.
 - New archive or re-save (which `docs/sessions/<stem>/`).
 - How the log was produced (`caveman` or directly), and whether older turns
   were compacted out of context when it was written.
@@ -380,6 +395,7 @@ Print:
 | GitHub MCP tools return 401/403 (and no `GITHUB_TOKEN` fallback works) | Abort: instruct the user to re-auth the GitHub MCP server.                                 |
 | Empty session (no conversation content in context)                     | Abort before creating any branch or PR.                                                    |
 | `--no-commit` with no local checkout                                   | Abort: "`--no-commit` needs a local git checkout."                                         |
+| `--no-pr` on a path that never opens a PR                              | No-op — never an error. Note it in the Step 6 report.                                      |
 | Branch / file / PR creation fails midway                               | Surface the error, stop; do not leave a PR pointing at a half-written branch.              |
 
 Never write any token (or other secret) into a committed file, the commit
