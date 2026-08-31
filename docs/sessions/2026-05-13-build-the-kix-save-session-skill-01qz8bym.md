@@ -1,7 +1,6 @@
 ---
 saved_at: 2026-05-14T21:18:32Z
 session_id: cse_01Qz8ByMxYiCeBo6KQz2Ez5L
-transcript: transcript.jsonl.gz
 ---
 
 # Build the kix:save-session skill

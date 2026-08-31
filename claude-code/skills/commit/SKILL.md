@@ -70,13 +70,13 @@ The state file is consumed (deleted) on a successful commit (Step 5) and on the
      commit, and remember that a stash was created.
    - **In all branches, after staging:** invoke
      [`/kix:save-session --no-commit`](../save-session/SKILL.md) — it writes
-     this session's log (`docs/sessions/<stem>/log.md`, and `.prettierignore`
-     if needed) into the checkout and `git add`s it, without committing. (It's
-     a no-op when there's no conversation content to log — fine; carry on.)
-     Don't re-implement any of that here. The log then rides along in this
-     commit — it records the work this session did. Finally capture the
-     post-staging index with `git write-tree` and remember the SHA as
-     `ORIG_INDEX_TREE` (you may need it in Step 6 to roll back fix attempts).
+     this session's log (`docs/sessions/<stem>.md`, and `.prettierignore` if
+     needed) into the checkout and `git add`s it, without committing. (It's a
+     no-op when there's no conversation content to log — fine; carry on.) Don't
+     re-implement any of that here. The log then rides along in this commit —
+     it records the work this session did. Finally capture the post-staging
+     index with `git write-tree` and remember the SHA as `ORIG_INDEX_TREE` (you
+     may need it in Step 6 to roll back fix attempts).
 2. Run `git diff --no-ext-diff --staged` to get the diff to be committed.
 3. Generate the commit message by following
    [`/kix:commit-message`](../commit-message/SKILL.md) with the context text as
