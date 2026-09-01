@@ -1,45 +1,51 @@
 ---
 name: save-session
-description: Archive the current Claude session in a GitHub repo as a `log.md` — an append-only running history of what was decided and why — and open (or update) a PR for it. Re-saving the same session appends to its log in place.
-argument-hint: [--no-commit] [--no-pr]
+description: Archive the current Claude session in a GitHub repo as a `log.md` — an append-only running history of what was decided and why. From a checkout it stages the log and stops; `--create-pr` carries it through to a commit, a push, and a PR. Re-saving the same session appends to its log in place.
+argument-hint: [--no-commit] [--create-pr]
 ---
 
 # Save Session
 
-Capture what the current chat / Claude Code session did and commit it to the
-surrounding GitHub repository as `docs/sessions/<stem>/log.md` — landing on the
-work branch when there is one, or on its own branch + PR otherwise. **The log
-is the only artifact today**: no transcript file, no raw conversation dump. The
+Capture what the current chat / Claude Code session did and write it into the
+surrounding GitHub repository as `docs/sessions/<stem>/log.md`. **The log is
+the only artifact today**: no transcript file, no raw conversation dump. The
 per-session folder stays, so anything a future save wants to keep alongside the
 log has a place to go.
 
-Invoked as `/kix:save-session [--no-commit] [--no-pr]`. **No repo argument.**
-When run from Claude Code, the target is the repo of the current checkout (read
-`git remote get-url origin`); chat-session callers can't push from chat, so the
-skill switches to **handoff mode** and emits a Claude-Code paste prompt that
-lands the log in whatever repo _that_ CC session points at. Re-running it on a
-session that was saved before **appends to that log in place** — same folder,
-same branch — instead of creating a duplicate (the session id is the key).
+Invoked as `/kix:save-session [--no-commit] [--create-pr]`. **No repo
+argument.** When run from Claude Code, the target is the repo of the current
+checkout (read `git remote get-url origin`); chat-session callers have no
+checkout, so the skill either writes through the GitHub API or switches to
+**handoff mode** and emits a Claude-Code paste prompt that lands the log in
+whatever repo _that_ CC session points at. Re-running it on a session that was
+saved before **appends to that log in place** — same folder, same branch —
+instead of creating a duplicate (the session id is the key).
 
-When run from Claude Code on a feature branch — i.e. the branch that holds the
-work this very session did — the log is committed **straight onto that
-branch**, so it rides along with that branch's PR rather than getting its own.
-A standalone `claude/save-session-<stem>` branch + PR is created only when
-there's no work branch to attach to: you started Claude Code on the default
-branch.
+**From a local checkout, a save writes and stages the log and stops there.** It
+does not commit, push, or open a pull request. The log is left in the index of
+whatever branch you're on, for you to fold into your next commit (or for
+`/kix:commit` to pick up) and push when you're ready. A session archive is a
+by-product of the work, not a reason to interrupt it with git operations you
+didn't ask for — and from a live session the branch, the commit boundary, and
+the timing are yours to choose.
 
-**`--no-commit`** (stage-only mode): do everything up to and including
-`git add` of the log file into the current checkout, then **stop** — no commit,
-no push, no PR; the caller commits. `kix:commit` uses this so the log lands in
-the same commit as the code. Requires a local checkout.
+**`--no-commit`**: pins that default explicitly — write, format, `git add`,
+stop. It is what a plain save already does with a checkout; the flag exists
+because `/kix:commit` passes it to say out loud that it, not the save, owns the
+commit. Requires a local checkout.
 
-**`--no-pr`**: commit and push as usual, but **stop before Step 5** — no PR is
-opened or updated. Only a standalone save is affected, since that's the only
-path that ever opens one; on every other path (`--no-commit`, work-branch save,
-handoff) there is no PR to begin with, so the flag is a **no-op**, never an
-error. Combining it with `--no-commit` is likewise a no-op: `--no-commit` stops
-earlier and already implies no PR. Use it when the archive should land on its
-own branch without a review request.
+**`--create-pr`** (opt-in): carry the save all the way through — commit, push,
+and open a pull request for the log. With a local checkout this is the only way
+a save touches the remote at all. It's opt-in because a session archive is
+rarely something you want in the review queue the moment it's written; without
+it there is nothing to undo but a staged file.
+
+The flag gates **creating** a PR. If an open PR already covers the branch the
+push lands on, the save **just pushes** and leaves that PR's title and body
+alone — the commit shows up there because that's what pushing to a PR's branch
+does, and the PR belongs to the work, not to the log. On the paths where the
+skill can't create a PR anyway (`--no-commit`, handoff) the flag is a
+**no-op**, never an error.
 
 The skill is meant to run from a Claude Code session (or be handed off to one
 from a chat session). It uses the GitHub tools the host exposes (the
@@ -78,7 +84,7 @@ mode** — see Step 4 — and does not attempt to push.
 
 ## Step 1 — Resolve the target repository
 
-Parse `$ARGUMENTS` for the `--no-commit` and `--no-pr` flags (the only
+Parse `$ARGUMENTS` for the `--no-commit` and `--create-pr` flags (the only
 arguments; they may be combined, in either order); anything else is ignored.
 
 1. **From a local checkout (Claude Code, the normal path):** derive
@@ -98,8 +104,9 @@ arguments; they may be combined, in either order); anything else is ignored.
      chat + a Claude-Code paste prompt the user can run in a CC session that
      _does_ have access. **Do not abort.**
 
-Record the repo's **default branch** — a new branch is cut from it and the PR
-targets it.
+Record the repo's **default branch** — it decides whether the current branch is
+a work branch, and any branch a save cuts is based on it and any PR a save
+opens targets it.
 
 ---
 
@@ -210,28 +217,27 @@ new-since-last-update turns and use its output as the section body; note
 
 ## Step 3 — Destination, title, paths (with re-save lookup)
 
-1. **Destination mode.** Pick one:
-   - `--no-commit` flag → **work-branch save** (caller commits onto the current
-     branch).
-   - Step 1 #2 ended with no MCP write access and no token → **handoff**
-     (chat-session output + a CC paste prompt; Step 4 handoff branch).
-   - Local git checkout of the target repo + current branch ≠ default →
-     **work-branch save** (the session is the work behind that branch).
-   - Otherwise (default branch, or no checkout but GitHub access exists) →
-     **standalone save** (own `claude/save-session-<stem>` branch + PR — branch
-     only, no PR, under `--no-pr`).
+1. **Destination mode.** Pick the first that matches:
+   - Local git checkout of the target repo → **local save**. Default (and under
+     `--no-commit`): write, format, `git add`, stop. Under `--create-pr`: also
+     commit, push, and open a PR.
+   - No checkout, but Step 1 #2 found MCP or token write access → **standalone
+     save** (own `claude/save-session-<stem>` branch, written and pushed
+     through the GitHub API; a PR for it only under `--create-pr`).
+   - No checkout and no write access → **handoff** (chat-session output + a CC
+     paste prompt; Step 4 handoff branch).
 2. **Short id** — strip any prefix like `cse_`, lowercase, keep the first 8
    alphanumerics of the session id.
 3. **Existing archive? (re-save check.)** Look for a `docs/sessions/<dir>/`
    whose name ends with `-<short-id>`, or whose `log.md` frontmatter carries
    `session_id: <full id>` — in the **current branch's working tree** for a
-   work-branch save, or on the **default branch** (via
+   local save, or on the **default branch** (via
    `mcp__github__get_file_contents`) for a standalone save. If found, this is a
    **re-save**: append to that folder's `log.md`, at that exact path (and, for
    a standalone save, reuse the `claude/save-session-<stem>` branch). Don't
    rename, don't move, don't suffix. Skip to step 6.
 4. **Title** — a concise summary of the session's main topic, ≤ 70 characters
-   (the `# ` heading in the log; and the PR title for a standalone save).
+   (the `# ` heading in the log; and the PR title, when a PR is created).
    Derive it from what the session accomplished, not the first message. (On a
    re-save the title may be refreshed in the file body; the stem stays put.)
 5. **Stem & paths** (new archive only) — stem =
@@ -239,29 +245,40 @@ new-since-last-update turns and use its output as the section body; note
    → `-`, trimmed, ≤ ~50 chars; date UTC); if that exact stem is already taken,
    append `-2`, `-3`, … The archive directory is `docs/sessions/<stem>/`,
    holding `log.md` — the only file a save writes today.
-6. **Branch.** Work-branch save → the current branch. Standalone save →
-   `claude/save-session-<stem>` (stable: a re-save reuses it).
+6. **Branch.** Local save → the current branch, whatever it is; nothing is
+   checked out or created, since a plain save doesn't commit. The one exception
+   is `--create-pr` while sitting **on the default branch** — there a save has
+   somewhere to push but nowhere sane to push it, so cut
+   `claude/save-session-<stem>` from `HEAD` and switch to it before committing.
+   Standalone save → `claude/save-session-<stem>` (stable: a re-save reuses
+   it).
 
 ---
 
-## Step 4 — Commit the log
+## Step 4 — Land the log
 
-**Work-branch save.** Write the log at the path Step 3 resolved —
+**Local save.** Write the log at the path Step 3 resolved —
 `docs/sessions/<stem>/log.md` for a new archive, the existing path on a re-save
 — into the current checkout, run the repo's formatter over that path (e.g.
 `make autofix`, or `npx prettier --write <path>`), then `git add` it. The log
 is ordinary prose markdown: it belongs under the repo's format gate like any
 other doc, so don't add an ignore rule for it.
 
-- **`--no-commit` (stage-only):** **stop here** — do not `git commit`, push, or
-  open a PR. Report the staged path and return to the caller; skip Step 5.
-- **Otherwise:** `git commit -m "docs: save session — <title>"` (re-save:
-  `docs: update saved session — <title>`), `git push`. If an open PR already
-  covers this branch, it picks up the commit — **leave that PR's title and body
-  alone** (it's the PR for the actual work; the log just rides along). **You're
-  done — skip Step 5.**
+- **Default (and under `--no-commit`):** **stop here** — do not `git commit`,
+  push, or open a PR. Report the staged path and return; skip Step 5. The log
+  waits in the index for the user's next commit, or for `/kix:commit` to fold
+  it in with the code.
+- **`--create-pr`:** if Step 3 #6 said to (you're on the default branch),
+  create and switch to `claude/save-session-<stem>` first. Then
+  `git commit -m "docs: save session — <title>"` (re-save:
+  `docs: update saved session — <title>`) and `git push`.
+  - If an **open PR already covers the branch you pushed**, you're done —
+    **skip Step 5**. It picks up the commit from the push; **leave its title
+    and body alone** (it's the PR for the actual work, or an earlier save's;
+    the log just rides along).
+  - Otherwise proceed to Step 5 to open one.
 
-**Standalone save.**
+**Standalone save** (no checkout — everything goes through the GitHub API).
 
 1. **Branch.** Reuse `claude/save-session-<stem>` if it already exists on the
    remote (re-save), else create it from the repo's default branch
@@ -269,19 +286,16 @@ other doc, so don't add an ignore rule for it.
 2. **Commit** the Step 3 log path (`docs/sessions/<stem>/log.md` for a new
    archive, the existing path on a re-save) onto it — message as above — via
    `mcp__github__create_or_update_file` / `mcp__github__push_files` (pass the
-   existing blob `sha` when overwriting), or via a local git checkout if
-   available (branch from `origin/<default>` / fetch + reset, write the file,
-   commit, `git push`).
-   - **Format before the commit**, or the PR opened in Step 5 lands with a
-     failing format gate and nobody in the loop to fix it. With a checkout, run
-     the repo's formatter over the file. Through the Contents API there's no
+   existing blob `sha` when overwriting).
+   - **Format before the commit**, or the branch lands with a failing format
+     gate and nobody in the loop to fix it. Through the Contents API there's no
      formatter to run, so match the target repo's Prettier settings (read
      `.prettierrc*` / the `prettier` key in `package.json`) while rendering the
      log — hard-wrap the prose at its `printWidth` (default 80) when
      `proseWrap` is `always`.
-3. Proceed to Step 5 — unless `--no-pr` was passed, in which case **stop
-   here**: the branch is pushed, no PR is opened or updated. Report it in
-   Step 6.
+3. If `--create-pr` was passed and no open PR already covers
+   `claude/save-session-<stem>`, proceed to Step 5. Otherwise you're done —
+   report the pushed branch and skip Step 5.
 
 If any call fails, surface the error and stop — do not leave a PR pointing at a
 half-written branch.
@@ -314,11 +328,10 @@ target repo. Template:
 I'm handing off a Claude chat session to archive in the current repo (this
 checkout). Session URL: <pasted URL>.
 
-Create the per-session folder `docs/sessions/<stem>/` with the file below,
-then commit + push following
-`claude-code/skills/save-session/SKILL.md` Step 3 (work-branch save if on a
-feature branch, standalone otherwise) and open/update the PR. Use
-`/kix:commit` so the log rides along with whatever's already in the index.
+Create the per-session folder `docs/sessions/<stem>/` with the file below and
+add it following `claude-code/skills/save-session/SKILL.md` Step 4 (local
+save: write, format, `git add`). Use `/kix:commit` so the log rides along with
+whatever's already in the index.
 
 File: `docs/sessions/<stem>/log.md`
 ```markdown
@@ -336,19 +349,17 @@ log.
 
 ---
 
-## Step 5 — Open or update the pull request (standalone save only)
+## Step 5 — Open the pull request (`--create-pr` only)
 
-(Work-branch saves stopped at Step 4 — the log is already on the work branch
-and its PR. So did standalone saves run with `--no-pr` — skip this step
-entirely for those; the pushed branch is the whole deliverable.)
+Reached only from Step 4, and only when `--create-pr` was passed **and** no
+open PR already covers the pushed branch (if one does, Step 4 stopped there and
+left it alone). Everything else — a plain local save, `--no-commit`, handoff —
+never gets here.
 
-1. If an **open** PR already exists for `claude/save-session-<stem>`
-   (`mcp__github__list_pull_requests` / `pull_request_read`), update it
-   (`mcp__github__update_pull_request`) — the Step 4 push already added the
-   commit; refresh the title/body to the current state.
-2. Otherwise (none, or a prior one was merged/closed) open a new PR
-   (`mcp__github__create_pull_request`) from `claude/save-session-<stem>` into
-   the repo's default branch.
+Open the PR (`mcp__github__create_pull_request`) from the branch Step 4 pushed
+into the repo's default branch. Check once more for an open PR on that branch
+(`mcp__github__list_pull_requests` / `pull_request_read`) before creating, so a
+race or a stale read can't leave two PRs on one branch.
 
 PR fields:
 
@@ -373,13 +384,15 @@ PR fields:
 Print:
 
 - The target `owner/repo` (derived from `git remote get-url origin`).
-- **Destination:** `--no-commit` → the staged log path + "caller will commit
-  it"; work-branch save → which branch ("added to PR #N" if one covers it);
-  standalone save → the `claude/save-session-<stem>` branch + PR URL, or, under
-  `--no-pr`, the branch alone + "no PR opened (`--no-pr`)"; handoff → "log
-  emitted in chat + Claude-Code paste prompt; nothing pushed."
-- If `--no-pr` was passed on a path that never opens a PR (`--no-commit`,
-  work-branch save, handoff), say it was a no-op.
+- **Destination:** local save → the staged log path, the branch it's staged on,
+  and "not committed — commit and push it when you're ready (or let
+  `/kix:commit` fold it in); pass `--create-pr` to have the save do it";
+  `--create-pr` → the branch, the commit, and either the new PR URL or "pushed
+  into existing PR #N (left untouched)"; standalone save → the
+  `claude/save-session-<stem>` branch plus the same PR line; handoff → "log
+  emitted in chat + Claude-Code paste prompt; nothing written."
+- If `--create-pr` was passed on a path that can't create a PR (`--no-commit`,
+  handoff), say it was a no-op.
 - New archive or re-save (which `docs/sessions/<stem>/`).
 - How the log was produced (`caveman` or directly), and whether older turns
   were compacted out of context when it was written.
@@ -388,15 +401,16 @@ Print:
 
 ## Error handling summary
 
-| Situation                                                              | Behavior                                                                                   |
-| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| Repo outside MCP allowlist (token available)                           | Fall back to GitHub REST API with `GITHUB_TOKEN` / `GH_TOKEN`.                             |
-| No checkout, or no MCP/GITHUB_TOKEN reach (chat session)               | Switch to **handoff mode** (Step 4): emit the log + a CC paste prompt in chat. Don't push. |
-| GitHub MCP tools return 401/403 (and no `GITHUB_TOKEN` fallback works) | Abort: instruct the user to re-auth the GitHub MCP server.                                 |
-| Empty session (no conversation content in context)                     | Abort before creating any branch or PR.                                                    |
-| `--no-commit` with no local checkout                                   | Abort: "`--no-commit` needs a local git checkout."                                         |
-| `--no-pr` on a path that never opens a PR                              | No-op — never an error. Note it in the Step 6 report.                                      |
-| Branch / file / PR creation fails midway                               | Surface the error, stop; do not leave a PR pointing at a half-written branch.              |
+| Situation                                                               | Behavior                                                                                   |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Repo outside MCP allowlist (token available)                            | Fall back to GitHub REST API with `GITHUB_TOKEN` / `GH_TOKEN`.                             |
+| No checkout and no MCP/GITHUB_TOKEN reach (chat session)                | Switch to **handoff mode** (Step 4): emit the log + a CC paste prompt in chat. Don't push. |
+| GitHub MCP tools return 401/403 (and no `GITHUB_TOKEN` fallback works)  | Abort: instruct the user to re-auth the GitHub MCP server.                                 |
+| Empty session (no conversation content in context)                      | Abort before creating any branch or PR.                                                    |
+| `--no-commit` with no local checkout                                    | Abort: "`--no-commit` needs a local git checkout."                                         |
+| `--create-pr` on a path that can't create a PR (`--no-commit`, handoff) | No-op — never an error. Note it in the Step 6 report.                                      |
+| `--create-pr` and an open PR already covers the pushed branch           | Push only; leave that PR's title and body alone. Not an error.                             |
+| Branch / file / PR creation fails midway                                | Surface the error, stop; do not leave a PR pointing at a half-written branch.              |
 
 Never write any token (or other secret) into a committed file, the commit
 message, the PR title/body, or terminal output.

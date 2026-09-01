@@ -9,15 +9,26 @@ The format is based on
 
 ### Added
 
-- `/kix:save-session` takes a `--no-pr` flag: a standalone save still commits
-  and pushes its `claude/save-session-<stem>` branch, but stops before opening
-  or updating a pull request — for when the archive should land on a branch
-  without a review request. It is distinct from `--no-commit`, which stops
-  earlier (stage-only, no commit or push). On any path that never opens a PR
-  (`--no-commit`, a work-branch save, handoff) the flag is a no-op rather than
-  an error, and the run report says so.
+- `/kix:save-session` takes a `--create-pr` flag, which carries a save all the
+  way through: commit, push, and open a pull request for the log. If an open PR
+  already covers the branch being pushed, the save just pushes and leaves that
+  PR's title and body alone — the commit lands there because that is what
+  pushing to a PR's branch does, and the PR belongs to the work, not to the
+  log. On the paths that cannot create one (`--no-commit`, handoff) the flag is
+  a no-op rather than an error, and the run report says so.
 
 ### Changed
+
+- **`/kix:save-session` from a local checkout now stages the log and stops.**
+  It writes `docs/sessions/<stem>/log.md`, formats it, `git add`s it — and does
+  not commit, push, or open a PR. Previously it committed onto the current
+  branch and pushed, cutting its own `claude/save-session-<stem>` branch and
+  opening a PR when there was no work branch to attach to. A session archive is
+  a by-product of the work, so from a live session the branch, the commit
+  boundary, and the timing belong to the user; pass `--create-pr` to get the
+  old carry-it-through behavior. `--no-commit` still works and now names that
+  default explicitly, so `/kix:commit` is unaffected. Sessions with no checkout
+  are unchanged: they still write through the GitHub API, or hand off.
 
 - `/kix:save-session` now writes **only** `docs/sessions/<stem>/log.md`. The
   verbatim conversation artifact is gone — no `transcript.jsonl.gz`, no
