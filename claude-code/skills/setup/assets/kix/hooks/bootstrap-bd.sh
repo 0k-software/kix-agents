@@ -62,8 +62,10 @@ cd "$beads_root"
 # Only when there is no database yet: `bd bootstrap` clones from the remote and
 # refuses once the database exists, so running it unconditionally would report
 # a failure on every session start after the first and teach everyone to ignore
-# the one time it means something.
-if [ ! -d "${beads_dir}/embeddeddolt" ]; then
+# the one time it means something. Both layouts count as a database: `-d`
+# follows the symlink, so a live `dolt -> embeddeddolt` is present and a
+# dangling one is not.
+if [ ! -d "${beads_dir}/embeddeddolt" ] && [ ! -d "${beads_dir}/dolt" ]; then
   bd bootstrap --yes >/dev/null 2>&1 || {
     printf 'bootstrap-bd: bd bootstrap failed (continuing)\n' >&2
   }
