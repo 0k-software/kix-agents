@@ -138,6 +138,13 @@ If you do run `bd init` (or `.beads/` already existed), make sure
 staged in Step 8, and that `.beads/`'s own `.gitignore` (created by `bd init`)
 is committed.
 
+If the repo pushes its issues to a DoltHub remote, record it in
+`.beads/config.yaml` as `sync.remote: "<url>"`. That committed line is the only
+versioned record of the remote — the Dolt database itself is runtime state —
+and `bootstrap-bd.sh` reads it on session start to run
+`bd dolt remote add origin` in fresh clones. Without it `bd dolt push` silently
+no-ops and issues never leave the machine.
+
 If `bd init` ran **just now** in this step, re-run
 `KIX_SETUP_QUIET=1 bash "$SKILL_DIR/setup.sh"` — it's idempotent, and now that
 `.beads/hooks/` exists it relocates the merged `pre-commit` hook into
