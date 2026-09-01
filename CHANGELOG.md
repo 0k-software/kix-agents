@@ -7,6 +7,24 @@ The format is based on
 
 ## [Unreleased]
 
+### Fixed
+
+- `bootstrap-bd.sh` (both the copy this repo runs and the one `/kix:setup`
+  installs) is now worktree-aware and no longer noisy on repeat runs: it
+  anchors on the primary checkout's `.beads/` the way `bd` itself does, falls
+  back to `git rev-parse` when `CLAUDE_PROJECT_DIR` is unset so a hand-run
+  works, re-creates a `dolt` symlink left dangling by a failed bootstrap, and
+  only runs `bd bootstrap` when there is no database yet.
+
+### Added
+
+- `bootstrap-bd.sh` registers the Dolt remote from `sync.remote` in
+  `.beads/config.yaml` and defaults `beads.role` to `maintainer`. Neither lives
+  in git — the remote is in the Dolt database and the role in `.git/config` —
+  so a fresh clone had no remote (making `bd dolt push` a silent no-op) and
+  warned on every `bd` command. `/kix:setup` now documents recording
+  `sync.remote` when the repo has a DoltHub remote.
+
 ## [0.3.0] — 2026-09-01
 
 ### Removed
