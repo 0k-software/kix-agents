@@ -13,8 +13,9 @@ The format is based on
   installs) is now worktree-aware and no longer noisy on repeat runs: it
   anchors on the primary checkout's `.beads/` the way `bd` itself does, falls
   back to `git rev-parse` when `CLAUDE_PROJECT_DIR` is unset so a hand-run
-  works, re-creates a `dolt` symlink left dangling by a failed bootstrap, and
-  only runs `bd bootstrap` when there is no database yet.
+  works, tolerates a `dolt` symlink left dangling by a failed bootstrap instead
+  of aborting on it so the bootstrap retry can run, and only runs
+  `bd bootstrap` when there is no database yet.
 
 ### Added
 
