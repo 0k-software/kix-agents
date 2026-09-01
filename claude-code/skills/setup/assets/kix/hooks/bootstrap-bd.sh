@@ -76,7 +76,10 @@ fi
 # committed config.yaml is the versioned record of it — register it here, or
 # `bd dolt push` is a no-op that says "pushing is optional" and exits 0, and
 # issues pile up locally without ever reaching DoltHub.
-remote_url="$(awk -F'"' '/^sync\.remote:/{print $2}' "${beads_dir}/config.yaml" 2>/dev/null || true)"
+# Quotes around the value are optional in YAML, so strip rather than split on
+# them — matching on `"` alone reads an unquoted URL as the empty string and
+# skips registration silently, which is the failure this block exists to catch.
+remote_url="$(sed -n 's/^sync\.remote:[[:space:]]*"\{0,1\}\([^"[:space:]]*\)"\{0,1\}[[:space:]]*$/\1/p' "${beads_dir}/config.yaml" 2>/dev/null | head -1 || true)"
 if [ -n "$remote_url" ] && ! bd dolt remote list 2>/dev/null | grep -q '^origin[[:space:]]'; then
   bd dolt remote add origin "$remote_url" >/dev/null 2>&1 || {
     printf 'bootstrap-bd: could not register the Dolt remote (continuing)\n' >&2
