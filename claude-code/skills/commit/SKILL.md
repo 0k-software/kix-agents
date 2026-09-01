@@ -1,12 +1,11 @@
 ---
 name: commit
-description: Commit current work using the project's commit procedure (staging strategy, message generation, pre-commit hook auto-fix). Also bundles the current Claude Code session's archive into the commit.
+description: Commit current work using the project's commit procedure (staging strategy, message generation, pre-commit hook auto-fix).
 argument-hint: [!] [reason for the change]
 ---
 
 Commit the current intent — everything if the index is clean, only what's
-staged otherwise — and generate the commit message. When run from a Claude Code
-session, also bundle that session's archive into the same commit (see Step 1).
+staged otherwise — and generate the commit message.
 
 ## Argument parsing
 
@@ -34,10 +33,9 @@ exists, a previous `/commit` run was paused via Step 6 **Continue** — this is 
   the resume hits an ambiguity that the saved state alone can't resolve.
 - If the current `$ARGUMENTS` is empty, reuse the saved `arguments` (so `!`
   mode persists across resumes). If non-empty, the new value wins.
-- **Skip Step 1** — the staging strategy was decided on the original run, and
-  the session archive was written + `git add`ed then. Run `git add .` to pick
-  up any manual fixes the user made before resuming (this re-stages the archive
-  too), and reuse the saved `ORIG_INDEX_TREE`.
+- **Skip Step 1** — the staging strategy was decided on the original run. Run
+  `git add .` to pick up any manual fixes the user made before resuming, and
+  reuse the saved `ORIG_INDEX_TREE`.
 - **Skip Step 3** if the new staged diff matches `last_staged_diff` and a saved
   `commit_message` is present — reuse the message. Otherwise regenerate the
   message in Step 3 against the new diff.
@@ -68,13 +66,7 @@ The state file is consumed (deleted) on a successful commit (Step 5) and on the
      `git stash push --keep-index --include-untracked -m "kix-commit-autostash"`
      to set aside unstaged + untracked changes so they don't leak into the
      commit, and remember that a stash was created.
-   - **In all branches, after staging:** invoke
-     [`/kix:save-session --no-commit`](../save-session/SKILL.md) — it writes
-     this session's log (`docs/sessions/<stem>/log.md`) into the checkout and
-     `git add`s it, without committing. (It's a no-op when there's no
-     conversation content to log — fine; carry on.) Don't re-implement any of
-     that here. The log then rides along in this commit — it records the work
-     this session did. Finally capture the post-staging index with
+   - **In all branches, after staging:** capture the post-staging index with
      `git write-tree` and remember the SHA as `ORIG_INDEX_TREE` (you may need
      it in Step 6 to roll back fix attempts).
 2. Run `git diff --no-ext-diff --staged` to get the diff to be committed.

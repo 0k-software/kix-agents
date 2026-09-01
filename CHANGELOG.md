@@ -7,24 +7,14 @@ The format is based on
 
 ## [Unreleased]
 
-### Changed
-
-- `/kix:save-session` now writes **only** `docs/sessions/<stem>/log.md`. The
-  verbatim conversation artifact is gone — no `transcript.jsonl.gz`, no
-  `transcript.md` render, on any path (work-branch save, standalone save,
-  `--no-commit`, handoff). The log is the whole archive, so it carries the
-  decisions, alternatives, and refs; it is still built from session context,
-  never by re-reading the transcript `.jsonl`. The per-session folder stays, so
-  anything a future save wants to keep alongside the log has a place to go. A
-  re-save of an older archive leaves its transcript and `transcript:`
-  frontmatter untouched. `/kix:commit` updated to match.
-
-- `/kix:save-session` no longer adds `docs/sessions/` to a target repo's
-  `.prettierignore`. That instruction existed to stop a byte-for-byte
-  `transcript.md` render from being reflowed; with that artifact gone, the log
-  is ordinary prose markdown the formatter should own.
-
 ### Removed
+
+- The `kix:save-session` skill is gone — archiving Claude sessions into the
+  repo is no longer something we do. `/kix:save-session` no longer exists, and
+  `/kix:commit` no longer writes or stages a session log as part of the commit
+  it makes. The `docs/sessions/` logs already committed here stay as a record
+  of past work; nothing writes new ones. This supersedes the unreleased
+  log-only rework of the skill, which never shipped.
 
 - Prune the saved session transcripts from this repo: delete
   `docs/sessions/2026-05-13-…-01qz8bym/transcript.jsonl.gz` (1.3 MB), drop the
