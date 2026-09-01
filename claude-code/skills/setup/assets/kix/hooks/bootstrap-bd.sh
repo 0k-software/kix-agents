@@ -27,8 +27,12 @@ cd "$project_dir" 2>/dev/null || exit 0
 # at, and leaves the symlink below dangling beside it. `--git-common-dir` is
 # the primary checkout's .git, but it answers relatively (`.git`) when that is
 # where we already stand, so resolve it rather than taking `dirname` on faith.
+# Only when it is a checkout's own `.git`: inside a submodule it points at the
+# superproject's `.git/modules/<name>`, whose parent is no repo root at all —
+# there the project dir is already the right answer.
 common_dir="$(git rev-parse --git-common-dir 2>/dev/null || true)"
-if [ -n "$common_dir" ] && [ -d "$common_dir" ]; then
+if [ -n "$common_dir" ] && [ -d "$common_dir" ] &&
+  [ "$(basename "$common_dir")" = ".git" ]; then
   beads_root="$(cd "$(dirname "$common_dir")" && pwd)"
 else
   beads_root="$project_dir"
