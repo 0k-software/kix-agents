@@ -17,9 +17,10 @@ The format is based on
   of aborting on it so the bootstrap retry can run, and only runs
   `bd bootstrap` when there is no database yet.
 - `.kix/hooks/install-dolt.sh` and `install-bd.sh` are now tracked executable.
-  `session-start.sh` runs them directly, so in a fresh clone both failed with
-  permission denied and neither CLI was installed — which left every session
-  without `dolt` and `bd`, and the bootstrap above with nothing to run.
+  `session-start.sh` runs them directly, and in a fresh clone both failed with
+  permission denied, so any machine that did not already have them — a cloud
+  session, a new laptop — got neither CLI, and the bootstrap above had nothing
+  to run.
 
 ### Added
 
