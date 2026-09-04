@@ -9,6 +9,12 @@ The format is based on
 
 ### Fixed
 
+- `/kix:rebase` now states as a hard rule that the rebase base is
+  `origin/{target}`, never the local branch, and aborts if `origin/{target}`
+  does not exist after the fetch instead of falling back to the local ref. The
+  commands already used `origin/`, but the rule was implicit, so runs
+  occasionally rebased onto a stale local `main` and produced a branch that
+  looked rebased while still missing commits already on origin.
 - `bootstrap-bd.sh` (both the copy this repo runs and the one `/kix:setup`
   installs) is now worktree-aware and no longer noisy on repeat runs: it
   anchors on the primary checkout's `.beads/` the way `bd` itself does, falls
