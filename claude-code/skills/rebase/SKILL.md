@@ -20,7 +20,21 @@ Parse `$ARGUMENTS` to determine the mode and target branch:
 2. Whatever remains after stripping is the **target branch**. If empty, detect
    the default branch with
    `git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@'`,
-   falling back to `main`.
+   falling back to `main`. If the user wrote `origin/foo`, strip the `origin/`
+   prefix — the target is always a bare branch name here.
+
+---
+
+## The target is always the remote branch
+
+**Never rebase onto a local branch.** The rebase base is `origin/{target}`, not
+`{target}`. The local branch is routinely behind the remote, and rebasing onto
+it produces a branch that looks rebased but is still missing commits that are
+already on origin — the failure this rule exists to prevent.
+
+This is not a decision to hand to the user: there is no case where rebasing
+onto a stale local ref is what they wanted. Fetch, then use `origin/{target}`
+everywhere — the `git log` range in Step 1 and the `git rebase` base in Step 2.
 
 ---
 
@@ -29,7 +43,10 @@ Parse `$ARGUMENTS` to determine the mode and target branch:
 1. Verify the working tree is clean (`git status --porcelain`). If dirty, abort
    and tell the user to commit or stash first.
 2. Fetch the latest from origin: `git fetch origin {target}`.
-3. List the commits to rebase: `git log --oneline origin/{target}..HEAD`.
+3. Verify `origin/{target}` exists (`git rev-parse --verify origin/{target}`).
+   If it does not, abort and tell the user the branch is not on origin — do
+   **not** fall back to the local branch.
+4. List the commits to rebase: `git log --oneline origin/{target}..HEAD`.
    Display them so the user knows what will be rebased. Track per-commit
    progress in your text output as you work through Step 2 — call out which
    commit is currently applying, and report when each one lands (cleanly, after
