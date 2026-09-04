@@ -20,8 +20,8 @@ Parse `$ARGUMENTS` to determine the mode and target branch:
 2. Whatever remains after stripping is the **target branch**. If empty, detect
    the default branch with
    `git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@'`,
-   falling back to `main`. If the user wrote `origin/foo`, strip the `origin/`
-   prefix — the target is always a bare branch name here.
+   falling back to `main`. Strip a leading `refs/remotes/origin/` or `origin/`
+   if the user wrote one — the target is always a bare branch name here.
 
 ---
 
