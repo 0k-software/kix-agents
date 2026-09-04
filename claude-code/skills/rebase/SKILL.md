@@ -27,10 +27,11 @@ Parse `$ARGUMENTS` to determine the mode and target branch:
 
 ## The target is always the remote branch
 
-**Never rebase onto a local branch.** The rebase base is `origin/{target}`, not
-`{target}`. The local branch is routinely behind the remote, and rebasing onto
-it produces a branch that looks rebased but is still missing commits that are
-already on origin — the failure this rule exists to prevent.
+**Never rebase onto a local branch.** The rebase base is
+`refs/remotes/origin/{target}`, never the local `{target}`. The local branch is
+routinely behind the remote, and rebasing onto it produces a branch that looks
+rebased but is still missing commits that are already on origin — the failure
+this rule exists to prevent.
 
 This is not a decision to hand to the user: there is no case where rebasing
 onto a stale local ref is what they wanted. Fetch, then use the fully spelled
