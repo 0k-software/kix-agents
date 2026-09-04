@@ -10,11 +10,14 @@ The format is based on
 ### Fixed
 
 - `/kix:rebase` now states as a hard rule that the rebase base is
-  `origin/{target}`, never the local branch, and aborts if `origin/{target}`
-  does not exist after the fetch instead of falling back to the local ref. The
-  commands already used `origin/`, but the rule was implicit, so runs
-  occasionally rebased onto a stale local `main` and produced a branch that
-  looked rebased while still missing commits already on origin.
+  `refs/remotes/origin/{target}`, never the local branch, and aborts — rather
+  than falling back to the local ref — both when `git fetch` itself fails and
+  when `refs/remotes/origin/{target}` does not exist after it. The commands
+  already used `origin/`, but the rule was implicit, so runs occasionally
+  rebased onto a stale local `main` and produced a branch that looked rebased
+  while still missing commits already on origin. The full `refs/remotes/` path
+  is spelled out everywhere because the `origin/{target}` shorthand resolves to
+  a local branch of that literal name first.
 - `bootstrap-bd.sh` (both the copy this repo runs and the one `/kix:setup`
   installs) is now worktree-aware and no longer noisy on repeat runs: it
   anchors on the primary checkout's `.beads/` the way `bd` itself does, falls
