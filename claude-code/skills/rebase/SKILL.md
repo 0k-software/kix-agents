@@ -47,8 +47,10 @@ git checks `refs/heads/` before `refs/remotes/`, so a stray local branch named
 1. Verify the working tree is clean (`git status --porcelain`). If dirty, abort
    and tell the user to commit or stash first.
 2. Fetch the latest from origin: `git fetch origin {target}`. If this exits
-   non-zero (e.g. `couldn't find remote ref {target}`), abort and tell the user
-   the branch is not on origin — do **not** fall back to the local branch.
+   non-zero, abort — do **not** fall back to the local branch. Say the branch
+   is not on origin only when the output contains `couldn't find remote ref`;
+   for anything else (network, auth) abort as a fetch failure and quote what
+   git actually printed.
 3. Verify the tracking ref was created:
    `git rev-parse --verify refs/remotes/origin/{target}`. Spell out the full
    `refs/remotes/` path: the shorthand `origin/{target}` resolves to a local
