@@ -33,8 +33,11 @@ it produces a branch that looks rebased but is still missing commits that are
 already on origin — the failure this rule exists to prevent.
 
 This is not a decision to hand to the user: there is no case where rebasing
-onto a stale local ref is what they wanted. Fetch, then use `origin/{target}`
-everywhere — the `git log` range in Step 1 and the `git rebase` base in Step 2.
+onto a stale local ref is what they wanted. Fetch, then use the fully spelled
+`refs/remotes/origin/{target}` everywhere — the `git log` range in Step 1 and
+the `git rebase` base in Step 2. The shorthand `origin/{target}` is ambiguous:
+git checks `refs/heads/` before `refs/remotes/`, so a stray local branch named
+`origin/main` would silently win.
 
 ---
 
@@ -42,22 +45,27 @@ everywhere — the `git log` range in Step 1 and the `git rebase` base in Step 2
 
 1. Verify the working tree is clean (`git status --porcelain`). If dirty, abort
    and tell the user to commit or stash first.
-2. Fetch the latest from origin: `git fetch origin {target}`.
-3. Verify `origin/{target}` exists (`git rev-parse --verify origin/{target}`).
-   If it does not, abort and tell the user the branch is not on origin — do
-   **not** fall back to the local branch.
-4. List the commits to rebase: `git log --oneline origin/{target}..HEAD`.
-   Display them so the user knows what will be rebased. Track per-commit
-   progress in your text output as you work through Step 2 — call out which
-   commit is currently applying, and report when each one lands (cleanly, after
-   a hook fix, or after conflict resolution).
+2. Fetch the latest from origin: `git fetch origin {target}`. If this exits
+   non-zero (e.g. `couldn't find remote ref {target}`), abort and tell the user
+   the branch is not on origin — do **not** fall back to the local branch.
+3. Verify the tracking ref was created:
+   `git rev-parse --verify refs/remotes/origin/{target}`. Spell out the full
+   `refs/remotes/` path: the shorthand `origin/{target}` resolves to a local
+   branch of that literal name first. If the ref is missing, abort — again
+   without falling back to the local branch.
+4. List the commits to rebase:
+   `git log --oneline refs/remotes/origin/{target}..HEAD`. Display them so the
+   user knows what will be rebased. Track per-commit progress in your text
+   output as you work through Step 2 — call out which commit is currently
+   applying, and report when each one lands (cleanly, after a hook fix, or
+   after conflict resolution).
 
 ## Step 2 — Start the rebase
 
 Run:
 
 ```
-git rebase origin/{target} --exec "git hook run pre-commit"
+git rebase refs/remotes/origin/{target} --exec "git hook run pre-commit"
 ```
 
 This applies each commit and runs the pre-commit hook after each one. Three
