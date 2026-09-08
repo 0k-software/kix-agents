@@ -8,7 +8,7 @@ set -euo pipefail
 
 command -v bd >/dev/null 2>&1 && exit 0
 
-version="${KIX_BD_VERSION:-1.0.3}"
+version="${KIX_BD_VERSION:-1.2.2}"
 
 case "$(uname -s)" in
   Linux)  os=linux ;;
@@ -26,7 +26,7 @@ bin_dir="${HOME}/.local/bin"
 mkdir -p "$bin_dir"
 
 tarball="beads_${version}_${os}_${arch}.tar.gz"
-url="https://github.com/steveyegge/beads/releases/download/v${version}/${tarball}"
+url="https://github.com/gastownhall/beads/releases/download/v${version}/${tarball}"
 
 tmpdir="$(mktemp -d)"
 trap 'rm -rf "$tmpdir"' EXIT

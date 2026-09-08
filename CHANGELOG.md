@@ -7,6 +7,25 @@ The format is based on
 
 ## [Unreleased]
 
+### Changed
+
+- `install-bd.sh` (both the copy this repo runs and the one `/kix:setup`
+  installs) now pins `bd` 1.2.2 instead of 1.0.3, and downloads from
+  `gastownhall/beads` — the repo's current home — rather than relying on
+  GitHub's redirect from `steveyegge/beads`. The release asset naming is
+  unchanged. **Upgrading an existing `.beads/` is not a drop-in:** a database
+  created by 1.0.3 is on schema v32 and 1.2.2 wants v53, and it refuses to
+  migrate a remote-backed database on its own. Exactly one designated clone
+  must run `BD_ALLOW_REMOTE_MIGRATE=1 bd migrate && bd dolt push`; every other
+  clone then re-runs `bd bootstrap`. Until that happens, 1.2.2 blocks writes
+  and `bd ready` fails on the old schema.
+- The `.beads/dolt -> embeddeddolt` symlink in `bootstrap-bd.sh` is kept on
+  1.2.2. The quirk it works around could not be re-tested end to end, because a
+  1.2.2 bootstrap against an unmigrated remote aborts before the Dolt server
+  starts; the symlink is harmless when present, so the code stays and only the
+  comment was updated. `install-dolt.sh` stays pinned at Dolt 2.0.0 — bd 1.2.2
+  requires Dolt v1.43.14 or later.
+
 ### Fixed
 
 - `/kix:rebase` now states as a hard rule that the rebase base is
