@@ -45,9 +45,14 @@ chmod 700 "$beads_dir" 2>/dev/null || true  # bd warns on group/other-readable .
 command -v bd >/dev/null 2>&1 || exit 0
 command -v dolt >/dev/null 2>&1 || exit 0
 
-# bd 1.0.3 quirk: `bd bootstrap` writes data into .beads/embeddeddolt/,
-# but the auto-started Dolt server expects data under .beads/dolt/.
-# Pre-creating a symlink makes both paths resolve to the same on-disk data.
+# bd quirk (observed on 1.0.3, not disproven on 1.2.2): `bd bootstrap` writes
+# data into .beads/embeddeddolt/, but the auto-started Dolt server expects data
+# under .beads/dolt/. Pre-creating a symlink makes both paths resolve to the
+# same on-disk data. Kept on 1.2.2: the symlink is harmless there (bd works
+# with it present), and a 1.2.2 bootstrap against a remote that still needs
+# schema migrations aborts before the server starts, so the quirk could not be
+# re-tested end to end. Drop it only once a clean 1.2.2 bootstrap is observed
+# to work without it.
 # `-L` as well as `-e`: a bootstrap that failed left this link pointing at an
 # `embeddeddolt` that was never created, and `-e` follows it to the missing
 # target and reports absent — so `ln` would refuse, `set -e` would abort, and
