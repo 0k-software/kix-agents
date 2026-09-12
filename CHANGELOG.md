@@ -19,6 +19,22 @@ The format is based on
   must run `BD_ALLOW_REMOTE_MIGRATE=1 bd migrate && bd dolt push`; every other
   clone then re-runs `bd bootstrap`. Until that happens, 1.2.2 blocks writes
   and `bd ready` fails on the old schema.
+- `install-bd.sh` now upgrades an existing `bd` instead of only installing a
+  missing one. A bare `command -v bd` check left every machine that already had
+  an older `bd` on that version forever, so a fleet sharing one Dolt remote
+  ended up split across versions — and the split only surfaces when one side
+  migrates the schema and the other can no longer read the remote. The script
+  compares the installed version against the pin: same or newer is left alone,
+  older is replaced, an unreadable version line is reported and left alone, and
+  a `bd` that still shadows `~/.local/bin` on `PATH` after the install is
+  called out rather than silently winning.
+- `bootstrap-bd.sh` now cleans up after a failed `bd bootstrap`. `bd` clones
+  the Dolt data before it can refuse to continue — 1.2.2 aborts there when the
+  remote needs schema migrations — leaving a partial `.beads/embeddeddolt/`
+  that made the "is there a database yet" guard skip bootstrap on every later
+  session start. The half-built clone was never repaired, not even after the
+  designated migrator pushed, which is precisely when re-running bootstrap is
+  the documented recovery.
 - The `.beads/dolt -> embeddeddolt` symlink in `bootstrap-bd.sh` is kept on
   1.2.2. The quirk it works around could not be re-tested end to end, because a
   1.2.2 bootstrap against an unmigrated remote aborts before the Dolt server

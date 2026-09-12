@@ -72,6 +72,18 @@ cd "$beads_root"
 # dangling one is not.
 if [ ! -d "${beads_dir}/embeddeddolt" ] && [ ! -d "${beads_dir}/dolt" ]; then
   bd bootstrap --yes >/dev/null 2>&1 || {
+    # A failed bootstrap can still leave a partial `.beads/embeddeddolt/`
+    # behind: bd clones the Dolt data first and only then refuses to go on
+    # (1.2.2 aborts there when the remote needs schema migrations). Left in
+    # place, that directory satisfies the guard above, so every later session
+    # start skips bootstrap and the half-built clone is never repaired —
+    # including after the designated migrator pushes, when re-running bootstrap
+    # is exactly the documented recovery. Clear it, along with the `dolt`
+    # symlink if it now dangles, so the next session start retries.
+    rm -rf "${beads_dir}/embeddeddolt"
+    if [ -L "${beads_dir}/dolt" ] && [ ! -e "${beads_dir}/dolt" ]; then
+      rm -f "${beads_dir}/dolt"
+    fi
     printf 'bootstrap-bd: bd bootstrap failed (continuing)\n' >&2
   }
 fi
