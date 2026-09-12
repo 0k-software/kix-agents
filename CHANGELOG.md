@@ -10,15 +10,17 @@ The format is based on
 ### Changed
 
 - `install-bd.sh` (both the copy this repo runs and the one `/kix:setup`
-  installs) now pins `bd` 1.2.2 instead of 1.0.3, and downloads from
-  `gastownhall/beads` — the repo's current home — rather than relying on
-  GitHub's redirect from `steveyegge/beads`. The release asset naming is
-  unchanged. **Upgrading an existing `.beads/` is not a drop-in:** a database
-  created by 1.0.3 is on schema v32 and 1.2.2 wants v53, and it refuses to
-  migrate a remote-backed database on its own. Exactly one designated clone
-  must run `BD_ALLOW_REMOTE_MIGRATE=1 bd migrate && bd dolt push`; every other
-  clone then re-runs `bd bootstrap`. Until that happens, 1.2.2 blocks writes
-  and `bd ready` fails on the old schema.
+  installs) now downloads from `gastownhall/beads` — the repo's current home —
+  rather than relying on GitHub's redirect from `steveyegge/beads`. The release
+  asset naming is unchanged.
+- The `bd` pin **stays at 1.0.3 for now**, with `KIX_BD_VERSION=1.2.2` as the
+  opt-in. 1.2.2 is where we are going, but **upgrading an existing `.beads/` is
+  not a drop-in:** a database created by 1.0.3 is on schema v32 and 1.2.2 wants
+  v53, and it refuses to migrate a remote-backed database on its own, so a
+  fresh clone that installs 1.2.2 today cannot bootstrap at all. Moving the pin
+  is the last step of that upgrade, not the first — exactly one designated
+  clone runs `BD_ALLOW_REMOTE_MIGRATE=1 bd migrate && bd dolt push`, every
+  other clone re-runs `bd bootstrap`, and the default flips afterwards.
 - `install-bd.sh` now upgrades an existing `bd` instead of only installing a
   missing one. A bare `command -v bd` check left every machine that already had
   an older `bd` on that version forever, so a fleet sharing one Dolt remote
@@ -35,12 +37,13 @@ The format is based on
   session start. The half-built clone was never repaired, not even after the
   designated migrator pushed, which is precisely when re-running bootstrap is
   the documented recovery.
-- The `.beads/dolt -> embeddeddolt` symlink in `bootstrap-bd.sh` is kept on
-  1.2.2. The quirk it works around could not be re-tested end to end, because a
-  1.2.2 bootstrap against an unmigrated remote aborts before the Dolt server
-  starts; the symlink is harmless when present, so the code stays and only the
-  comment was updated. `install-dolt.sh` stays pinned at Dolt 2.0.0 — bd 1.2.2
-  requires Dolt v1.43.14 or later.
+- The `.beads/dolt -> embeddeddolt` symlink in `bootstrap-bd.sh` is kept, and
+  its comment now records what is known about it on 1.2.2: the quirk it works
+  around could not be re-tested end to end, because a 1.2.2 bootstrap against
+  an unmigrated remote aborts before the Dolt server starts, and the symlink is
+  harmless when present — so the code stays. `install-dolt.sh` stays pinned at
+  Dolt 2.0.0; bd 1.2.2 requires Dolt v1.43.14 or later, so that pin needs no
+  change when the bd default moves.
 
 ### Fixed
 
