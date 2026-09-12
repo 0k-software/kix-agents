@@ -70,22 +70,44 @@ cd "$beads_root"
 # the one time it means something. Both layouts count as a database: `-d`
 # follows the symlink, so a live `dolt -> embeddeddolt` is present and a
 # dangling one is not.
-if [ ! -d "${beads_dir}/embeddeddolt" ] && [ ! -d "${beads_dir}/dolt" ]; then
-  bd bootstrap --yes >/dev/null 2>&1 || {
-    # A failed bootstrap can still leave a partial `.beads/embeddeddolt/`
-    # behind: bd clones the Dolt data first and only then refuses to go on
-    # (1.2.2 aborts there when the remote needs schema migrations). Left in
-    # place, that directory satisfies the guard above, so every later session
-    # start skips bootstrap and the half-built clone is never repaired —
-    # including after the designated migrator pushes, when re-running bootstrap
-    # is exactly the documented recovery. Clear it, along with the `dolt`
-    # symlink if it now dangles, so the next session start retries.
-    rm -rf "${beads_dir}/embeddeddolt"
-    if [ -L "${beads_dir}/dolt" ] && [ ! -e "${beads_dir}/dolt" ]; then
-      rm -f "${beads_dir}/dolt"
-    fi
-    printf 'bootstrap-bd: bd bootstrap failed (continuing)\n' >&2
-  }
+# One bootstrap at a time. Sessions start concurrently — every worktree shares
+# the primary checkout's `.beads/` — and the guard below is a
+# check-then-act: two sessions can both see no database, one clones it
+# successfully, and the other's `bd bootstrap` then fails because the database
+# now exists. Without this mutex the loser's cleanup would delete the database
+# the winner just cloned. `mkdir` is the atomic test-and-set; the loser skips
+# the block and leaves the winner's work alone.
+bootstrap_lock="${beads_dir}/.bootstrap.lock"
+# A session killed mid-bootstrap leaves the lock behind, and a lock nobody holds
+# must not block bootstrap forever — reclaim one that is over an hour old.
+if [ -d "$bootstrap_lock" ] &&
+  [ -n "$(find "$bootstrap_lock" -maxdepth 0 -mmin +60 2>/dev/null)" ]; then
+  rmdir "$bootstrap_lock" 2>/dev/null || true
+fi
+if mkdir "$bootstrap_lock" 2>/dev/null; then
+  trap 'rmdir "$bootstrap_lock" 2>/dev/null || true' EXIT
+
+  if [ ! -d "${beads_dir}/embeddeddolt" ] && [ ! -d "${beads_dir}/dolt" ]; then
+    bootstrap_out="$(bd bootstrap --yes 2>&1)" || {
+      # A failed bootstrap can still leave a partial `.beads/embeddeddolt/`
+      # behind: bd clones the Dolt data first and only then refuses to go on
+      # (1.2.2 aborts there when the remote needs schema migrations). Left in
+      # place, that directory satisfies the guard above, so every later session
+      # start skips bootstrap and the half-built clone is never repaired —
+      # including after the designated migrator pushes, when re-running
+      # bootstrap is exactly the documented recovery. Clear it, along with the
+      # `dolt` symlink if it now dangles, so the next session start retries.
+      rm -rf "${beads_dir}/embeddeddolt"
+      if [ -L "${beads_dir}/dolt" ] && [ ! -e "${beads_dir}/dolt" ]; then
+        rm -f "${beads_dir}/dolt"
+      fi
+      # bd's own message is the recovery procedure — a schema-migration refusal
+      # names the commands and warns that only one machine may migrate. Swallowed,
+      # it leaves nothing but "failed (continuing)" to act on.
+      printf '%s\n' "$bootstrap_out" >&2
+      printf 'bootstrap-bd: bd bootstrap failed (continuing)\n' >&2
+    }
+  fi
 fi
 
 # The remote lives in the Dolt database, which is runtime state and not in git,
