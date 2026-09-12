@@ -29,14 +29,25 @@ The format is based on
   compares the installed version against the pin: same or newer is left alone,
   older is replaced, an unreadable version line is reported and left alone, and
   a `bd` that still shadows `~/.local/bin` on `PATH` after the install is
-  called out rather than silently winning.
+  called out rather than silently winning. The decision to download reads the
+  binary the script owns, not the one `PATH` resolves — otherwise a shadowing
+  older `bd` would make every session start re-download the release.
 - `bootstrap-bd.sh` now cleans up after a failed `bd bootstrap`. `bd` clones
   the Dolt data before it can refuse to continue — 1.2.2 aborts there when the
   remote needs schema migrations — leaving a partial `.beads/embeddeddolt/`
   that made the "is there a database yet" guard skip bootstrap on every later
   session start. The half-built clone was never repaired, not even after the
   designated migrator pushed, which is precisely when re-running bootstrap is
-  the documented recovery.
+  the documented recovery. The bootstrap block now holds a `mkdir` lock, so
+  concurrent sessions — every worktree shares the primary checkout's `.beads/`
+  — cannot both enter it and have the loser's cleanup delete the database the
+  winner just cloned; a lock left behind by a killed session is reclaimed after
+  an hour.
+- `bootstrap-bd.sh` no longer discards `bd bootstrap`'s output on failure. Its
+  message is the recovery procedure — a schema-migration refusal names the
+  commands to run and warns that only one machine may migrate — and swallowing
+  it left nothing to act on but "failed (continuing)". A successful bootstrap
+  stays silent.
 - The `.beads/dolt -> embeddeddolt` symlink in `bootstrap-bd.sh` is kept, and
   its comment now records what is known about it on 1.2.2: the quirk it works
   around could not be re-tested end to end, because a 1.2.2 bootstrap against
