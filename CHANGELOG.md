@@ -13,14 +13,14 @@ The format is based on
   installs) now downloads from `gastownhall/beads` — the repo's current home —
   rather than relying on GitHub's redirect from `steveyegge/beads`. The release
   asset naming is unchanged.
-- The `bd` pin **stays at 1.0.3 for now**, with `KIX_BD_VERSION=1.2.2` as the
-  opt-in. 1.2.2 is where we are going, but **upgrading an existing `.beads/` is
-  not a drop-in:** a database created by 1.0.3 is on schema v32 and 1.2.2 wants
-  v53, and it refuses to migrate a remote-backed database on its own, so a
-  fresh clone that installs 1.2.2 today cannot bootstrap at all. Moving the pin
-  is the last step of that upgrade, not the first — exactly one designated
-  clone runs `BD_ALLOW_REMOTE_MIGRATE=1 bd migrate && bd dolt push`, every
-  other clone re-runs `bd bootstrap`, and the default flips afterwards.
+- The `bd` pin moves from 1.0.3 to **1.2.2**. This was not a drop-in: a
+  database created by 1.0.3 is on schema v32 and 1.2.2 wants v53, and bd
+  refuses to migrate a remote-backed database on its own, so the remote was
+  migrated first — one designated clone runs
+  `BD_ALLOW_REMOTE_MIGRATE=1 bd migrate && bd dolt push`, every other clone
+  re-runs `bd bootstrap` — and the pin moved afterwards. Verified against the
+  migrated remote: a fresh clone bootstraps cleanly under 1.2.2, and under
+  1.0.3 as well, so a machine that has not upgraded yet still works.
 - `install-bd.sh` now upgrades an existing `bd` instead of only installing a
   missing one. A bare `command -v bd` check left every machine that already had
   an older `bd` on that version forever, so a fleet sharing one Dolt remote

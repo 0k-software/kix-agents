@@ -7,15 +7,12 @@
 # Override the version with KIX_BD_VERSION=<x.y.z>.
 set -euo pipefail
 
-# Still 1.0.3, deliberately. 1.2.2 is the version we want, but a database
-# created by 1.0.3 is on schema v32 and 1.2.2 wants v53, and it refuses to
-# migrate a remote-backed database on its own — so a fresh clone that installs
-# 1.2.2 today cannot bootstrap at all. Flipping this default is the last step of
-# the upgrade, not the first: exactly one designated clone runs
-# `BD_ALLOW_REMOTE_MIGRATE=1 bd migrate && bd dolt push`, every other clone
-# re-runs `bd bootstrap`, and only then does the pin move to 1.2.2. Until then a
-# machine that wants the new bd can opt in with KIX_BD_VERSION=1.2.2.
-version="${KIX_BD_VERSION:-1.0.3}"
+# Moving this pin across a bd schema boundary is not a drop-in: bd refuses to
+# migrate a remote-backed database on its own, so the remote has to be migrated
+# first — one designated clone runs `BD_ALLOW_REMOTE_MIGRATE=1 bd migrate &&
+# bd dolt push`, every other clone re-runs `bd bootstrap` — and only then does
+# the pin move. That was done for v32 -> v53 before this went to 1.2.2.
+version="${KIX_BD_VERSION:-1.2.2}"
 
 bin_dir="${HOME}/.local/bin"
 
