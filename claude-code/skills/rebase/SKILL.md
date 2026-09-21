@@ -62,6 +62,50 @@ git checks `refs/heads/` before `refs/remotes/`, so a stray local branch named
    output as you work through Step 2 — call out which commit is currently
    applying, and report when each one lands (cleanly, after a hook fix, or
    after conflict resolution).
+5. Estimate the total run time — see below — and report it before starting.
+
+### Estimate the run time
+
+The rebase runs the pre-commit hook once per commit, so a slow hook multiplied
+by a long branch can burn a lot of wall-clock time. Measure it up front instead
+of letting the user discover it halfway through.
+
+1. If no pre-commit hook is configured, skip the estimate entirely — the
+   `--exec` in Step 2 is then a no-op and costs nothing. Check
+   `git rev-parse --git-path hooks/pre-commit` (and `core.hooksPath` if set);
+   if the hook file does not exist, move on to Step 2.
+2. Time one run against the current HEAD:
+
+   ```
+   start=$(date +%s); git hook run pre-commit; end=$(date +%s); echo $((end - start))
+   ```
+
+   A non-zero exit here is **not** an abort — Step 2 case B already handles
+   hook failures. Use the measured duration either way.
+
+3. Multiply the hook duration by the number of commits from Step 1 item 4. That
+   product is the estimate. Always report it, however small.
+
+Then apply the threshold that matches the estimate:
+
+| Estimate    | Interactive (`/kix:rebase`)      | Force (`/kix:rebase!`)           |
+| ----------- | -------------------------------- | -------------------------------- |
+| Under 2 min | Report the estimate, proceed     | Report the estimate, proceed     |
+| 2–5 min     | Warn, suggest squashing, proceed | Warn, suggest squashing, proceed |
+| Over 5 min  | **Stop and wait for the user**   | Big red warning, proceed         |
+
+The warning always names the two numbers behind the estimate, so the user can
+see which one to attack: "this will take a while — your pre-commit hook takes
+{X}s and there are {N} commits, so roughly {X×N}s". Follow it with the
+suggestion to squash the branch's commits first, which cuts the number of hook
+runs proportionally.
+
+Over 5 minutes, say so explicitly ("this will take more than 5 minutes") and:
+
+- **Interactive mode:** stop. Wait for the user to choose — proceed anyway,
+  squash first, or abort. Do not start the rebase before they answer.
+- **Force mode:** never stop. Render the warning as a large, prominent red
+  notice and start the rebase.
 
 ## Step 2 — Start the rebase
 
@@ -139,6 +183,7 @@ successfully — every commit from Step 1 should end up landed.
 Display a summary:
 
 - How many commits were rebased
+- How long it actually took, against the Step 1 estimate
 - How many conflicts were resolved (and how)
 - How many pre-commit fixes were applied
 - The final `git log --oneline` showing the rebased commits
