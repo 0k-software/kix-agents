@@ -31,7 +31,7 @@ install_bd="$project_dir/.kix/hooks/install-bd.sh"
 [ -f "$install_bd" ] || exit 0
 
 stamped="$(sed -n 's/.*kix-prime: bd \([0-9][0-9.]*\).*/\1/p' "$prime_file" | head -1)"
-pinned="$(sed -n 's/^version="\${KIX_BD_VERSION:-\([0-9][0-9.]*\)}"/\1/p' "$install_bd" | head -1)"
+pinned="$(sed -n 's/^version="\${KIX_BD_VERSION:-\([0-9][0-9.]*\)}".*/\1/p' "$install_bd" | head -1)"
 
 report() {
   printf 'kix-check-prime: %s\n' "$1" >&2
