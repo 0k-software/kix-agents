@@ -22,7 +22,7 @@
 [ ] 1. run quality gates       (tests, linters, builds — `make check`)
 [ ] 2. git status              (check what changed)
 [ ] 3. push the branch, open the PR
-[ ] 4. bd update <id> --status=in_progress --notes="PR: <url>"
+[ ] 4. bd update <id> --status=in_progress --append-notes="PR: <url>"
 [ ] 5. bd close <id>           (ONLY once that PR is merged to main)
 ```
 
@@ -68,8 +68,8 @@ merge lands on main. Work committed straight to main closes right away.
 - `bd update <id> --assignee=username` - Assign to someone
 - `bd update <id> --title/--description/--notes/--design` - Update fields
   inline
-- `bd update <id> --status=in_progress --notes="PR: <url>"` - Park an issue on
-  its open PR
+- `bd update <id> --status=in_progress --append-notes="PR: <url>"` - Park an
+  issue on its open PR
 - `bd close <id>` - Mark complete (after merge)
 - `bd close <id1> <id2> ...` - Close multiple issues at once (more efficient)
 - `bd close <id> --reason="explanation"` - Close with reason
@@ -139,7 +139,7 @@ bd update <id> --claim  # Claim it
 make check                                              # quality gates
 git status                                              # review the diff
 git push -u origin HEAD && gh pr create                 # open the PR
-bd update <id> --status=in_progress --notes="PR: <url>" # park it on the PR
+bd update <id> --status=in_progress --append-notes="PR: <url>" # park it on the PR
 bd dolt push                                            # sync beads
 ```
 

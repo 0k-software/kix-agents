@@ -184,7 +184,14 @@ copy_force kix/hooks/check-prime.sh   .kix/hooks/check-prime.sh
 # one agents follow: close an issue only once its PR merges. Never overwrite an
 # existing one — repos edit this file, and it carries a bd version stamp that
 # `make check` gates on (see .kix/hooks/check-prime.sh).
-copy_if_absent beads/PRIME.md .beads/PRIME.md || true
+# Only for repos that actually have a beads tracker: elsewhere the file is
+# inert, and it would still arm check-prime.sh against a repo that never reads
+# it (a later pin bump would then fail `make check` over an unused file).
+if [ -d .beads ]; then
+  copy_if_absent beads/PRIME.md .beads/PRIME.md || true
+else
+  note "no .beads tracker — skipped .beads/PRIME.md"
+fi
 
 # --- 5. Codex .codex/config.toml entry ---------------------------------------
 CODEX_CONFIG=.codex/config.toml
@@ -245,7 +252,10 @@ jq --arg ss "$SS_HOOK" --arg prime "$PRIME_HOOK" '
     if (cmds($arr) | any(. == $cmd)) then $arr else ($arr + [$entry]) end;
   def drop_bd_prime($arr):
     [ ($arr // [])[]
-      | .hooks = [ (.hooks // [])[] | select((.command // "") != "bd prime") ]
+      | .hooks = [ (.hooks // [])[]
+          | select((.command // "")
+              | gsub("^\\s+|\\s+$"; "")
+              | startswith("bd prime") | not) ]
     ] | map(select((.hooks | length) > 0));
   .hooks = (.hooks // {})
   | .hooks.PreCompact = add_if_missing(drop_bd_prime(.hooks.PreCompact // []);

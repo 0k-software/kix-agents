@@ -30,8 +30,8 @@ bd close <id>           # Complete work (only once the PR has merged)
 **When ending a work session**, you MUST: file issues for any follow-up work,
 run the quality gates if code changed (`make check`), update issue status (park
 branch work on its PR with
-`bd update <id> --status=in_progress --notes="PR: <url>"`; close only what has
-already merged to main), then **push to remote**:
+`bd update <id> --status=in_progress --append-notes="PR: <url>"`; close only
+what has already merged to main), then **push to remote**:
 
 ```bash
 git pull --rebase
