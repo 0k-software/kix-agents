@@ -24,7 +24,9 @@ fi
 # --- END BEADS INTEGRATION v1.0.3 ---
 
 # --- Prettier formatting gate (kix) ---
-# Reject a dirty tree, then autofix + re-stage + verify formatting.
+# Reject a dirty tree, then autofix + re-stage + verify formatting. The beads
+# section above is a no-op when `bd` isn't installed, so this hook works the
+# same in repos that don't use beads.
 if ! git diff --quiet || [ -n "$(git ls-files --others --exclude-standard)" ]; then
   echo "Commit rejected: there are unstaged or untracked changes."
   echo "Stage everything or stash before committing."

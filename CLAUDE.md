@@ -13,10 +13,10 @@ workflow context and commands.
 ### Quick Reference
 
 ```bash
-bd ready              # Find available work
-bd show <id>          # View issue details
+bd ready                # Find available work
+bd show <id>            # View issue details
 bd update <id> --claim  # Claim work
-bd close <id>         # Complete work
+bd close <id>           # Complete work (only once the PR has merged)
 ```
 
 ### Rules
@@ -36,7 +36,9 @@ complete until `git push` succeeds.
 1. **File issues for remaining work** - Create issues for anything that needs
    follow-up
 2. **Run quality gates** (if code changed) - Tests, linters, builds
-3. **Update issue status** - Close finished work, update in-progress items
+3. **Update issue status** - Park branch work on its PR
+   (`bd update <id> --status=in_progress --notes="PR: <url>"`); close only what
+   has already merged to main
 4. **PUSH TO REMOTE** - This is MANDATORY:
    ```bash
    git pull --rebase
@@ -166,6 +168,13 @@ kix-agents ships a Claude Code marketplace + plugin — no application code:
 - **Releases are tag-driven.** `make release` POSTs to GitHub's releases API;
   the plugin marketplace install path resolves via tags. Never force-tag or
   rewrite published tags.
+- **`.beads/PRIME.md`.** Overrides the whole `bd prime` output — including the
+  persistent memories, which `.kix/hooks/prime.sh` re-injects with
+  `bd prime --export --memories-only`, and the `no-git-ops` config, which stops
+  having any effect. Its `<!-- kix-prime: bd X.Y.Z -->` stamp must match the
+  pin in `.kix/hooks/install-bd.sh`; `make check` fails on drift and the
+  refresh is manual. The shipped copy lives at
+  `claude-code/skills/setup/assets/beads/PRIME.md` — edit both.
 - **Pre-commit hook.** `.beads/hooks/pre-commit` is the single hook — beads' DB
   → JSONL sync (managed section, between the `BEGIN/END BEADS INTEGRATION`
   markers) followed by the Prettier gate (reject-if-dirty → `make autofix` →

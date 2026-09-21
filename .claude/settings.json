@@ -17,8 +17,8 @@
       {
         "hooks": [
           {
-            "command": "bd prime",
-            "type": "command"
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.kix/hooks/prime.sh"
           }
         ],
         "matcher": ""
@@ -32,15 +32,6 @@
             "type": "command"
           }
         ]
-      },
-      {
-        "hooks": [
-          {
-            "command": "bd prime",
-            "type": "command"
-          }
-        ],
-        "matcher": ""
       }
     ]
   }

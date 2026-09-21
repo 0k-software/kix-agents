@@ -1,4 +1,4 @@
-.PHONY: all setup autofix check bump release
+.PHONY: all setup autofix check check-prime bump release
 
 PART ?= patch
 # Pin Prettier: an unpinned `npx prettier` resolves to whatever is in the local
@@ -16,8 +16,13 @@ setup:
 autofix:
 	$(PRETTIER) --write .
 
-check:
+check: check-prime
 	$(PRETTIER) --check .
+
+# Fails when .beads/PRIME.md is stamped for a different bd version than the pin
+# in .kix/hooks/install-bd.sh. No-op when either file is absent.
+check-prime:
+	@if [ -x .kix/hooks/check-prime.sh ]; then .kix/hooks/check-prime.sh; fi
 
 bump:
 	@node scripts/bump-plugin.js $(PART)

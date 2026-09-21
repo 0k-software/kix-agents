@@ -22,8 +22,26 @@ runs on SessionStart, then open a PR with the changes:
   `.kix/hooks/{install-dolt,install-bd,bootstrap-bd}.sh`,
   `.claude/settings.json` for Claude Code, and `.codex/config.toml` for Codex.
   Both agents call the same `session-start.sh`, which installs the `dolt` and
-  `bd` CLIs into `~/.local/bin`, bootstraps the beads database, and runs
-  `bd prime`.
+  `bd` CLIs into `~/.local/bin`, bootstraps the beads database, and primes the
+  session via `.kix/hooks/prime.sh`.
+- **`.beads/PRIME.md`** — the Kix close protocol, installed only when the repo
+  doesn't already have one. `bd prime` prints this file instead of its stock
+  output, so agents close an issue only once its PR merges, rather than at
+  PR-open time. Two consequences worth knowing:
+  - **`bd config set no-git-ops` stops having any effect.** The override
+    replaces the whole output, config-driven sections included, so the git
+    posture is whatever `PRIME.md` says. Edit the file to change it.
+  - **The override swallows the persistent memories too**, which is why the
+    hooks call `.kix/hooks/prime.sh` instead of `bd prime` — it adds
+    `bd prime --export --memories-only` whenever the override is present (bare
+    `--memories-only` honours the override and just reprints it). If a repo's
+    memories duplicate what `PRIME.md` now states, `bd forget <key>` them.
+- **`.kix/hooks/check-prime.sh`** — `PRIME.md` is a hand-edited snapshot of one
+  bd version's output, so it goes stale silently. This compares its
+  `<!-- kix-prime: bd X.Y.Z -->` stamp against the pin in `install-bd.sh` (the
+  pin, not the installed bd — `install-bd.sh` installs "pin or newer", and a
+  newer local bd must not fail a gate nobody can fix in the repo). `make check`
+  fails on drift; the fix is manual — re-export, merge, bump the stamp.
 - **`AGENTS.md` → `CLAUDE.md` symlink** — enforces one canonical
   agent-instructions file so the two don't drift (creates an empty `CLAUDE.md`
   if neither file exists; if the repo has only `AGENTS.md`, promotes it).
@@ -59,7 +77,8 @@ Parse `$ARGUMENTS`: a leading `!` (it may be the whole of `$ARGUMENTS`) sets
    `.prettierignore`, `.github/workflows/check.yml`, an existing `pre-commit`
    hook (`.git-hooks/pre-commit`, `.beads/hooks/pre-commit`, or whatever
    `core.hooksPath` points at), `.claude/settings.json`, `.claude/hooks/`,
-   `.codex/config.toml`, `.beads/`, `CLAUDE.md` / `AGENTS.md`.
+   `.codex/config.toml`, `.beads/` (including an existing `.beads/PRIME.md`,
+   which the script never overwrites), `CLAUDE.md` / `AGENTS.md`.
 4. Locate the bundled assets. This skill ships with a sibling `setup.sh` and an
    `assets/` directory. Resolve `SKILL_DIR` to the directory containing this
    `SKILL.md` — for a plugin install that is
@@ -107,8 +126,11 @@ Work through the script's `needs manual attention` list, plus:
   wire the merged hook (`$SKILL_DIR/assets/pre-commit`) into that dir yourself.
 - **`.claude/settings.json`** — open it and sanity-check the merge. If it now
   has a near-duplicate `SessionStart` entry (e.g. the repo already had one with
-  a slightly different path to `session-start.sh`), de-dupe by hand. Optionally
-  add `"kix@kix-agents": true` under `enabledPlugins` so collaborators get the
+  a slightly different path to `session-start.sh`), de-dupe by hand. The script
+  drops bare `bd prime` hook entries on sight — they double the session-start
+  output and lose the memories under a `PRIME.md` override — and points
+  `PreCompact` at `.kix/hooks/prime.sh` instead. Optionally add
+  `"kix@kix-agents": true` under `enabledPlugins` so collaborators get the
   `/kix:*` skills — mention it; do it in force mode, ask otherwise.
 - **`.codex/config.toml`** — open it and sanity-check the managed Kix block. It
   should point at `.kix/hooks/session-start.sh`, the same script Claude Code
@@ -211,7 +233,8 @@ If the file already has a Beads section, leave it alone.
 
    - **Prettier formatting gate** — `.prettierrc.json`, `.prettierignore`, `make autofix` / `make check`, and a `.github/workflows/check.yml` CI workflow.
    - **`pre-commit` hook** — beads DB→JSONL sync (no-op without `bd`) + Prettier gate (reject a dirty tree → `make autofix` → re-stage → `make check`); wired via `core.hooksPath` → `.beads/hooks/` if there's a beads tracker, else copied into the repo's hooks dir.
-   - **Shared Claude Code / Codex SessionStart hook** — `.kix/hooks/session-start.sh` plus `.kix/hooks/{install-dolt,install-bd,bootstrap-bd}.sh` that install the `dolt` + `bd` CLIs into `~/.local/bin`, bootstrap the beads DB, and run `bd prime`; Claude Code wires them through `.claude/settings.json`, while Codex wires the same script through `.codex/config.toml`.
+   - **Shared Claude Code / Codex SessionStart hook** — `.kix/hooks/session-start.sh` plus `.kix/hooks/{install-dolt,install-bd,bootstrap-bd}.sh` that install the `dolt` + `bd` CLIs into `~/.local/bin`, bootstrap the beads DB, and prime the session; Claude Code wires them through `.claude/settings.json`, while Codex wires the same script through `.codex/config.toml`.
+   - **`.beads/PRIME.md` close protocol** — overrides `bd prime` so agents park a finished branch on its PR (`in_progress` + PR URL) and close the issue only once that PR merges. `.kix/hooks/prime.sh` re-injects the persistent memories the override would otherwise swallow, and `.kix/hooks/check-prime.sh` (wired into `make check`) fails when the file's bd stamp drifts from the pin.
 
    ## After merging
 

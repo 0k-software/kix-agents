@@ -38,6 +38,33 @@ scripts/bump-plugin.js            ← bump plugin.json version
 Makefile                          ← setup, autofix, check, bump
 ```
 
+## Known non-issues
+
+Behaviour that looks like a bug but is working as designed — check here before
+filing an issue.
+
+- **`bd prime` output doesn't match the stock bd output.** `/kix:setup`
+  installs a `.beads/PRIME.md`, which replaces the whole `bd prime` output. Its
+  close protocol parks branch work on its PR and closes the issue only once
+  that PR merges.
+- **`bd config set no-git-ops true` does nothing.** The `PRIME.md` override
+  replaces the config-driven sections along with everything else. Edit
+  `.beads/PRIME.md` to change the git posture.
+- **Persistent memories are missing after compaction in Codex.** Codex has no
+  `PreCompact` hook, so only Claude Code re-injects them mid-session (via
+  `.kix/hooks/prime.sh` in `.claude/settings.json`). In Codex they come back at
+  the next session start. Run `bd prime` by hand to pull them in sooner.
+- **The close-protocol wording in `CLAUDE.md` reverted.** That section sits
+  inside a `BEGIN BEADS INTEGRATION` block that `bd setup claude` regenerates
+  from its own template. `.beads/PRIME.md` is the durable source of truth; just
+  re-apply the wording if you re-run that command.
+- **`make check` fails complaining about a bd version stamp.** The bd pin in
+  `.kix/hooks/install-bd.sh` moved, so `.beads/PRIME.md` — a hand-edited
+  snapshot of one bd version's output — may be stale. This is deliberate and
+  the fix is manual: `bd prime --export`, diff it against `PRIME.md`, merge in
+  what you want, then bump the stamp. A newer locally-installed bd does **not**
+  trip it; only the pin does.
+
 ## Documentation
 
 - [Kix Agents](docs/kix-agents.md) — purpose, what it ships, install, and how

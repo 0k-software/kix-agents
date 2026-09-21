@@ -7,11 +7,45 @@ The format is based on
 
 ## [Unreleased]
 
+### Added
+
+- **`.beads/PRIME.md` close protocol.** `bd prime`'s stock protocol tells
+  agents to `bd close` before saying "done", which on branch work closes the
+  issue while the PR is still under review — hiding work that can still be
+  reworked or rejected. `/kix:setup` now installs a `PRIME.md` override (never
+  overwriting an existing one) whose protocol parks a finished branch on its PR
+  (`in_progress` + the PR URL) and closes only once that PR merges.
+- **`.kix/hooks/prime.sh`.** A `PRIME.md` override replaces the _entire_
+  `bd prime` output, persistent memories included — and `--memories-only` alone
+  doesn't help, since as of bd 1.2.2 it honours the override and just reprints
+  the file. This hook runs `bd prime` and then, when the override is present,
+  `bd prime --export --memories-only` (`--export` is what bypasses it). Both
+  the SessionStart and PreCompact wiring now call it.
+- **`.kix/hooks/check-prime.sh`.** `PRIME.md` is a hand-edited snapshot of one
+  bd version's output, so it goes stale silently. This compares its
+  `<!-- kix-prime: bd X.Y.Z -->` stamp against the pin in `install-bd.sh` —
+  deliberately the pin and not the locally installed bd, since `install-bd.sh`
+  installs "pin or newer" and a newer local bd must not fail a gate nobody can
+  fix in the repo. Wired into `make check`, so a pin bump blocks commits until
+  someone refreshes the file by hand; the session-start hook reports the same
+  drift as a warning.
+- A **Known non-issues** section in the README covering the behaviour the above
+  makes intentional: the overridden `bd prime` output, `no-git-ops` becoming a
+  no-op, Codex having no `PreCompact` hook to re-inject memories mid-session,
+  and the stamp gate firing on a pin bump.
+
 ### Changed
 
 - `kix:commit-message` (and `kix:commit`, which delegates to it) no longer
   forbids a `Co-Authored-By` footer. The harness's own attribution guidance now
   decides whether one is added.
+- `/kix:setup` now drops bare `bd prime` hook entries from
+  `.claude/settings.json` when it merges. They predate `prime.sh`: the
+  SessionStart one duplicated what `session-start.sh` already printed, and both
+  lose the memories once a `PRIME.md` override is in place. Repos installed
+  earlier pick up the fix on their next `/kix:setup`.
+- The `CLAUDE.md` template's session-completion step now says to park branch
+  work on its PR and close only what has merged, matching the new protocol.
 - `install-bd.sh` (both the copy this repo runs and the one `/kix:setup`
   installs) now downloads from `gastownhall/beads` — the repo's current home —
   rather than relying on GitHub's redirect from `steveyegge/beads`. The release
