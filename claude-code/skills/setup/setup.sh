@@ -176,6 +176,15 @@ copy_force kix/hooks/session-start.sh .kix/hooks/session-start.sh
 copy_force kix/hooks/install-dolt.sh  .kix/hooks/install-dolt.sh
 copy_force kix/hooks/install-bd.sh    .kix/hooks/install-bd.sh
 copy_force kix/hooks/bootstrap-bd.sh  .kix/hooks/bootstrap-bd.sh
+copy_force kix/hooks/prime.sh         .kix/hooks/prime.sh
+copy_force kix/hooks/check-prime.sh   .kix/hooks/check-prime.sh
+
+# --- 4b. .beads/PRIME.md override -------------------------------------------
+# PRIME.md replaces the whole `bd prime` output, so its close protocol is the
+# one agents follow: close an issue only once its PR merges. Never overwrite an
+# existing one — repos edit this file, and it carries a bd version stamp that
+# `make check` gates on (see .kix/hooks/check-prime.sh).
+copy_if_absent beads/PRIME.md .beads/PRIME.md || true
 
 # --- 5. Codex .codex/config.toml entry ---------------------------------------
 CODEX_CONFIG=.codex/config.toml
@@ -224,18 +233,25 @@ mkdir -p .claude
 [ -e "$SETTINGS" ] || { printf '{}\n' > "$SETTINGS"; note "created $SETTINGS"; }
 
 SS_HOOK='$CLAUDE_PROJECT_DIR/.kix/hooks/session-start.sh'
+PRIME_HOOK='$CLAUDE_PROJECT_DIR/.kix/hooks/prime.sh'
+# A bare `bd prime` is the pre-PRIME.md wiring: it duplicates what
+# session-start.sh already prints, and with a .beads/PRIME.md override in place
+# it drops the persistent memories. prime.sh handles both. Drop the old entries
+# wherever they appear so repos installed earlier get the fix too.
 tmp="$(mktemp)"
-jq --arg ss "$SS_HOOK" '
+jq --arg ss "$SS_HOOK" --arg prime "$PRIME_HOOK" '
   def cmds($arr): [ ($arr // [])[]?.hooks[]?.command // empty ];
   def add_if_missing($arr; $entry; $cmd):
     if (cmds($arr) | any(. == $cmd)) then $arr else ($arr + [$entry]) end;
+  def drop_bd_prime($arr):
+    [ ($arr // [])[]
+      | .hooks = [ (.hooks // [])[] | select((.command // "") != "bd prime") ]
+    ] | map(select((.hooks | length) > 0));
   .hooks = (.hooks // {})
-  | .hooks.PreCompact = add_if_missing(.hooks.PreCompact // [];
-      {"hooks":[{"type":"command","command":"bd prime"}],"matcher":""}; "bd prime")
-  | .hooks.SessionStart = add_if_missing(.hooks.SessionStart // [];
+  | .hooks.PreCompact = add_if_missing(drop_bd_prime(.hooks.PreCompact // []);
+      {"hooks":[{"type":"command","command":$prime}],"matcher":""}; $prime)
+  | .hooks.SessionStart = add_if_missing(drop_bd_prime(.hooks.SessionStart // []);
       {"hooks":[{"type":"command","command":$ss}]}; $ss)
-  | .hooks.SessionStart = add_if_missing(.hooks.SessionStart;
-      {"hooks":[{"type":"command","command":"bd prime"}],"matcher":""}; "bd prime")
 ' "$SETTINGS" > "$tmp" || { rm -f "$tmp"; die "failed to merge $SETTINGS (invalid JSON?)"; }
 if cmp -s "$tmp" "$SETTINGS"; then
   rm -f "$tmp"

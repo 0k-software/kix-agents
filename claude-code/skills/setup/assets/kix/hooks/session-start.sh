@@ -40,6 +40,5 @@ fi
 "$project_dir/.kix/hooks/install-bd.sh" || true
 "$project_dir/.kix/hooks/bootstrap-bd.sh" || true
 
-if command -v bd >/dev/null 2>&1; then
-  bd prime || true
-fi
+"$project_dir/.kix/hooks/check-prime.sh" --warn || true
+"$project_dir/.kix/hooks/prime.sh" || true

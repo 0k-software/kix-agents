@@ -15,7 +15,7 @@ workflow context and commands.
 bd ready                # Find available work
 bd show <id>            # View issue details
 bd update <id> --claim  # Claim work
-bd close <id>           # Complete work
+bd close <id>           # Complete work (only once the PR has merged)
 ```
 
 ### Rules
@@ -28,8 +28,10 @@ bd close <id>           # Complete work
 ## Session Completion
 
 **When ending a work session**, you MUST: file issues for any follow-up work,
-run the quality gates if code changed (`make check`), update issue status
-(close finished work, update in-progress items), then **push to remote**:
+run the quality gates if code changed (`make check`), update issue status (park
+branch work on its PR with
+`bd update <id> --status=in_progress --notes="PR: <url>"`; close only what has
+already merged to main), then **push to remote**:
 
 ```bash
 git pull --rebase
