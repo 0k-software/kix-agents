@@ -70,10 +70,20 @@ The rebase runs the pre-commit hook once per commit, so a slow hook multiplied
 by a long branch can burn a lot of wall-clock time. Measure it up front instead
 of letting the user discover it halfway through.
 
-1. If no pre-commit hook is configured, skip the estimate entirely — the
-   `--exec` in Step 2 is then a no-op and costs nothing. Check
-   `git rev-parse --git-path hooks/pre-commit` (and `core.hooksPath` if set);
-   if the hook file does not exist, move on to Step 2.
+1. Locate the pre-commit hook. **Check `core.hooksPath` first** — a repo that
+   set it (every repo `/kix:setup` touches points it at `.beads/hooks/`) keeps
+   its hooks there, and `git rev-parse --git-path hooks/pre-commit` answers
+   with the unused `.git/hooks/` path regardless:
+
+   ```
+   dir=$(git config --get core.hooksPath || git rev-parse --git-path hooks)
+   ```
+
+   Resolve `{dir}/pre-commit` relative to the repo root when the configured
+   path is relative. If that file does not exist, skip the estimate entirely —
+   the `--exec` in Step 2 is then a no-op and costs nothing — and move on to
+   Step 2.
+
 2. Time one run against the current HEAD:
 
    ```
