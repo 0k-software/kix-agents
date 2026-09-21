@@ -37,8 +37,8 @@ complete until `git push` succeeds.
    follow-up
 2. **Run quality gates** (if code changed) - Tests, linters, builds
 3. **Update issue status** - Park branch work on its PR
-   (`bd update <id> --status=in_progress --notes="PR: <url>"`); close only what
-   has already merged to main
+   (`bd update <id> --status=in_progress --append-notes="PR: <url>"`); close
+   only what has already merged to main
 4. **PUSH TO REMOTE** - This is MANDATORY:
    ```bash
    git pull --rebase
