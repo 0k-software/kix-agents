@@ -74,17 +74,16 @@ The state file is consumed (deleted) on a successful commit (Step 5) and on the
    [`/kix:commit-message`](../commit-message/SKILL.md) with the context text as
    its arguments. Read that skill and apply its steps here — style resolution
    (`Commit message` section in `AGENTS.md`/`CLAUDE.md`, else the repo's own
-   history), the no-`Co-Authored-By` rule, and the rest — instead of
-   duplicating them. Its _output contract_ does not apply here: this skill is
-   interactive, so the message goes into Step 4's code block rather than being
-   the whole response. Its diff-source rule resolves to the staged diff, since
-   Step 1 already staged everything that belongs in the commit. Its
-   `Where the "why" comes from` ranking matters most here: `/kix:commit` always
-   runs inside a live session, so this conversation — the problem, the
-   approaches tried and dropped, the trade-offs the user chose between, the
-   corrections they made — is available and should carry the body, subject to
-   that section's two rules (explain only what this diff contains; never invent
-   a rationale).
+   history) and the rest — instead of duplicating them. Its _output contract_
+   does not apply here: this skill is interactive, so the message goes into
+   Step 4's code block rather than being the whole response. Its diff-source
+   rule resolves to the staged diff, since Step 1 already staged everything
+   that belongs in the commit. Its `Where the "why" comes from` ranking matters
+   most here: `/kix:commit` always runs inside a live session, so this
+   conversation — the problem, the approaches tried and dropped, the trade-offs
+   the user chose between, the corrections they made — is available and should
+   carry the body, subject to that section's two rules (explain only what this
+   diff contains; never invent a rationale).
 4. Display the generated commit message inside a fenced code block (open and
    close with three backticks on their own lines) so it renders as a distinct
    block and preserves literal formatting (commit messages often contain `#`,

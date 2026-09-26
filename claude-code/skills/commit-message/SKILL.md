@@ -20,8 +20,7 @@ whole point of the skill: the caller pipes stdout straight into
 - No preamble ("Here's the commit message:"), no trailing commentary, no
   summary of what you did, no questions.
 - No fenced code block, no markdown quoting, no leading/trailing blank lines.
-- No `Co-Authored-By` footer and no "Generated with Claude Code" line — you're
-  helping write the message, not claiming authorship of the code.
+- No "Generated with Claude Code" line.
 - If there are no uncommitted changes, print nothing at all.
 
 Announce nothing. Explain nothing. Emit the message.

@@ -9,6 +9,9 @@ The format is based on
 
 ### Changed
 
+- `kix:commit-message` (and `kix:commit`, which delegates to it) no longer
+  forbids a `Co-Authored-By` footer. The harness's own attribution guidance now
+  decides whether one is added.
 - `install-bd.sh` (both the copy this repo runs and the one `/kix:setup`
   installs) now downloads from `gastownhall/beads` — the repo's current home —
   rather than relying on GitHub's redirect from `steveyegge/beads`. The release
