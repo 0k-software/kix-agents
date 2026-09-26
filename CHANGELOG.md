@@ -58,6 +58,18 @@ The format is based on
   makes intentional: the overridden `bd prime` output, `no-git-ops` becoming a
   no-op, Codex having no `PreCompact` hook to re-inject memories mid-session,
   and the stamp gate firing on a pin bump.
+- `/kix:commit` and `/kix:rebase` now have a configurable default mode
+  (`interactive` or `auto`), so a user who always wants the autonomous path no
+  longer has to type `!` on every run. The default resolves the way caveman's
+  `defaultMode` does: the `KIX_COMMIT_MODE` / `KIX_REBASE_MODE` environment
+  variable first, then `commit.defaultMode` / `rebase.defaultMode` in
+  `~/.config/kix/config.json` (or `$XDG_CONFIG_HOME/kix/config.json`), then
+  `interactive` — today's behavior. A per-project default is the environment
+  variable in the repo's `.claude/settings.json` `env` block. `!` still forces
+  auto for one run, and a new `?` marker forces interactive when the configured
+  default is `auto`. `/kix:commit` saves the resolved mode in its resume state,
+  so a resumed commit keeps the mode it started with. See the README's
+  Configuration section.
 
 - `bootstrap-bd.sh` registers the Dolt remote from `sync.remote` in
   `.beads/config.yaml` and defaults `beads.role` to `maintainer`. Neither lives
@@ -78,6 +90,8 @@ The format is based on
   earlier pick up the fix on their next `/kix:setup`.
 - The `CLAUDE.md` template's session-completion step now says to park branch
   work on its PR and close only what has merged, matching the new protocol.
+- `/kix:rebase`'s autonomous mode is now called **auto mode** (was "force
+  mode"), matching the config value.
 - `install-bd.sh` (both the copy this repo runs and the one `/kix:setup`
   installs) now downloads from `gastownhall/beads` — the repo's current home —
   rather than relying on GitHub's redirect from `steveyegge/beads`. The release

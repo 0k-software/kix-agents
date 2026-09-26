@@ -1,7 +1,7 @@
 ---
 name: rebase
 description: Rebase current branch onto another, handling pre-commit hook failures
-argument-hint: [!] [target-branch]
+argument-hint: [!|?] [target-branch]
 ---
 
 Rebase the current branch on top of a target branch, handling pre-commit hook
@@ -9,19 +9,54 @@ failures automatically.
 
 ## Invocation modes
 
-- **`/kix:rebase [branch]`** — interactive: ask the user to resolve conflicts.
-- **`/kix:rebase! [branch]`** — autonomous: resolve conflicts without asking.
+- **Interactive mode** — ask the user to resolve conflicts.
+- **Auto mode** — resolve conflicts without asking.
+
+Pick the mode per invocation:
+
+- **`/kix:rebase! [branch]`** — auto mode for this run.
+- **`/kix:rebase? [branch]`** — interactive mode for this run.
+- **`/kix:rebase [branch]`** — the configured default mode (see below).
 
 Parse `$ARGUMENTS` to determine the mode and target branch:
 
-1. If the skill was invoked as `/kix:rebase!`, set **force mode = true**. The
-   `!` may appear as the first character of `$ARGUMENTS` (i.e. `$ARGUMENTS`
-   starts with `!`). Strip the `!` before parsing the branch name.
+1. If the skill was invoked as `/kix:rebase!` or `/kix:rebase?`, the marker
+   appears as the first character of `$ARGUMENTS` (i.e. `$ARGUMENTS` starts
+   with `!` or `?`). `!` sets **auto mode**, `?` sets **interactive mode**.
+   Strip the marker before parsing the branch name. With no marker, resolve the
+   configured default mode.
 2. Whatever remains after stripping is the **target branch**. If empty, detect
    the default branch with
    `git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@'`,
    falling back to `main`. Strip a leading `refs/remotes/origin/` or `origin/`
    if the user wrote one — the target is always a bare branch name here.
+
+### Configured default mode
+
+When `$ARGUMENTS` carries no marker, resolve the default mode — first match
+wins:
+
+1. The `KIX_REBASE_MODE` environment variable.
+2. The `rebase.defaultMode` field of the kix config file:
+   `$XDG_CONFIG_HOME/kix/config.json` if `XDG_CONFIG_HOME` is set, else
+   `~/.config/kix/config.json` (`%APPDATA%\kix\config.json` on Windows).
+3. `interactive`.
+
+Valid values are `interactive` and `auto` (case-insensitive). Ignore an invalid
+value, a missing file, or unparseable JSON and fall through to the next source.
+Read both sources in one call:
+
+```bash
+printenv KIX_REBASE_MODE; cat "${XDG_CONFIG_HOME:-$HOME/.config}/kix/config.json" 2>/dev/null || true
+```
+
+Per-project overrides need no extra mechanism: setting `KIX_REBASE_MODE` in the
+`env` block of the repo's `.claude/settings.json` (or `settings.local.json`)
+lands in this environment and outranks the config file.
+
+State the resolved mode and where it came from in one short line before Step 1
+(e.g. `mode: auto (~/.config/kix/config.json)`), so a surprising default is
+visible.
 
 ---
 
@@ -96,7 +131,7 @@ When the pre-commit hook fails after a commit is applied:
 1. Run `git diff` to see the conflict markers.
 2. Read the conflicting files to understand the full context.
 
-**If interactive mode (default):**
+**If interactive mode:**
 
 3. Explain to the user:
    - **What conflicted:** which files and hunks
@@ -109,7 +144,7 @@ When the pre-commit hook fails after a commit is applied:
        combined
 4. **Wait for the user's decision** before proceeding.
 
-**If force mode (`/kix:rebase!`):**
+**If auto mode:**
 
 3. Determine the best resolution by analyzing the intent of both sides:
    - If the current commit's change is the primary goal (e.g., a feature or

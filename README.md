@@ -21,6 +21,45 @@ This repo declares itself as a Claude Code marketplace via
 /plugin install kix@kix-agents
 ```
 
+## Configuration
+
+`/kix:commit` and `/kix:rebase` each run in one of two modes:
+
+- `interactive` — stop and ask: `/kix:commit` aborts on a failed commit,
+  `/kix:rebase` asks you how to resolve each conflict.
+- `auto` — fix it without asking: `/kix:commit` repairs pre-commit hook
+  failures and retries, `/kix:rebase` resolves conflicts on its own.
+
+A leading `!` (auto) or `?` (interactive) picks the mode for one run —
+`/kix:commit ! reason`, `/kix:rebase ? main`. Without a marker, each skill uses
+its configured default, resolved like this (first match wins):
+
+1. Environment variable — `KIX_COMMIT_MODE` / `KIX_REBASE_MODE`.
+2. User config file — `$XDG_CONFIG_HOME/kix/config.json`, falling back to
+   `~/.config/kix/config.json` (`%APPDATA%\kix\config.json` on Windows):
+
+   ```json
+   {
+     "commit": { "defaultMode": "auto" },
+     "rebase": { "defaultMode": "interactive" }
+   }
+   ```
+
+3. `interactive`.
+
+For a per-project default, set the environment variable in the repo's
+`.claude/settings.json` (shared with the team) or `.claude/settings.local.json`
+(just you) — Claude Code exports its `env` block into the session, so it
+outranks the user config file:
+
+```json
+{
+  "env": { "KIX_REBASE_MODE": "auto" }
+}
+```
+
+The same `env` block in `~/.claude/settings.json` sets a user-wide default.
+
 ## Layout
 
 ```text

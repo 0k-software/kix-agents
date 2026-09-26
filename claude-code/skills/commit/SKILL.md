@@ -1,7 +1,7 @@
 ---
 name: commit
 description: Commit current work using the project's commit procedure (staging strategy, message generation, pre-commit hook auto-fix).
-argument-hint: [!] [reason for the change]
+argument-hint: [!|?] [reason for the change]
 ---
 
 Commit the current intent — everything if the index is clean, only what's
@@ -9,15 +9,44 @@ staged otherwise — and generate the commit message.
 
 ## Argument parsing
 
-`$ARGUMENTS` may start with `!` (e.g. `! fixed the bug`). Strip the leading `!`
-and whitespace to obtain the **context text**. If `!` is present, the skill
-runs in **auto-fix mode** (see Step 6).
+`$ARGUMENTS` may start with a mode marker:
 
-If `$ARGUMENTS` does not start with `!`, the entire string is the context text
-and the skill runs in **interactive mode**.
+- `!` (e.g. `! fixed the bug`) — force **auto-fix mode** for this run (see Step
+  6).
+- `?` (e.g. `? fixed the bug`) — force **interactive mode** for this run.
+
+Strip the leading marker and whitespace to obtain the **context text**. If
+there is no marker, the entire string is the context text and the mode is the
+**configured default** (see below).
 
 If the context text is non-empty, treat it as the reason/motivation behind the
 changes and use it to write the commit body.
+
+### Configured default mode
+
+When `$ARGUMENTS` carries no marker, resolve the default mode — first match
+wins:
+
+1. The `KIX_COMMIT_MODE` environment variable.
+2. The `commit.defaultMode` field of the kix config file:
+   `$XDG_CONFIG_HOME/kix/config.json` if `XDG_CONFIG_HOME` is set, else
+   `~/.config/kix/config.json` (`%APPDATA%\kix\config.json` on Windows).
+3. `interactive`.
+
+Valid values are `interactive` and `auto` (case-insensitive). Ignore an invalid
+value, a missing file, or unparseable JSON and fall through to the next source.
+Read both sources in one call:
+
+```bash
+printenv KIX_COMMIT_MODE; cat "${XDG_CONFIG_HOME:-$HOME/.config}/kix/config.json" 2>/dev/null || true
+```
+
+Per-project overrides need no extra mechanism: setting `KIX_COMMIT_MODE` in the
+`env` block of the repo's `.claude/settings.json` (or `settings.local.json`)
+lands in this environment and outranks the config file.
+
+State the resolved mode and where it came from in one short line before Step 1
+(e.g. `mode: auto (KIX_COMMIT_MODE)`), so a surprising default is visible.
 
 ## Resume detection
 
@@ -25,14 +54,19 @@ Before running the steps below, check for `.git/kix-commit-state.json`. If it
 exists, a previous `/commit` run was paused via Step 6 **Continue** — this is a
 **resume**, not a fresh run.
 
-- Load `orig_index_tree`, `had_stash`, `arguments`, `commit_message`,
+- Load `orig_index_tree`, `had_stash`, `arguments`, `mode`, `commit_message`,
   `last_staged_diff`, and `claude_session_id` from the file.
 - If `claude_session_id` differs from the current session, the original
   conversation may have additional context (e.g. why a particular fix was
   chosen). Treat it as available-on-demand background; don't auto-fetch unless
   the resume hits an ambiguity that the saved state alone can't resolve.
-- If the current `$ARGUMENTS` is empty, reuse the saved `arguments` (so `!`
-  mode persists across resumes). If non-empty, the new value wins.
+- If the current `$ARGUMENTS` is empty, reuse the saved `arguments` and the
+  saved `mode` (so the mode persists across resumes even if the configured
+  default changed in between). If non-empty, the new value wins: a `!`/`?`
+  marker sets the mode, and without one the mode is resolved fresh from the
+  configured default. A state file from before `mode` was saved has no `mode`
+  field — derive it from the saved `arguments` (`!` → auto-fix, otherwise
+  interactive).
 - **Skip Step 1** — the staging strategy was decided on the original run. Run
   `git add .` to pick up any manual fixes the user made before resuming, and
   reuse the saved `ORIG_INDEX_TREE`.
@@ -92,14 +126,13 @@ The state file is consumed (deleted) on a successful commit (Step 5) and on the
    - **On success**, delete `.git/kix-commit-state.json` if it exists — any
      resume state has been consumed.
 6. **On error:**
-   - **Interactive mode** (no `!`): display the error and abort. Do **not**
-     attempt to fix it yourself. Still run Step 7 to restore any stashed
-     changes.
-   - **Auto-fix mode** (`!`): diagnose the failure (e.g. pre-commit hook
-     lint/format errors), fix the issue, re-stage with `git add .`, and retry
-     the commit. (If a stash was created in Step 1, the excluded files are not
-     in the working tree, so `git add .` is safe.) Keep retrying as long as you
-     see **progress** between attempts. Progress means at least one of:
+   - **Interactive mode**: display the error and abort. Do **not** attempt to
+     fix it yourself. Still run Step 7 to restore any stashed changes.
+   - **Auto-fix mode**: diagnose the failure (e.g. pre-commit hook lint/format
+     errors), fix the issue, re-stage with `git add .`, and retry the commit.
+     (If a stash was created in Step 1, the excluded files are not in the
+     working tree, so `git add .` is safe.) Keep retrying as long as you see
+     **progress** between attempts. Progress means at least one of:
      - the error output is materially different from the previous attempt
        (different errors, fewer errors, different files), or
      - your fix actually changed files (`git diff --staged` differs from the
@@ -114,11 +147,12 @@ The state file is consumed (deleted) on a successful commit (Step 5) and on the
         prompting the user.** Do this first, so the state survives a session
         kill while waiting for the user's reply. Required fields:
         `orig_index_tree` (the SHA from Step 1), `had_stash` (true if a stash
-        was created in Step 1), `arguments` (the original `$ARGUMENTS`),
-        `commit_message` (the draft from Step 3), `last_staged_diff` (the
-        staged diff from the most recent attempt), and `claude_session_id` (the
-        current Claude session id, so a future resume in a fresh session can
-        pull context from the original session if needed).
+        was created in Step 1), `arguments` (the original `$ARGUMENTS`), `mode`
+        (the resolved mode, `auto` or `interactive`), `commit_message` (the
+        draft from Step 3), `last_staged_diff` (the staged diff from the most
+        recent attempt), and `claude_session_id` (the current Claude session
+        id, so a future resume in a fresh session can pull context from the
+        original session if needed).
      2. Report the failure clearly: the commit was not created, the fix loop
         stopped, your fix attempts are in the working tree + index, and resume
         state has been written to `.git/kix-commit-state.json`. If a stash was
