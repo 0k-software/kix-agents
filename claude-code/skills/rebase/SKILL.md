@@ -1,7 +1,7 @@
 ---
 name: rebase
 description: Rebase current branch onto another, handling pre-commit hook failures
-argument-hint: [!|?] [target-branch]
+argument-hint: [!|?] [target-branch] | --mode [interactive|auto] [--project]
 ---
 
 Rebase the current branch on top of a target branch, handling pre-commit hook
@@ -17,8 +17,15 @@ Pick the mode per invocation:
 - **`/kix:rebase! [branch]`** — auto mode for this run.
 - **`/kix:rebase? [branch]`** — interactive mode for this run.
 - **`/kix:rebase [branch]`** — the configured default mode (see below).
+- **`/kix:rebase --mode [mode]`** — show or store the default mode instead of
+  rebasing (see [Setting the default mode](#setting-the-default-mode)).
 
-Parse `$ARGUMENTS` to determine the mode and target branch:
+First check for the **`--mode` flag**: when `$ARGUMENTS` is `--mode`,
+optionally followed by `interactive` or `auto` and/or `--project` (nothing
+else), don't rebase — run [Setting the default mode](#setting-the-default-mode)
+and stop. No branch name can start with `-`, so this never shadows a target.
+
+Otherwise, parse `$ARGUMENTS` to determine the mode and target branch:
 
 1. If the skill was invoked as `/kix:rebase!` or `/kix:rebase?`, the marker
    appears as the first character of `$ARGUMENTS` (i.e. `$ARGUMENTS` starts
@@ -57,6 +64,29 @@ lands in this environment and outranks the config file.
 State the resolved mode and where it came from in one short line before Step 1
 (e.g. `mode: auto (~/.config/kix/config.json)`), so a surprising default is
 visible.
+
+### Setting the default mode
+
+`/kix:rebase --mode` shows the default mode; `/kix:rebase --mode auto` (or
+`--mode interactive`) stores it, so the user doesn't edit JSON by hand:
+
+- **No value** (`--mode`, or `--mode --project`): report the current default
+  and its source, resolved as above. Change nothing.
+- **Invalid value**: reply that the valid values are `interactive` and `auto`.
+  Change nothing.
+- **User-wide (default):** write `rebase.defaultMode` into the kix config file
+  (`$XDG_CONFIG_HOME/kix/config.json`, else `~/.config/kix/config.json`).
+  Create the directory and file if missing. Read the existing JSON first and
+  change only that one field — keep every other key (e.g. `commit`). If the
+  file exists but isn't valid JSON, stop and show it rather than overwrite it.
+- **`--project`:** write `"KIX_REBASE_MODE": "<mode>"` into the `env` block of
+  the repo's `.claude/settings.local.json` (personal, not committed), with the
+  same merge rules. Claude Code loads `env` at session start, so tell the user
+  it takes effect in the next session.
+
+After a user-wide write, if `KIX_REBASE_MODE` is set in the environment, warn
+that it still overrides the file for as long as it's set. End with one line,
+e.g. `rebase default mode: auto (~/.config/kix/config.json)`.
 
 ---
 

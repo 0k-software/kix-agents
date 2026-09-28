@@ -60,6 +60,18 @@ outranks the user config file:
 
 The same `env` block in `~/.claude/settings.json` sets a user-wide default.
 
+You don't have to edit these files by hand — each skill sets its own default:
+
+```text
+/kix:rebase --mode auto             ← writes rebase.defaultMode to the config file
+/kix:commit --mode interactive      ← writes commit.defaultMode
+/kix:rebase --mode auto --project   ← writes KIX_REBASE_MODE to .claude/settings.local.json
+/kix:commit --mode                  ← shows the current default and where it comes from
+```
+
+A `--project` setting takes effect in the next session, since Claude Code reads
+`env` at session start.
+
 ## Layout
 
 ```text

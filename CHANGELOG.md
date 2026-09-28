@@ -70,6 +70,11 @@ The format is based on
   default is `auto`. `/kix:commit` saves the resolved mode in its resume state,
   so a resumed commit keeps the mode it started with. See the README's
   Configuration section.
+- `/kix:commit --mode <mode>` and `/kix:rebase --mode <mode>` store that
+  default without hand-editing JSON: user-wide in `~/.config/kix/config.json`,
+  or with `--project` as the env var in the repo's
+  `.claude/settings.local.json`. A bare `--mode` shows the current default and
+  where it comes from.
 
 - `bootstrap-bd.sh` registers the Dolt remote from `sync.remote` in
   `.beads/config.yaml` and defaults `beads.role` to `maintainer`. Neither lives

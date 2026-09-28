@@ -1,7 +1,7 @@
 ---
 name: commit
 description: Commit current work using the project's commit procedure (staging strategy, message generation, pre-commit hook auto-fix).
-argument-hint: [!|?] [reason for the change]
+argument-hint: [!|?] [reason for the change] | --mode [interactive|auto] [--project]
 ---
 
 Commit the current intent — everything if the index is clean, only what's
@@ -9,7 +9,12 @@ staged otherwise — and generate the commit message.
 
 ## Argument parsing
 
-`$ARGUMENTS` may start with a mode marker:
+First check for the **`--mode` flag**: when `$ARGUMENTS` is `--mode`,
+optionally followed by `interactive` or `auto` and/or `--project` (nothing
+else), don't commit — run [Setting the default mode](#setting-the-default-mode)
+and stop.
+
+Otherwise, `$ARGUMENTS` may start with a mode marker:
 
 - `!` (e.g. `! fixed the bug`) — force **auto-fix mode** for this run (see Step
   6).
@@ -47,6 +52,29 @@ lands in this environment and outranks the config file.
 
 State the resolved mode and where it came from in one short line before Step 1
 (e.g. `mode: auto (KIX_COMMIT_MODE)`), so a surprising default is visible.
+
+### Setting the default mode
+
+`/kix:commit --mode` shows the default mode; `/kix:commit --mode auto` (or
+`--mode interactive`) stores it, so the user doesn't edit JSON by hand:
+
+- **No value** (`--mode`, or `--mode --project`): report the current default
+  and its source, resolved as above. Change nothing.
+- **Invalid value**: reply that the valid values are `interactive` and `auto`.
+  Change nothing.
+- **User-wide (default):** write `commit.defaultMode` into the kix config file
+  (`$XDG_CONFIG_HOME/kix/config.json`, else `~/.config/kix/config.json`).
+  Create the directory and file if missing. Read the existing JSON first and
+  change only that one field — keep every other key (e.g. `rebase`). If the
+  file exists but isn't valid JSON, stop and show it rather than overwrite it.
+- **`--project`:** write `"KIX_COMMIT_MODE": "<mode>"` into the `env` block of
+  the repo's `.claude/settings.local.json` (personal, not committed), with the
+  same merge rules. Claude Code loads `env` at session start, so tell the user
+  it takes effect in the next session.
+
+After a user-wide write, if `KIX_COMMIT_MODE` is set in the environment, warn
+that it still overrides the file for as long as it's set. End with one line,
+e.g. `commit default mode: auto (~/.config/kix/config.json)`.
 
 ## Resume detection
 
