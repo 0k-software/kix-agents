@@ -73,7 +73,12 @@ visible.
 `--mode interactive`) stores it, so the user doesn't edit JSON by hand:
 
 - **No value** (`--mode`, or `--mode --project`): report the current default
-  and its source, resolved as above. Change nothing.
+  and its source, resolved as above. Also read `KIX_REBASE_MODE` from the `env`
+  block of the repo's `.claude/settings.local.json`: a `--project` write only
+  loads at session start, so when that value is set and differs from the live
+  environment variable, report it as pending — e.g.
+  `rebase default mode: interactive (~/.config/kix/config.json) · pending: auto (.claude/settings.local.json, next session)`.
+  Change nothing.
 - **Invalid value**: reply that the valid values are `interactive` and `auto`.
   Change nothing.
 - **User-wide (default):** write `rebase.defaultMode` into the kix config file
