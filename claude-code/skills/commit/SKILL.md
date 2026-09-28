@@ -9,10 +9,12 @@ staged otherwise — and generate the commit message.
 
 ## Argument parsing
 
-First check for the **`--mode` flag**: when `$ARGUMENTS` is `--mode`,
-optionally followed by `interactive` or `auto` and/or `--project` (nothing
-else), don't commit — run [Setting the default mode](#setting-the-default-mode)
-and stop.
+First check for the **`--mode` flag**: when the first word of `$ARGUMENTS` is
+`--mode`, don't commit — run
+[Setting the default mode](#setting-the-default-mode) and stop. That section
+validates what follows: no value shows the default, `interactive` or `auto`
+sets it, anything else is an invalid value that changes nothing (`--project`
+may follow).
 
 Otherwise, `$ARGUMENTS` may start with a mode marker:
 

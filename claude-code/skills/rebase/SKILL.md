@@ -20,10 +20,12 @@ Pick the mode per invocation:
 - **`/kix:rebase --mode [mode]`** — show or store the default mode instead of
   rebasing (see [Setting the default mode](#setting-the-default-mode)).
 
-First check for the **`--mode` flag**: when `$ARGUMENTS` is `--mode`,
-optionally followed by `interactive` or `auto` and/or `--project` (nothing
-else), don't rebase — run [Setting the default mode](#setting-the-default-mode)
-and stop. No branch name can start with `-`, so this never shadows a target.
+First check for the **`--mode` flag**: when the first word of `$ARGUMENTS` is
+`--mode`, don't rebase — run
+[Setting the default mode](#setting-the-default-mode) and stop. That section
+validates what follows: no value shows the default, `interactive` or `auto`
+sets it, anything else is an invalid value that changes nothing (`--project`
+may follow). No branch name can start with `-`, so this never shadows a target.
 
 Otherwise, parse `$ARGUMENTS` to determine the mode and target branch:
 
