@@ -83,8 +83,12 @@ visible.
   file exists but isn't valid JSON, stop and show it rather than overwrite it.
 - **`--project`:** write `"KIX_REBASE_MODE": "<mode>"` into the `env` block of
   the repo's `.claude/settings.local.json` (personal, not committed), with the
-  same merge rules. Claude Code loads `env` at session start, so tell the user
-  it takes effect in the next session.
+  same merge rules. First make sure it stays out of commits: if
+  `git check-ignore -q .claude/settings.local.json` fails, append
+  `.claude/settings.local.json` to the clone-local exclude file
+  (`git rev-parse --git-path info/exclude`) and tell the user it was added
+  there. Claude Code loads `env` at session start, so tell the user it takes
+  effect in the next session.
 
 After a user-wide write, if `KIX_REBASE_MODE` is set in the environment, warn
 that it still overrides the file for as long as it's set. End with one line,
