@@ -62,9 +62,9 @@ git checks `refs/heads/` before `refs/remotes/`, so a stray local branch named
    output as you work through Step 2 — call out which commit is currently
    applying, and report when each one lands (cleanly, after a hook fix, or
    after conflict resolution).
-5. Estimate the total run time — see below — and report it before starting.
+5. Estimate the hook time — see below — and report it before starting.
 
-### Estimate the run time
+### Estimate the hook time
 
 The rebase runs the pre-commit hook once per commit, so a slow hook multiplied
 by a long branch can burn a lot of wall-clock time. Measure it up front instead
@@ -84,17 +84,39 @@ of letting the user discover it halfway through.
    the `--exec` in Step 2 is then a no-op and costs nothing — and move on to
    Step 2.
 
-2. Time one run against the current HEAD:
+2. Time one run against the current HEAD. Measure **sub-second** — a hook that
+   takes 0.6s reads as 0 in whole seconds, which zeroes every estimate no
+   matter how long the branch is, and BSD `date` on macOS has no `%N` to widen
+   it:
 
    ```
-   start=$(date +%s); git hook run pre-commit; end=$(date +%s); echo $((end - start))
+   python3 -c 'import subprocess,time; t=time.time(); subprocess.run(["git","hook","run","pre-commit"]); print(time.time()-t)'
    ```
 
    A non-zero exit here is **not** an abort — Step 2 case B already handles
    hook failures. Use the measured duration either way.
 
-3. Multiply the hook duration by the number of commits from Step 1 item 4. That
-   product is the estimate. Always report it, however small.
+3. **Restore what the hook touched.** A pre-commit hook is written to run
+   mid-commit, so it may well write files and stage them — the Kix hook runs
+   `make autofix` and `git add .`, and beads' managed section syncs its DB to
+   JSONL. Left alone, that dirty index makes Step 2 abort with
+   `cannot rebase: Your index contains uncommitted changes`, and the
+   measurement will have broken the very thing it was measuring. Unstage and
+   discard it:
+
+   ```
+   git reset && git checkout -- .
+   ```
+
+   Then re-verify `git status --porcelain` is empty. If anything survives (an
+   untracked file the hook generated, say), abort and tell the user what the
+   hook left behind rather than starting a rebase on a dirty tree.
+
+4. Multiply the hook duration by the number of commits from Step 1 item 4. That
+   product is the estimate. Always report it, however small — and report it as
+   hook time, which is what it measures: it excludes conflict resolution and
+   hook fixes, so a branch that conflicts will overrun it by however long those
+   take.
 
 Then apply the threshold that matches the estimate:
 
@@ -193,7 +215,8 @@ successfully — every commit from Step 1 should end up landed.
 Display a summary:
 
 - How many commits were rebased
-- How long it actually took, against the Step 1 estimate
+- How long it actually took, against the Step 1 hook-time estimate (conflicts
+  and hook fixes are the gap between the two)
 - How many conflicts were resolved (and how)
 - How many pre-commit fixes were applied
 - The final `git log --oneline` showing the rebased commits
