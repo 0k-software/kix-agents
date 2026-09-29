@@ -1,18 +1,17 @@
 #!/bin/sh
-# Tests the kix-time-hook recorder that claude-code/skills/rebase/SKILL.md tells
-# agents to write.
+# Tests claude-code/skills/rebase/time-hook.sh — the recorder the rebase skill
+# tells agents to use as their --exec command.
 #
-# The recorder is NOT duplicated here. It is extracted from the skill's own
-# heredoc at run time, so editing the skill changes what these tests execute —
-# a copy would keep passing after the skill broke, which is the one failure mode
-# a test like this must not have. If the heredoc is renamed, moved or removed,
-# extraction fails loudly instead of falling back to anything.
+# There is no copy of it here and nothing is extracted: the tests run that file
+# directly, the same one the plugin ships, so a change to it is a change to what
+# these tests execute. Point RECORDER at another path to test a different copy.
 #
 # Run: sh scripts/test-rebase-timing.sh   (or: make test)
 
 set -eu
 
-SKILL=${SKILL:-claude-code/skills/rebase/SKILL.md}
+RECORDER=${RECORDER:-claude-code/skills/rebase/time-hook.sh}
+case $RECORDER in /*) ;; *) RECORDER="$PWD/$RECORDER" ;; esac
 
 failures=0
 tmproot=$(mktemp -d)
@@ -22,40 +21,6 @@ ok() { printf '  ok — %s\n' "$1"; }
 no() {
   printf '  FAIL — %s\n' "$1"
   failures=$((failures + 1))
-}
-
-# Pull the recorder out of the skill and install it in the given repo.
-write_recorder() {
-  python3 - "$SKILL" "$1/.git/kix-time-hook" <<'PY'
-import pathlib, re, sys
-
-skill_path, out_path = sys.argv[1], sys.argv[2]
-try:
-    skill = pathlib.Path(skill_path).read_text()
-except OSError as exc:
-    sys.exit(f"cannot read the skill at {skill_path}: {exc}")
-
-# The block the skill tells the agent to write: cat > "…/kix-time-hook" <<'SH' … SH
-match = re.search(r"kix-time-hook\"? *<<'SH'\n(.*?)\n[ \t]*SH\n", skill, re.S)
-if not match:
-    sys.exit(
-        f"no kix-time-hook heredoc in {skill_path} — if the recorder was renamed or "
-        "restructured, update this extraction (and the tests) to match"
-    )
-
-lines = match.group(1).split("\n")
-indent = min(len(ln) - len(ln.lstrip()) for ln in lines if ln.strip())
-body = "\n".join(ln[indent:] if ln.strip() else "" for ln in lines)
-
-for required in ("#!/bin/sh", "git hook run", "kix-hook-times"):
-    if required not in body:
-        sys.exit(f"extracted recorder is missing {required!r}:\n{body}")
-
-pathlib.Path(out_path).write_text(body + "\n")
-PY
-  # Guarded: on a failed extraction there is no file, and chmod's own error
-  # would bury the message that explains why.
-  [ -f "$1/.git/kix-time-hook" ] && chmod +x "$1/.git/kix-time-hook"
 }
 
 # A repo with `n` commits on feat and one divergent commit on main.
@@ -85,26 +50,33 @@ make_repo() {
     git commit -qm other
     git checkout -q feat
   )
-  write_recorder "$repo"
   echo "$repo"
 }
 
 set_hook() { printf '#!/bin/sh\n%s\n' "$2" > "$1/.git/hooks/pre-commit" && chmod +x "$1/.git/hooks/pre-commit"; }
 
-rebase() { (cd "$1" && git rebase main --exec .git/kix-time-hook >/dev/null 2>&1); }
+rebase() { (cd "$1" && git rebase main --exec "$RECORDER" >/dev/null 2>&1); }
 
 lines() { wc -l < "$1/.git/kix-hook-times" | tr -d ' '; }
 
-echo "0. the recorder comes out of the skill, not out of this script"
-probe="$tmproot/probe"
-mkdir -p "$probe/.git"
-if write_recorder "$probe" 2>"$tmproot/extract.err"; then
-  ok "extracted the recorder from $SKILL"
+echo "0. the recorder the skill ships is present and runnable"
+if [ -f "$RECORDER" ]; then
+  ok "found $RECORDER"
 else
-  no "extraction failed: $(cat "$tmproot/extract.err")"
+  no "no recorder at $RECORDER"
   echo
-  echo "cannot test a recorder that could not be read — stopping"
+  echo "nothing to test — stopping"
   exit 1
+fi
+if [ -x "$RECORDER" ]; then
+  ok "it is executable, so --exec can run it"
+else
+  no "$RECORDER is not executable — git would refuse to exec it"
+fi
+if grep -q -- '--ignore-missing' "$RECORDER"; then
+  ok "it passes --ignore-missing"
+else
+  no "it does not pass --ignore-missing (test 1 covers what that breaks)"
 fi
 
 echo "1. no pre-commit hook — the rebase must still finish"

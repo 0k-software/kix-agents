@@ -166,15 +166,16 @@ kix-agents ships a Claude Code marketplace + plugin — no application code:
   new.
 - **Markdown formatting.** Prettier is the formatter; `make check` blocks
   merges on drift. Run `make autofix` before committing.
-- **Testing prose that is really a contract.**
-  `claude-code/skills/rebase/SKILL.md` hands agents a shell recorder
-  (`kix-time-hook`) whose behaviour depends on git's, so
-  `scripts/test-rebase-timing.sh` keeps a copy of it and exercises it against
-  throwaway repos — missing hook, passing hook, failing hook, sub-second
-  timing, and what `git rebase --continue` does after a failed `exec`. Edit the
-  heredoc in the skill and you must edit the copy in the script. It is
-  `make test`, not `make check`: it runs real rebases and the pre-commit hook
-  runs `check` on every commit.
+- **The rebase skill's recorder is a real file.** `time-hook.sh` in
+  `claude-code/skills/rebase/` is what the skill's `--exec` points at (via
+  `${CLAUDE_PLUGIN_ROOT}`), and `scripts/test-rebase-timing.sh` (`make test`)
+  runs that same file against throwaway repos — missing hook, passing hook,
+  failing hook, sub-second timing, and what `git rebase --continue` does after
+  a failed `exec`. One copy, executed by both, so it cannot drift from its
+  tests; earlier revisions pasted the script into the skill as a heredoc and
+  into the suite as a copy, and both go stale silently. It is `make test`, not
+  `make check`: it runs real rebases and the pre-commit hook runs `check` on
+  every commit.
 - **Releases are tag-driven.** `make release` POSTs to GitHub's releases API;
   the plugin marketplace install path resolves via tags. Never force-tag or
   rewrite published tags.

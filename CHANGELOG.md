@@ -108,15 +108,19 @@ The format is based on
   so a fresh clone had no remote (making `bd dolt push` a silent no-op) and
   warned on every `bd` command. `/kix:setup` now documents recording
   `sync.remote` when the repo has a DoltHub remote.
-- `scripts/test-rebase-timing.sh` (`make test`) — the rebase skill hands agents
-  a shell recorder whose behaviour depends on git's, which prose cannot verify.
-  The script extracts that recorder from the skill's own heredoc — never a
-  copy, which would go on passing after the skill broke — and runs it against
-  throwaway repos: a repo with no hook must still rebase to completion, a
-  passing hook must record one labelled line per commit, a 0.4s hook must not
-  read as zero, a failing hook must propagate its status and stop the rebase,
-  and `git rebase --continue` after a failed `exec` must not re-run it. Three
-  bugs in this branch's own work came out of writing it.
+- `claude-code/skills/rebase/time-hook.sh` — the hook-time recorder the rebase
+  skill's `--exec` now points at, shipped as a file next to the skill (the
+  pattern `skills/setup/setup.sh` already uses) rather than pasted into the
+  prose as a heredoc. It runs `git hook run --ignore-missing pre-commit` and
+  appends `<sha> <start> <end> <status>` to `.git/kix-hook-times`.
+- `scripts/test-rebase-timing.sh` (`make test`) — runs that same file, the one
+  the plugin ships, against throwaway repos: a repo with no hook must still
+  rebase to completion, a passing hook must record one line per commit, a 0.4s
+  hook must not read as zero, a failing hook must propagate its status and stop
+  the rebase, `msgnum`/`end` must be `2N`, and `git rebase --continue` must not
+  re-run a failed `exec`. One file, executed by skill and tests alike, so there
+  is no copy to fall out of step. Three bugs in the feature came out of writing
+  it.
 
 ### Changed
 

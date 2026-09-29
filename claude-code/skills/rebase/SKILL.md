@@ -171,40 +171,24 @@ used to silence.
    interval a sub-second hook starts and finishes between two looks, so H would
    read as anything up to 10s and a 30-commit branch with a 0.4s hook would
    estimate 290s instead of 12 — tripping the over-5-minutes row over nothing.
-   Wrap the hook in a recorder that timestamps itself, and point `--exec` at
-   that instead of at the hook directly:
+
+   The recorder ships with this skill, at
+   `${CLAUDE_PLUGIN_ROOT}/skills/rebase/time-hook.sh`. Point `--exec` at it
+   instead of at the hook directly (Step 2 does) and it appends one line per
+   run to `.git/kix-hook-times`:
 
    ```
-   cat > "$(git rev-parse --git-dir)/kix-time-hook" <<'SH'
-   #!/bin/sh
-   d=$(git rev-parse --git-dir)
-   c=$(git rev-parse --short HEAD)
-   start=$(python3 -c 'import time; print(time.time())')
-   git hook run --ignore-missing pre-commit; status=$?
-   python3 -c "import time; print('$c', $start, time.time(), $status)" >> "$d/kix-hook-times"
-   exit $status
-   SH
-   chmod +x "$(git rev-parse --git-dir)/kix-time-hook"
+   <short sha> <start epoch> <end epoch> <hook exit status>
    ```
 
-   One line per run: commit, start, end, and the hook's exit status. The status
-   is what marks a sample clean — **not** whether the commit appears twice. A
-   failed `exec` is never re-run: `git rebase --continue` moves on to the next
-   todo entry, so the failing commit records exactly one line and looking for a
-   repeated commit would find nothing while happily using the failed run's
-   duration (usually a fast early exit, which collapses the estimate).
+   It runs `git hook run --ignore-missing pre-commit` and re-exports the hook's
+   own status, so a failing hook still stops the rebase exactly as case B
+   expects, while a repo with no hook configured is not treated as a failure.
+   Read the script if you need the detail — it explains why each of those two
+   things is load-bearing.
 
-   `--ignore-missing` is not optional. A bare `git hook run pre-commit` exits
-   **1** with `error: cannot find a hook named pre-commit` when no hook is
-   configured, which as an `--exec` command stops the rebase dead at the first
-   commit in every repo that has no pre-commit hook. `--ignore-missing` makes a
-   missing hook exit 0 while a failing hook still propagates its own status
-   (verified: missing → 0, passing → 0, `exit 7` → 7).
-
-   It re-exports the hook's own exit status, so a failing hook still stops the
-   rebase exactly as case B expects. Both files live inside `.git/`, so nothing
-   reaches the tree or a commit; delete `kix-hook-times` before starting and
-   both files when the rebase ends.
+   Delete `.git/kix-hook-times` before starting, and when the rebase ends. It
+   lives inside `.git/`, so nothing reaches the tree or a commit.
 
 2. **Run the rebase in the background and poll it.** A blocking `git rebase`
    call returns nothing until every commit has landed, so no threshold has
@@ -298,15 +282,19 @@ apart from a stale one in case C below. Backgrounding changes only how the
 command is launched; a subagent would start blind to all of it.
 
 ```
-git rebase refs/remotes/origin/{target} --exec "$(git rev-parse --git-dir)/kix-time-hook"
+git rebase refs/remotes/origin/{target} --exec "${CLAUDE_PLUGIN_ROOT}/skills/rebase/time-hook.sh"
 ```
 
-`kix-time-hook` is the recorder from "Estimate the hook time" item 1: it runs
-`git hook run --ignore-missing pre-commit`, timestamps both ends into
+`time-hook.sh` is the recorder from "Estimate the hook time" item 1: it runs
+`git hook run --ignore-missing pre-commit`, records the run in
 `.git/kix-hook-times` and re-exports the hook's exit status, so the outcomes
-below are unchanged. If you ever run the hook here directly instead, keep
-`--ignore-missing` — a bare `git hook run pre-commit` exits 1 in a repo with no
-pre-commit hook and stops the rebase at the first commit.
+below are unchanged. If `${CLAUDE_PLUGIN_ROOT}` is not set (a checkout of this
+repo rather than an installed plugin), use the path to `time-hook.sh` in that
+checkout. Running the hook directly instead —
+`--exec "git hook run --ignore-missing pre-commit"` — costs you the estimate
+but nothing else; keep `--ignore-missing` either way, since a bare
+`git hook run pre-commit` exits 1 in a repo with no pre-commit hook and stops
+the rebase at the first commit.
 
 This applies each commit and runs the pre-commit hook after each one. Poll it
 as "Estimate the hook time" describes; `git rebase` stops on its own at the
