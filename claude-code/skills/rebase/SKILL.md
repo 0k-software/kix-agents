@@ -173,11 +173,15 @@ used to silence.
    Start Step 2's command in the background instead and poll, roughly every 10
    seconds:
 
-   - `.git/rebase-merge/msgnum` and `.git/rebase-merge/end` — which commit of
-     how many is applying (`rebase-apply/next` and `last` on the apply
-     backend);
-   - the wall-clock time since `msgnum` last changed — that is how long the
-     current commit's hook has been running.
+   - `.git/rebase-merge/msgnum` against `.git/rebase-merge/end`. These count
+     **todo entries, not commits**: `--exec` inserts an `exec` line after every
+     `pick`, so `end` is `2N` — a 3-commit rebase reports `end=6`. An odd
+     `msgnum` means a commit is applying; an even one means that commit's hook
+     is running. Commits still to apply are `(end - msgnum) / 2`. (`--exec`
+     forces the merge backend, so `rebase-apply/` never appears — only look for
+     `rebase-merge/`.)
+   - the wall-clock time since `msgnum` last changed — while `msgnum` is even,
+     that is how long the current commit's hook has been running.
 
 2. **Speak up while the first run is still going.** When the first commit's
    hook passes **60 seconds** without finishing, do not wait for it: report
@@ -188,10 +192,12 @@ used to silence.
    is the case where waiting for a clean measurement would mean waiting out the
    very thing being measured.
 
-3. **H is the first clean hook run.** Once the first commit lands, take **H**
-   from the time `msgnum` advanced past it. Sub-second resolution matters: a
-   0.6s hook floored to 0 zeroes every estimate no matter how long the branch
-   is.
+3. **H is the first clean hook run.** `msgnum` reaching `2` starts the first
+   commit's hook and `msgnum` reaching `3` means it finished, so **H** is the
+   time between those two observations — no need to rebase one commit at a time
+   to get it; the full rebase keeps running while you read it off. Sub-second
+   resolution matters: a 0.6s hook floored to 0 zeroes every estimate no matter
+   how long the branch is.
 
    Ignore a first commit that conflicted or whose hook failed — its timing
    includes the fix, so it is not a clean sample. Take the next clean commit's
