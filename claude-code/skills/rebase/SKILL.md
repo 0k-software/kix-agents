@@ -216,7 +216,15 @@ go further**:
 | ----------- | --------------------------------- | --------------------------------- |
 | Under 2 min | Report the estimate, continue     | Report the estimate, continue     |
 | 2–5 min     | Warn, suggest squashing, continue | Warn, suggest squashing, continue |
-| Over 5 min  | **Stop and ask the user**         | Big red warning, continue         |
+| Over 5 min  | **Ask** — rebase keeps running    | Big red warning, continue         |
+
+**Nothing here ever pauses the rebase.** "Ask" means ask while it runs: you
+stop to wait for an answer, the background process does not. It has no pause —
+the only thing you could do to it is `git rebase --abort`, which throws away
+the commits it has already applied. Doing that before the user answers would be
+destroying work on the chance they might say stop, and the common answer is
+"continue anyway", which then costs nothing at all. In the best case the rebase
+finishes while the question is still on screen, and the answer is moot.
 
 The warning always names the two numbers behind the estimate, so the user can
 see which one to attack: "this will take a while — your pre-commit hook takes
@@ -226,11 +234,12 @@ runs proportionally.
 
 Over 5 minutes, say so explicitly ("this will take more than 5 minutes") and:
 
-- **Interactive mode:** ask, and leave the background rebase running while you
-  wait — a rebase that finishes on its own costs the user nothing, and there is
-  no way to pause it mid-flight anyway. Spell out the ways out: let it run, or
-  `git rebase --abort` and squash first (a squash needs the abort either way),
-  or `git rebase --abort` and leave it for later. Only abort on their answer.
+- **Interactive mode:** ask, leaving the rebase running. Spell out the ways
+  out: let it run, or `git rebase --abort` and squash first (a squash needs the
+  abort either way), or `git rebase --abort` and leave it for later. Only abort
+  on their answer — and if the rebase has already finished by then, say so and
+  treat an abort answer as a question about whether to squash the landed
+  result, not as licence to throw it away.
 - **Force mode:** never ask. Render the warning as a large, prominent red
   notice and let the rebase run on.
 

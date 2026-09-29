@@ -94,10 +94,13 @@ The format is based on
   whole branch has paid for it. Past two minutes the skill warns, names both
   numbers (hook seconds and commits left) and suggests squashing; past five
   minutes interactive mode asks — let it run, abort and squash, or abort and
-  leave it — while `/kix:rebase!` shows a prominent red warning and runs on.
-  There is no commit-count gate: a 1-commit branch has nothing left to apply so
-  nothing trips, and a 2-commit branch with a six-minute hook is exactly the
-  warning a gate would have silenced.
+  leave it — while `/kix:rebase!` shows a prominent red warning and runs on. No
+  threshold ever pauses the rebase: asking happens while it runs, since the
+  only way to stop it is `git rebase --abort`, which would throw away the
+  commits already applied on the chance the answer is "stop". There is no
+  commit-count gate: a 1-commit branch has nothing left to apply so nothing
+  trips, and a 2-commit branch with a six-minute hook is exactly the warning a
+  gate would have silenced.
 
 - `bootstrap-bd.sh` registers the Dolt remote from `sync.remote` in
   `.beads/config.yaml` and defaults `beads.role` to `maintainer`. Neither lives
