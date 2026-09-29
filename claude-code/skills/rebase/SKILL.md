@@ -178,13 +178,26 @@ used to silence.
    cat > "$(git rev-parse --git-dir)/kix-time-hook" <<'SH'
    #!/bin/sh
    d=$(git rev-parse --git-dir)
-   python3 -c 'import time; print(time.time())' >> "$d/kix-hook-times"
-   git hook run pre-commit; status=$?
-   python3 -c 'import time; print(time.time())' >> "$d/kix-hook-times"
+   c=$(git rev-parse --short HEAD)
+   python3 -c "import time; print('$c start', time.time())" >> "$d/kix-hook-times"
+   git hook run --ignore-missing pre-commit; status=$?
+   python3 -c "import time; print('$c end', time.time())" >> "$d/kix-hook-times"
    exit $status
    SH
    chmod +x "$(git rev-parse --git-dir)/kix-time-hook"
    ```
+
+   Each line carries the commit it ran for, which is what makes a retry
+   recognisable: when a hook fails, case B amends and continues, so the same
+   commit records a second pair. Without the label the file is a column of bare
+   numbers and "the first clean run" cannot be picked out.
+
+   `--ignore-missing` is not optional. A bare `git hook run pre-commit` exits
+   **1** with `error: cannot find a hook named pre-commit` when no hook is
+   configured, which as an `--exec` command stops the rebase dead at the first
+   commit in every repo that has no pre-commit hook. `--ignore-missing` makes a
+   missing hook exit 0 while a failing hook still propagates its own status
+   (verified: missing → 0, passing → 0, `exit 7` → 7).
 
    It re-exports the hook's own exit status, so a failing hook still stops the
    rebase exactly as case B expects. Both files live inside `.git/`, so nothing
@@ -216,8 +229,10 @@ used to silence.
    mode warn in red and let it run. This is the case where waiting for a clean
    measurement would mean waiting out the very thing being measured.
 
-4. **H is the first clean hook run**, read from `kix-hook-times`: the first two
-   lines are that run's start and end, and their difference is **H**, to the
+4. **H is the first clean hook run**, read from `kix-hook-times`: take the
+   first sha whose `start`/`end` pair is the only one for that sha — a sha
+   appearing twice is a commit whose hook failed and was retried, and neither
+   of its runs is a clean sample. **H** is that pair's difference, to the
    fraction of a second, whatever the poll interval was. No need to rebase one
    commit at a time to get it — the full rebase keeps running while you read
    the file.
@@ -287,10 +302,11 @@ git rebase refs/remotes/origin/{target} --exec "$(git rev-parse --git-dir)/kix-t
 ```
 
 `kix-time-hook` is the recorder from "Estimate the hook time" item 1: it runs
-`git hook run pre-commit`, timestamps both ends into `.git/kix-hook-times` and
-re-exports the hook's exit status, so the outcomes below are unchanged. Without
-that section (no hook configured), `--exec "git hook run pre-commit"` is the
-plain form.
+`git hook run --ignore-missing pre-commit`, timestamps both ends into
+`.git/kix-hook-times` and re-exports the hook's exit status, so the outcomes
+below are unchanged. If you ever run the hook here directly instead, keep
+`--ignore-missing` — a bare `git hook run pre-commit` exits 1 in a repo with no
+pre-commit hook and stops the rebase at the first commit.
 
 This applies each commit and runs the pre-commit hook after each one. Poll it
 as "Estimate the hook time" describes; `git rebase` stops on its own at the
