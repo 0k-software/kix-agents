@@ -230,8 +230,14 @@ Over 5 minutes, say so explicitly ("this will take more than 5 minutes") and:
 
 ## Step 2 — Start the rebase
 
-Run, **in the background**, so the estimate above can watch the first hook run
-and so a warning has something left to stop:
+Run as a **detached shell process** — backgrounded so the estimate above can
+watch the first hook run and so a warning still has something left to stop:
+
+**Background means the shell command, never the work.** Do not hand the rebase
+to a subagent. You resolve every conflict yourself, in this session, with the
+whole conversation in front of you — which is what tells a deliberate change
+apart from a stale one in case C below. Backgrounding changes only how the
+command is launched; a subagent would start blind to all of it.
 
 ```
 git rebase refs/remotes/origin/{target} --exec "git hook run pre-commit"
