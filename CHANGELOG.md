@@ -83,20 +83,18 @@ The format is based on
   makes intentional: the overridden `bd prime` output, `no-git-ops` becoming a
   no-op, Codex having no `PreCompact` hook to re-inject memories mid-session,
   and the stamp gate firing on a pin bump.
-- `/kix:rebase` now estimates the rebase's hook time before starting it.
-  Because the rebase runs the pre-commit hook once per commit, a slow hook on a
-  long branch is expensive in a way nothing surfaced until it was already
-  running. The skill times one hook run against HEAD, multiplies by the commit
-  count, and reports the product. Past two minutes it warns and names both
-  numbers — hook seconds and commit count — plus suggests squashing to cut the
-  hook runs. Past five minutes interactive mode stops and waits for the user;
-  `/kix:rebase!` shows a prominent red warning and proceeds. Repos with no
-  pre-commit hook skip the estimate, as do branches under 5 commits — there the
-  measurement is a 25–50% tax on the operation and squashing saves too little
-  to be worth advising. The measurement itself is capped at 30 seconds, so a
-  hook that takes minutes does not cost minutes to measure; hitting the cap
-  yields a lower bound ("at least {30×N}s"), which is enough to trip a
-  threshold.
+- `/kix:rebase` now estimates its own hook time while it runs. The rebase runs
+  the pre-commit hook once per commit, so a slow hook on a long branch is
+  expensive in a way nothing surfaced until it was already running. The
+  estimate comes from the rebase's **first** `--exec` hook run — the one it was
+  going to pay anyway — multiplied by the commits still to apply, so it costs
+  no extra hook run, nothing to cap or kill, and nothing to restore. Past two
+  minutes it warns, names both numbers (hook seconds and commits left) and
+  suggests squashing; past five minutes interactive mode stops mid-rebase and
+  offers to continue, abort and squash, or abort and leave it, while
+  `/kix:rebase!` shows a prominent red warning and runs on. Branches under 5
+  commits skip it — squashing that few saves too little to interrupt a running
+  rebase for.
 
 - `bootstrap-bd.sh` registers the Dolt remote from `sync.remote` in
   `.beads/config.yaml` and defaults `beads.role` to `maintainer`. Neither lives
