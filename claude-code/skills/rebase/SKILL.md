@@ -209,12 +209,12 @@ used to silence.
 
 3. **Speak up while the first run is still going.** When the first commit's
    hook passes **60 seconds** without finishing, do not wait for it: report
-   right then that the hook has been running 60s and more, with `N-1` commits
-   left, so the rest costs at least `60×(N-1)` seconds. In interactive mode ask
-   at that point — let it finish, or `git rebase --abort` — while the run
-   continues in the background; in force mode warn in red and let it run. This
-   is the case where waiting for a clean measurement would mean waiting out the
-   very thing being measured.
+   right then that the hook has been running 60s and more, with
+   `(end - msgnum) / 2` commits left, so the rest costs at least 60s times that
+   many. In interactive mode ask at that point — let it finish, or
+   `git rebase --abort` — while the run continues in the background; in force
+   mode warn in red and let it run. This is the case where waiting for a clean
+   measurement would mean waiting out the very thing being measured.
 
 4. **H is the first clean hook run**, read from `kix-hook-times`: the first two
    lines are that run's start and end, and their difference is **H**, to the
@@ -227,10 +227,15 @@ used to silence.
    run instead, and if none is clean by the third commit, drop the estimate and
    say so.
 
-5. Multiply **H** by the commits still to apply — **N-1** of the count from
-   Step 1 item 4, since the first one has already landed. Report it as hook
-   time: it excludes conflict resolution and hook fixes, so a branch that
-   conflicts will overrun it by however long those take.
+5. Multiply **H** by the commits still to apply, read from the poll as
+   `(end - msgnum) / 2`. Take it from the counters rather than assuming `N-1`:
+   when the first commit conflicted and H came from the second or third
+   instead, `N-1` counts commits that have already landed and overstates the
+   estimate by one or two hook runs. The live figure is right whichever commit
+   supplied H.
+
+   Report it as hook time: it excludes conflict resolution and hook fixes, so a
+   branch that conflicts will overrun it by however long those take.
 
 Then apply the threshold that matches the estimate, **before letting the rebase
 go further**:
@@ -251,7 +256,7 @@ finishes while the question is still on screen, and the answer is moot.
 
 The warning always names the two numbers behind the estimate, so the user can
 see which one to attack: "this will take a while — your pre-commit hook takes
-{H}s and there are {N-1} commits left, so roughly {H×(N-1)}s". Follow it with
+{H}s and there are {commits left} to go, so roughly {H×that}s". Follow it with
 the suggestion to squash the branch's commits, which cuts the number of hook
 runs proportionally.
 
