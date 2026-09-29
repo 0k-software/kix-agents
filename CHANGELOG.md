@@ -83,7 +83,7 @@ The format is based on
   makes intentional: the overridden `bd prime` output, `no-git-ops` becoming a
   no-op, Codex having no `PreCompact` hook to re-inject memories mid-session,
   and the stamp gate firing on a pin bump.
-- `/kix:rebase` now estimates the rebase's total run time before starting it.
+- `/kix:rebase` now estimates the rebase's hook time before starting it.
   Because the rebase runs the pre-commit hook once per commit, a slow hook on a
   long branch is expensive in a way nothing surfaced until it was already
   running. The skill times one hook run against HEAD, multiplies by the commit
