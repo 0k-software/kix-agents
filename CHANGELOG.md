@@ -88,13 +88,16 @@ The format is based on
   expensive in a way nothing surfaced until it was already running. The
   estimate comes from the rebase's **first** `--exec` hook run — the one it was
   going to pay anyway — multiplied by the commits still to apply, so it costs
-  no extra hook run, nothing to cap or kill, and nothing to restore. Past two
-  minutes it warns, names both numbers (hook seconds and commits left) and
-  suggests squashing; past five minutes interactive mode stops mid-rebase and
-  offers to continue, abort and squash, or abort and leave it, while
-  `/kix:rebase!` shows a prominent red warning and runs on. Branches under 5
-  commits skip it — squashing that few saves too little to interrupt a running
-  rebase for.
+  no extra hook run, nothing to cap or kill, and nothing to restore. The rebase
+  runs in the background and is polled, which is what lets a first run that is
+  still going after 60 seconds be reported while it runs, rather than after the
+  whole branch has paid for it. Past two minutes the skill warns, names both
+  numbers (hook seconds and commits left) and suggests squashing; past five
+  minutes interactive mode asks — let it run, abort and squash, or abort and
+  leave it — while `/kix:rebase!` shows a prominent red warning and runs on.
+  There is no commit-count gate: a 1-commit branch has nothing left to apply so
+  nothing trips, and a 2-commit branch with a six-minute hook is exactly the
+  warning a gate would have silenced.
 
 - `bootstrap-bd.sh` registers the Dolt remote from `sync.remote` in
   `.beads/config.yaml` and defaults `beads.role` to `maintainer`. Neither lives

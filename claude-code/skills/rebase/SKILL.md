@@ -160,34 +160,57 @@ either discarding the user's tree or SIGKILLing a hook mid-write, one risking
 their work and the other a corrupt database and a stale `.git/index.lock`. The
 first `--exec` run costs nothing extra and carries none of that.
 
-1. **Fewer than 5 commits to rebase: skip this whole section.** Just rebase.
-   The advice this produces is "squash first", and under 5 commits squashing
-   saves at most three hook runs — not worth stopping a rebase that is already
-   running.
+There is no commit-count gate on any of this. The measurement is free, so the
+only question left is whether the remaining time is worth interrupting for —
+which is exactly what the thresholds below decide. A 1-commit branch answers
+itself (nothing left to apply, so the estimate is zero and nothing trips), and
+a 2-commit branch with a six-minute hook is precisely the case a count gate
+used to silence.
 
-2. When Step 2 starts, note the wall-clock time before the first commit applies
-   and the time its `--exec` hook run finishes. That difference is **H**, the
-   per-commit hook cost. Sub-second resolution matters: a 0.6s hook floored to
-   0 zeroes every estimate no matter how long the branch is.
+1. **Run the rebase in the background and poll it.** A blocking `git rebase`
+   call returns nothing until every commit has landed, so the first hook run
+   cannot be watched while it happens and a threshold has nothing left to stop.
+   Start Step 2's command in the background instead and poll, roughly every 10
+   seconds:
+
+   - `.git/rebase-merge/msgnum` and `.git/rebase-merge/end` — which commit of
+     how many is applying (`rebase-apply/next` and `last` on the apply
+     backend);
+   - the wall-clock time since `msgnum` last changed — that is how long the
+     current commit's hook has been running.
+
+2. **Speak up while the first run is still going.** When the first commit's
+   hook passes **60 seconds** without finishing, do not wait for it: report
+   right then that the hook has been running 60s and more, with `N-1` commits
+   left, so the rest costs at least `60×(N-1)` seconds. In interactive mode ask
+   at that point — let it finish, or `git rebase --abort` — while the run
+   continues in the background; in force mode warn in red and let it run. This
+   is the case where waiting for a clean measurement would mean waiting out the
+   very thing being measured.
+
+3. **H is the first clean hook run.** Once the first commit lands, take **H**
+   from the time `msgnum` advanced past it. Sub-second resolution matters: a
+   0.6s hook floored to 0 zeroes every estimate no matter how long the branch
+   is.
 
    Ignore a first commit that conflicted or whose hook failed — its timing
    includes the fix, so it is not a clean sample. Take the next clean commit's
    run instead, and if none is clean by the third commit, drop the estimate and
    say so.
 
-3. Multiply **H** by the commits still to apply — **N-1** of the count from
+4. Multiply **H** by the commits still to apply — **N-1** of the count from
    Step 1 item 4, since the first one has already landed. Report it as hook
    time: it excludes conflict resolution and hook fixes, so a branch that
    conflicts will overrun it by however long those take.
 
 Then apply the threshold that matches the estimate, **before letting the rebase
-continue**:
+go further**:
 
 | Estimate    | Interactive (`/kix:rebase`)       | Force (`/kix:rebase!`)            |
 | ----------- | --------------------------------- | --------------------------------- |
 | Under 2 min | Report the estimate, continue     | Report the estimate, continue     |
 | 2–5 min     | Warn, suggest squashing, continue | Warn, suggest squashing, continue |
-| Over 5 min  | **Stop and wait for the user**    | Big red warning, continue         |
+| Over 5 min  | **Stop and ask the user**         | Big red warning, continue         |
 
 The warning always names the two numbers behind the estimate, so the user can
 see which one to attack: "this will take a while — your pre-commit hook takes
@@ -197,22 +220,27 @@ runs proportionally.
 
 Over 5 minutes, say so explicitly ("this will take more than 5 minutes") and:
 
-- **Interactive mode:** stop and wait. The rebase is mid-flight, so spell out
-  the three ways out — continue it, or `git rebase --abort` and squash first (a
-  squash needs the abort either way), or `git rebase --abort` and leave it for
-  later. Do not continue before they answer.
-- **Force mode:** never stop. Render the warning as a large, prominent red
+- **Interactive mode:** ask, and leave the background rebase running while you
+  wait — a rebase that finishes on its own costs the user nothing, and there is
+  no way to pause it mid-flight anyway. Spell out the ways out: let it run, or
+  `git rebase --abort` and squash first (a squash needs the abort either way),
+  or `git rebase --abort` and leave it for later. Only abort on their answer.
+- **Force mode:** never ask. Render the warning as a large, prominent red
   notice and let the rebase run on.
 
 ## Step 2 — Start the rebase
 
-Run:
+Run, **in the background**, so the estimate above can watch the first hook run
+and so a warning has something left to stop:
 
 ```
 git rebase refs/remotes/origin/{target} --exec "git hook run pre-commit"
 ```
 
-This applies each commit and runs the pre-commit hook after each one. Three
+This applies each commit and runs the pre-commit hook after each one. Poll it
+as "Estimate the hook time" describes; `git rebase` stops on its own at the
+first conflict or hook failure, so a poll that finds the process gone means the
+rebase either finished or is waiting for one of the two outcomes below. Three
 outcomes are possible per commit:
 
 ### A) Commit applies cleanly and hook passes
