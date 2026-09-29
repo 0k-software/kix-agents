@@ -7,14 +7,39 @@ The format is based on
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-09-29
+
+### Upgrading
+
+- **Migrate the Dolt remote before bd 1.2.2 reaches a repo.** A database
+  created under bd 1.0.3 is on schema v32; 1.2.2 wants v53 and will not migrate
+  a remote-backed database on its own. In each beads repo, on exactly one
+  clone: `BD_ALLOW_REMOTE_MIGRATE=1 bd migrate && bd dolt push`. Every other
+  clone then re-runs `bd bootstrap`. Do this before re-running `/kix:setup` —
+  the `install-bd.sh` it installs upgrades `bd` to 1.2.2 on the next session
+  start, and that `bd` refuses an unmigrated remote.
+- **Then re-run `/kix:setup`** in every repo that installed an earlier version.
+  That is what brings in `PRIME.md`, `prime.sh`, `check-prime.sh`, the
+  upgrading `install-bd.sh` and the hardened `bootstrap-bd.sh`, and drops the
+  stale bare `bd prime` hook entries from `.claude/settings.json`. An existing
+  `.beads/PRIME.md` is left untouched — diff it against the shipped copy by
+  hand.
+- **Bumping the `bd` pin now needs a `PRIME.md` refresh.** `make check` fails
+  until the `<!-- kix-prime: bd X.Y.Z -->` stamp matches the pin in
+  `install-bd.sh`: re-export with `bd prime --export`, merge by hand, bump the
+  stamp.
+- **Parking notes use `--append-notes`.** Agents following the new protocol
+  append the PR URL instead of replacing an issue's notes.
+
 ### Added
 
 - **`.beads/PRIME.md` close protocol.** `bd prime`'s stock protocol tells
   agents to `bd close` before saying "done", which on branch work closes the
   issue while the PR is still under review — hiding work that can still be
-  reworked or rejected. `/kix:setup` now installs a `PRIME.md` override (never
-  overwriting an existing one) whose protocol parks a finished branch on its PR
-  (`in_progress` + the PR URL) and closes only once that PR merges.
+  reworked or rejected. `/kix:setup` now installs a `PRIME.md` override (only
+  when the repo has a `.beads/`, and never overwriting an existing one) whose
+  protocol parks a finished branch on its PR (`in_progress` + the PR URL) and
+  closes only once that PR merges.
 - **`.kix/hooks/prime.sh`.** A `PRIME.md` override replaces the _entire_
   `bd prime` output, persistent memories included — and `--memories-only` alone
   doesn't help, since as of bd 1.2.2 it honours the override and just reprints
@@ -33,6 +58,13 @@ The format is based on
   makes intentional: the overridden `bd prime` output, `no-git-ops` becoming a
   no-op, Codex having no `PreCompact` hook to re-inject memories mid-session,
   and the stamp gate firing on a pin bump.
+
+- `bootstrap-bd.sh` registers the Dolt remote from `sync.remote` in
+  `.beads/config.yaml` and defaults `beads.role` to `maintainer`. Neither lives
+  in git — the remote is in the Dolt database and the role in `.git/config` —
+  so a fresh clone had no remote (making `bd dolt push` a silent no-op) and
+  warned on every `bd` command. `/kix:setup` now documents recording
+  `sync.remote` when the repo has a DoltHub remote.
 
 ### Changed
 
@@ -116,15 +148,6 @@ The format is based on
   permission denied, so any machine that did not already have them — a cloud
   session, a new laptop — got neither CLI, and the bootstrap above had nothing
   to run.
-
-### Added
-
-- `bootstrap-bd.sh` registers the Dolt remote from `sync.remote` in
-  `.beads/config.yaml` and defaults `beads.role` to `maintainer`. Neither lives
-  in git — the remote is in the Dolt database and the role in `.git/config` —
-  so a fresh clone had no remote (making `bd dolt push` a silent no-op) and
-  warned on every `bd` command. `/kix:setup` now documents recording
-  `sync.remote` when the repo has a DoltHub remote.
 
 ## [0.3.0] — 2026-09-01
 
