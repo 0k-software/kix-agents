@@ -182,8 +182,16 @@ Measuring costs one hook run, so it is not always worth it:
    seconds, which zeroes every estimate no matter how long the branch is, and
    BSD `date` on macOS has no `%N` to widen it.
 
+   The cap is Python's own, not the `timeout` binary — stock macOS has no
+   `timeout` (this repo's `.beads/hooks/pre-commit` guards it with
+   `command -v timeout` for that reason), and shelling out to a missing one
+   turns the measurement into a `FileNotFoundError`:
+
    ```
-   python3 -c 'import subprocess,time; t=time.time(); subprocess.run(["timeout","30","git","hook","run","pre-commit"]); print(time.time()-t)'
+   python3 -c 'import subprocess,time; t=time.time()
+   try: subprocess.run(["git","hook","run","pre-commit"], timeout=30)
+   except subprocess.TimeoutExpired: pass
+   print(time.time()-t)'
    ```
 
    A non-zero exit here is **not** an abort — Step 2 case B already handles
@@ -205,6 +213,11 @@ Measuring costs one hook run, so it is not always worth it:
    ```
    git reset && git checkout -- .
    ```
+
+   Both halves are unconditional discards, so they are only safe because Step 1
+   item 1 already proved the tree clean — everything they throw away came from
+   the hook. Never run them when that check has not just passed: they would
+   take the user's uncommitted work with them.
 
    Then re-verify `git status --porcelain` is empty. If anything survives (an
    untracked file the hook generated, say), abort and tell the user what the
