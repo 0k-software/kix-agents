@@ -1,12 +1,18 @@
 #!/bin/sh
 # Tests the kix-time-hook recorder that claude-code/skills/rebase/SKILL.md tells
-# agents to write. The skill is prose, so nothing here imports it — the recorder
-# below must stay a copy of the heredoc in "Estimate the hook time" item 1, and
-# these tests are what catch it drifting from git's actual behaviour.
+# agents to write.
+#
+# The recorder is NOT duplicated here. It is extracted from the skill's own
+# heredoc at run time, so editing the skill changes what these tests execute —
+# a copy would keep passing after the skill broke, which is the one failure mode
+# a test like this must not have. If the heredoc is renamed, moved or removed,
+# extraction fails loudly instead of falling back to anything.
 #
 # Run: sh scripts/test-rebase-timing.sh   (or: make test)
 
 set -eu
+
+SKILL=${SKILL:-claude-code/skills/rebase/SKILL.md}
 
 failures=0
 tmproot=$(mktemp -d)
@@ -18,18 +24,38 @@ no() {
   failures=$((failures + 1))
 }
 
-# The recorder, verbatim from the skill.
+# Pull the recorder out of the skill and install it in the given repo.
 write_recorder() {
-  cat > "$1/.git/kix-time-hook" <<'SH'
-#!/bin/sh
-d=$(git rev-parse --git-dir)
-c=$(git rev-parse --short HEAD)
-start=$(python3 -c 'import time; print(time.time())')
-git hook run --ignore-missing pre-commit; status=$?
-python3 -c "import time; print('$c', $start, time.time(), $status)" >> "$d/kix-hook-times"
-exit $status
-SH
-  chmod +x "$1/.git/kix-time-hook"
+  python3 - "$SKILL" "$1/.git/kix-time-hook" <<'PY'
+import pathlib, re, sys
+
+skill_path, out_path = sys.argv[1], sys.argv[2]
+try:
+    skill = pathlib.Path(skill_path).read_text()
+except OSError as exc:
+    sys.exit(f"cannot read the skill at {skill_path}: {exc}")
+
+# The block the skill tells the agent to write: cat > "…/kix-time-hook" <<'SH' … SH
+match = re.search(r"kix-time-hook\"? *<<'SH'\n(.*?)\n[ \t]*SH\n", skill, re.S)
+if not match:
+    sys.exit(
+        f"no kix-time-hook heredoc in {skill_path} — if the recorder was renamed or "
+        "restructured, update this extraction (and the tests) to match"
+    )
+
+lines = match.group(1).split("\n")
+indent = min(len(ln) - len(ln.lstrip()) for ln in lines if ln.strip())
+body = "\n".join(ln[indent:] if ln.strip() else "" for ln in lines)
+
+for required in ("#!/bin/sh", "git hook run", "kix-hook-times"):
+    if required not in body:
+        sys.exit(f"extracted recorder is missing {required!r}:\n{body}")
+
+pathlib.Path(out_path).write_text(body + "\n")
+PY
+  # Guarded: on a failed extraction there is no file, and chmod's own error
+  # would bury the message that explains why.
+  [ -f "$1/.git/kix-time-hook" ] && chmod +x "$1/.git/kix-time-hook"
 }
 
 # A repo with `n` commits on feat and one divergent commit on main.
@@ -68,6 +94,18 @@ set_hook() { printf '#!/bin/sh\n%s\n' "$2" > "$1/.git/hooks/pre-commit" && chmod
 rebase() { (cd "$1" && git rebase main --exec .git/kix-time-hook >/dev/null 2>&1); }
 
 lines() { wc -l < "$1/.git/kix-hook-times" | tr -d ' '; }
+
+echo "0. the recorder comes out of the skill, not out of this script"
+probe="$tmproot/probe"
+mkdir -p "$probe/.git"
+if write_recorder "$probe" 2>"$tmproot/extract.err"; then
+  ok "extracted the recorder from $SKILL"
+else
+  no "extraction failed: $(cat "$tmproot/extract.err")"
+  echo
+  echo "cannot test a recorder that could not be read — stopping"
+  exit 1
+fi
 
 echo "1. no pre-commit hook — the rebase must still finish"
 # Regression: a bare `git hook run pre-commit` exits 1 when no hook exists, which
