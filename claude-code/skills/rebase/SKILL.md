@@ -187,10 +187,19 @@ Measuring costs one hook run, so it is not always worth it:
    `command -v timeout` for that reason), and shelling out to a missing one
    turns the measurement into a `FileNotFoundError`:
 
+   The cap has to kill the hook's **children** too. A hook is a shell script
+   that spawns the real work — `make`, `npx prettier --write .`, `bd` — and
+   killing the script leaves those running: they go on rewriting files while
+   item 4 restores the tree and Step 2 starts the rebase, which then aborts on
+   a tree that was clean a moment earlier. Give the hook its own process group
+   and kill the group:
+
    ```
-   python3 -c 'import subprocess,time; t=time.time()
-   try: subprocess.run(["git","hook","run","pre-commit"], timeout=30)
-   except subprocess.TimeoutExpired: pass
+   python3 -c 'import subprocess,time,os,signal; t=time.time()
+   p = subprocess.Popen(["git","hook","run","pre-commit"], start_new_session=True)
+   try: p.wait(timeout=30)
+   except subprocess.TimeoutExpired:
+       os.killpg(os.getpgid(p.pid), signal.SIGKILL); p.wait()
    print(time.time()-t)'
    ```
 
