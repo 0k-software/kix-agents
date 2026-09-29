@@ -91,7 +91,12 @@ The format is based on
   numbers — hook seconds and commit count — plus suggests squashing to cut the
   hook runs. Past five minutes interactive mode stops and waits for the user;
   `/kix:rebase!` shows a prominent red warning and proceeds. Repos with no
-  pre-commit hook skip the estimate.
+  pre-commit hook skip the estimate, as do branches under 5 commits — there the
+  measurement is a 25–50% tax on the operation and squashing saves too little
+  to be worth advising. The measurement itself is capped at 30 seconds, so a
+  hook that takes minutes does not cost minutes to measure; hitting the cap
+  yields a lower bound ("at least {30×N}s"), which is enough to trip a
+  threshold.
 
 - `bootstrap-bd.sh` registers the Dolt remote from `sync.remote` in
   `.beads/config.yaml` and defaults `beads.role` to `maintainer`. Neither lives
