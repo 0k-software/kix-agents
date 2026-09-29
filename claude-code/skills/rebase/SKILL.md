@@ -70,7 +70,16 @@ The rebase runs the pre-commit hook once per commit, so a slow hook multiplied
 by a long branch can burn a lot of wall-clock time. Measure it up front instead
 of letting the user discover it halfway through.
 
-1. Locate the pre-commit hook. **Check `core.hooksPath` first** — a repo that
+Measuring costs one hook run, so it is not always worth it:
+
+1. **Fewer than 5 commits to rebase: skip this whole section.** Go straight to
+   Step 2 without measuring or reporting. On a 1-commit branch the measurement
+   costs exactly what the rebase costs, and there is nothing to squash; at 2–4
+   it is a 25–50% tax on the operation to save at most three hook runs. At 5
+   the tax drops to a fifth and squashing to one commit cuts 80% of the runs,
+   so the advice starts paying for itself.
+
+2. Locate the pre-commit hook. **Check `core.hooksPath` first** — a repo that
    set it (every repo `/kix:setup` touches points it at `.beads/hooks/`) keeps
    its hooks there, and `git rev-parse --git-path hooks/pre-commit` answers
    with the unused `.git/hooks/` path regardless:
@@ -84,19 +93,29 @@ of letting the user discover it halfway through.
    the `--exec` in Step 2 is then a no-op and costs nothing — and move on to
    Step 2.
 
-2. Time one run against the current HEAD. Measure **sub-second** — a hook that
-   takes 0.6s reads as 0 in whole seconds, which zeroes every estimate no
-   matter how long the branch is, and BSD `date` on macOS has no `%N` to widen
-   it:
+3. Time one run against the current HEAD, **capped at 30 seconds**. The cap is
+   the point: without it, a hook that takes three minutes costs three minutes
+   to measure — the estimate is most valuable exactly where measuring it hurts
+   most. Hitting the cap is itself the answer, since a hook that has not
+   finished in 30s makes any branch expensive.
+
+   Measure **sub-second** too: a hook that takes 0.6s reads as 0 in whole
+   seconds, which zeroes every estimate no matter how long the branch is, and
+   BSD `date` on macOS has no `%N` to widen it.
 
    ```
-   python3 -c 'import subprocess,time; t=time.time(); subprocess.run(["git","hook","run","pre-commit"]); print(time.time()-t)'
+   python3 -c 'import subprocess,time; t=time.time(); subprocess.run(["timeout","30","git","hook","run","pre-commit"]); print(time.time()-t)'
    ```
 
    A non-zero exit here is **not** an abort — Step 2 case B already handles
    hook failures. Use the measured duration either way.
 
-3. **Restore what the hook touched.** A pre-commit hook is written to run
+   If the run was killed at 30s, you have a lower bound rather than a duration.
+   Treat the hook as ≥30s, compute the estimate from 30s, and phrase every
+   number that follows as "at least" — "at least {30×N}s". A lower bound over a
+   threshold still trips that threshold: the real figure is only larger.
+
+4. **Restore what the hook touched.** A pre-commit hook is written to run
    mid-commit, so it may well write files and stage them — the Kix hook runs
    `make autofix` and `git add .`, and beads' managed section syncs its DB to
    JSONL. Left alone, that dirty index makes Step 2 abort with
@@ -112,7 +131,7 @@ of letting the user discover it halfway through.
    untracked file the hook generated, say), abort and tell the user what the
    hook left behind rather than starting a rebase on a dirty tree.
 
-4. Multiply the hook duration by the number of commits from Step 1 item 4. That
+5. Multiply the hook duration by the number of commits from Step 1 item 4. That
    product is the estimate. Always report it, however small — and report it as
    hook time, which is what it measures: it excludes conflict resolution and
    hook fixes, so a branch that conflicts will overrun it by however long those
