@@ -167,9 +167,33 @@ itself (nothing left to apply, so the estimate is zero and nothing trips), and
 a 2-commit branch with a six-minute hook is precisely the case a count gate
 used to silence.
 
-1. **Run the rebase in the background and poll it.** A blocking `git rebase`
-   call returns nothing until every commit has landed, so the first hook run
-   cannot be watched while it happens and a threshold has nothing left to stop.
+1. **Let the hook time itself.** Polling cannot measure it: at a 10-second
+   interval a sub-second hook starts and finishes between two looks, so H would
+   read as anything up to 10s and a 30-commit branch with a 0.4s hook would
+   estimate 290s instead of 12 — tripping the over-5-minutes row over nothing.
+   Wrap the hook in a recorder that timestamps itself, and point `--exec` at
+   that instead of at the hook directly:
+
+   ```
+   cat > "$(git rev-parse --git-dir)/kix-time-hook" <<'SH'
+   #!/bin/sh
+   d=$(git rev-parse --git-dir)
+   python3 -c 'import time; print(time.time())' >> "$d/kix-hook-times"
+   git hook run pre-commit; status=$?
+   python3 -c 'import time; print(time.time())' >> "$d/kix-hook-times"
+   exit $status
+   SH
+   chmod +x "$(git rev-parse --git-dir)/kix-time-hook"
+   ```
+
+   It re-exports the hook's own exit status, so a failing hook still stops the
+   rebase exactly as case B expects. Both files live inside `.git/`, so nothing
+   reaches the tree or a commit; delete `kix-hook-times` before starting and
+   both files when the rebase ends.
+
+2. **Run the rebase in the background and poll it.** A blocking `git rebase`
+   call returns nothing until every commit has landed, so no threshold has
+   anything left to stop and the 60-second warning below could never fire.
    Start Step 2's command in the background instead and poll, roughly every 10
    seconds:
 
@@ -183,7 +207,7 @@ used to silence.
    - the wall-clock time since `msgnum` last changed — while `msgnum` is even,
      that is how long the current commit's hook has been running.
 
-2. **Speak up while the first run is still going.** When the first commit's
+3. **Speak up while the first run is still going.** When the first commit's
    hook passes **60 seconds** without finishing, do not wait for it: report
    right then that the hook has been running 60s and more, with `N-1` commits
    left, so the rest costs at least `60×(N-1)` seconds. In interactive mode ask
@@ -192,19 +216,18 @@ used to silence.
    is the case where waiting for a clean measurement would mean waiting out the
    very thing being measured.
 
-3. **H is the first clean hook run.** `msgnum` reaching `2` starts the first
-   commit's hook and `msgnum` reaching `3` means it finished, so **H** is the
-   time between those two observations — no need to rebase one commit at a time
-   to get it; the full rebase keeps running while you read it off. Sub-second
-   resolution matters: a 0.6s hook floored to 0 zeroes every estimate no matter
-   how long the branch is.
+4. **H is the first clean hook run**, read from `kix-hook-times`: the first two
+   lines are that run's start and end, and their difference is **H**, to the
+   fraction of a second, whatever the poll interval was. No need to rebase one
+   commit at a time to get it — the full rebase keeps running while you read
+   the file.
 
    Ignore a first commit that conflicted or whose hook failed — its timing
    includes the fix, so it is not a clean sample. Take the next clean commit's
    run instead, and if none is clean by the third commit, drop the estimate and
    say so.
 
-4. Multiply **H** by the commits still to apply — **N-1** of the count from
+5. Multiply **H** by the commits still to apply — **N-1** of the count from
    Step 1 item 4, since the first one has already landed. Report it as hook
    time: it excludes conflict resolution and hook fixes, so a branch that
    conflicts will overrun it by however long those take.
@@ -255,8 +278,14 @@ apart from a stale one in case C below. Backgrounding changes only how the
 command is launched; a subagent would start blind to all of it.
 
 ```
-git rebase refs/remotes/origin/{target} --exec "git hook run pre-commit"
+git rebase refs/remotes/origin/{target} --exec "$(git rev-parse --git-dir)/kix-time-hook"
 ```
+
+`kix-time-hook` is the recorder from "Estimate the hook time" item 1: it runs
+`git hook run pre-commit`, timestamps both ends into `.git/kix-hook-times` and
+re-exports the hook's exit status, so the outcomes below are unchanged. Without
+that section (no hook configured), `--exec "git hook run pre-commit"` is the
+plain form.
 
 This applies each commit and runs the pre-commit hook after each one. Poll it
 as "Estimate the hook time" describes; `git rebase` stops on its own at the
