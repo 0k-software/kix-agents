@@ -179,18 +179,20 @@ used to silence.
    #!/bin/sh
    d=$(git rev-parse --git-dir)
    c=$(git rev-parse --short HEAD)
-   python3 -c "import time; print('$c start', time.time())" >> "$d/kix-hook-times"
+   start=$(python3 -c 'import time; print(time.time())')
    git hook run --ignore-missing pre-commit; status=$?
-   python3 -c "import time; print('$c end', time.time())" >> "$d/kix-hook-times"
+   python3 -c "import time; print('$c', $start, time.time(), $status)" >> "$d/kix-hook-times"
    exit $status
    SH
    chmod +x "$(git rev-parse --git-dir)/kix-time-hook"
    ```
 
-   Each line carries the commit it ran for, which is what makes a retry
-   recognisable: when a hook fails, case B amends and continues, so the same
-   commit records a second pair. Without the label the file is a column of bare
-   numbers and "the first clean run" cannot be picked out.
+   One line per run: commit, start, end, and the hook's exit status. The status
+   is what marks a sample clean — **not** whether the commit appears twice. A
+   failed `exec` is never re-run: `git rebase --continue` moves on to the next
+   todo entry, so the failing commit records exactly one line and looking for a
+   repeated commit would find nothing while happily using the failed run's
+   duration (usually a fast early exit, which collapses the estimate).
 
    `--ignore-missing` is not optional. A bare `git hook run pre-commit` exits
    **1** with `error: cannot find a hook named pre-commit` when no hook is
@@ -229,13 +231,11 @@ used to silence.
    mode warn in red and let it run. This is the case where waiting for a clean
    measurement would mean waiting out the very thing being measured.
 
-4. **H is the first clean hook run**, read from `kix-hook-times`: take the
-   first sha whose `start`/`end` pair is the only one for that sha — a sha
-   appearing twice is a commit whose hook failed and was retried, and neither
-   of its runs is a clean sample. **H** is that pair's difference, to the
-   fraction of a second, whatever the poll interval was. No need to rebase one
-   commit at a time to get it — the full rebase keeps running while you read
-   the file.
+4. **H is the first clean hook run**, read from `kix-hook-times`: the first
+   line whose status field is `0`. **H** is that line's end minus its start, to
+   the fraction of a second, whatever the poll interval was. No need to rebase
+   one commit at a time to get it — the full rebase keeps running while you
+   read the file.
 
    Ignore a first commit that conflicted or whose hook failed — its timing
    includes the fix, so it is not a clean sample. Take the next clean commit's

@@ -91,13 +91,14 @@ cp -rf source dest          # NOT: cp -r source dest
 ## Build & Test
 
 This repo is Markdown content (slash commands, templates, docs) — there is no
-runtime and no test suite. The toolchain is Prettier + a small release
-pipeline:
+runtime. The toolchain is Prettier + a small release pipeline, plus one test
+suite for the shell contract the rebase skill hands agents:
 
 ```bash
 make setup     # point core.hooksPath at .beads/hooks/ (beads + Prettier gate)
 make autofix   # prettier --write .
 make check     # prettier --check .  (the formatting gate)
+make test      # scripts/test-rebase-timing.sh — the rebase skill's hook recorder
 make all       # autofix && check
 make bump PART=patch|minor|major   # bump claude-code/.claude-plugin/plugin.json
 make release   # cut a GitHub release at the current plugin.json version
@@ -165,6 +166,15 @@ kix-agents ships a Claude Code marketplace + plugin — no application code:
   new.
 - **Markdown formatting.** Prettier is the formatter; `make check` blocks
   merges on drift. Run `make autofix` before committing.
+- **Testing prose that is really a contract.**
+  `claude-code/skills/rebase/SKILL.md` hands agents a shell recorder
+  (`kix-time-hook`) whose behaviour depends on git's, so
+  `scripts/test-rebase-timing.sh` keeps a copy of it and exercises it against
+  throwaway repos — missing hook, passing hook, failing hook, sub-second
+  timing, and what `git rebase --continue` does after a failed `exec`. Edit the
+  heredoc in the skill and you must edit the copy in the script. It is
+  `make test`, not `make check`: it runs real rebases and the pre-commit hook
+  runs `check` on every commit.
 - **Releases are tag-driven.** `make release` POSTs to GitHub's releases API;
   the plugin marketplace install path resolves via tags. Never force-tag or
   rewrite published tags.

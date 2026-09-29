@@ -108,6 +108,14 @@ The format is based on
   so a fresh clone had no remote (making `bd dolt push` a silent no-op) and
   warned on every `bd` command. `/kix:setup` now documents recording
   `sync.remote` when the repo has a DoltHub remote.
+- `scripts/test-rebase-timing.sh` (`make test`) — the rebase skill hands agents
+  a shell recorder whose behaviour depends on git's, which prose cannot verify.
+  The script keeps a copy of that recorder and runs it against throwaway repos:
+  a repo with no hook must still rebase to completion, a passing hook must
+  record one labelled line per commit, a 0.4s hook must not read as zero, a
+  failing hook must propagate its status and stop the rebase, and
+  `git rebase --continue` after a failed `exec` must not re-run it. Three bugs
+  in this branch's own work came out of writing it.
 
 ### Changed
 

@@ -1,4 +1,4 @@
-.PHONY: all setup autofix check check-prime bump release
+.PHONY: all setup autofix check check-prime test bump release
 
 PART ?= patch
 # Pin Prettier: an unpinned `npx prettier` resolves to whatever is in the local
@@ -18,6 +18,12 @@ autofix:
 
 check: check-prime
 	$(PRETTIER) --check .
+
+# Exercises the kix-time-hook recorder from the rebase skill against throwaway
+# repos. Not in `check`: it runs real rebases, so it is seconds rather than
+# milliseconds, and the pre-commit hook runs `check` on every commit.
+test:
+	sh scripts/test-rebase-timing.sh
 
 # Fails when .beads/PRIME.md is stamped for a different bd version than the pin
 # in .kix/hooks/install-bd.sh. No-op when either file is absent.
