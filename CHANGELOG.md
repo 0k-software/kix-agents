@@ -125,6 +125,13 @@ The format is based on
   re-run a failed `exec`. One file, executed by skill and tests alike, so there
   is no copy to fall out of step. Three bugs in the feature came out of writing
   it.
+- The pre-commit hook now runs `make test` when `time-hook.sh`, the test script
+  or the `Makefile` is staged, so a change that breaks the recorder is rejected
+  at commit time rather than found later. Conditional on purpose: the suite
+  runs real rebases and this hook runs once per commit during a rebase, so
+  gating every commit would slow every rebase in this repo. CI runs `make test`
+  unconditionally, which catches both an unrelated commit that breaks it and a
+  `--no-verify` bypass.
 
 ### Changed
 

@@ -27,3 +27,8 @@ jobs:
 
       - name: Check formatting (Prettier)
         run: make check
+
+      # The pre-commit hook only runs these when the files they cover are
+      # staged, and --no-verify skips it entirely, so CI runs them every time.
+      - name: Rebase-timing tests
+        run: make test

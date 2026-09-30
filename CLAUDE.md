@@ -188,7 +188,15 @@ kix-agents ships a Claude Code marketplace + plugin — no application code:
   `claude-code/skills/setup/assets/beads/PRIME.md` — edit both.
 - **Pre-commit hook.** `.beads/hooks/pre-commit` is the single hook — beads' DB
   → JSONL sync (managed section, between the `BEGIN/END BEADS INTEGRATION`
-  markers) followed by the Prettier gate (reject-if-dirty → `make autofix` →
-  re-stage → `make check`). `make setup` wires it up by pointing
+  markers), then the Prettier gate (reject-if-dirty → `make autofix` → re-stage
+  → `make check`), then `make test` **only when**
+  `claude-code/skills/rebase/time-hook.sh`, `scripts/test-rebase-timing.sh` or
+  the `Makefile` is staged. The condition matters: the suite runs real rebases,
+  and this hook runs once per commit during a rebase, so gating every commit on
+  it would slow every rebase in this repo. CI runs `make test` unconditionally,
+  which covers both an unrelated commit that breaks it and a `--no-verify`
+  bypass. This gate is local to kix-agents and deliberately absent from
+  `claude-code/skills/setup/assets/pre-commit`, the hook shipped to other repos
+  — they have no such tests. `make setup` wires it up by pointing
   `core.hooksPath` at `.beads/hooks/`; run setup once after cloning. Don't add
   a `.git-hooks/` dir — it's gone.
