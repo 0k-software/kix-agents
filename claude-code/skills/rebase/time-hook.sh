@@ -23,13 +23,40 @@
 
 set -u
 
+# Epoch seconds with a fraction where the system can give one. `date +%s.%N`
+# covers GNU coreutils and modern BSD date (macOS 26 supports %N; older ones
+# print a literal "N", which is what the case below catches). perl is the
+# fallback because it ships with macOS; whole seconds are the last resort, and
+# cost up to a second of error per commit.
+now() {
+  t=$(date +%s.%N 2>/dev/null) || t=''
+  case $t in
+    '' | *[!0-9.]*) ;;
+    *)
+      printf '%s\n' "$t"
+      return
+      ;;
+  esac
+
+  t=$(perl -MTime::HiRes=time -e 'printf "%.6f\n", time' 2>/dev/null) || t=''
+  case $t in
+    '' | *[!0-9.]*) ;;
+    *)
+      printf '%s\n' "$t"
+      return
+      ;;
+  esac
+
+  date +%s
+}
+
 d=$(git rev-parse --git-dir)
 c=$(git rev-parse --short HEAD)
-start=$(python3 -c 'import time; print(time.time())')
+start=$(now)
 
 git hook run --ignore-missing pre-commit
 status=$?
 
-python3 -c "import time; print('$c', $start, time.time(), $status)" >> "$d/kix-hook-times"
+printf '%s %s %s %s\n' "$c" "$start" "$(now)" "$status" >> "$d/kix-hook-times"
 
 exit $status

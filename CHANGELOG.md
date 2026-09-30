@@ -112,7 +112,11 @@ The format is based on
   skill's `--exec` now points at, shipped as a file next to the skill (the
   pattern `skills/setup/setup.sh` already uses) rather than pasted into the
   prose as a heredoc. It runs `git hook run --ignore-missing pre-commit` and
-  appends `<sha> <start> <end> <status>` to `.git/kix-hook-times`.
+  appends `<sha> <start> <end> <status>` to `.git/kix-hook-times`. Timestamps
+  come from `date +%s.%N`, which covers GNU coreutils and modern BSD date —
+  macOS 26's `/bin/date` does support `%N`, contrary to the older wisdom an
+  earlier draft of this repeated — falling back to perl (ships with macOS) and
+  then to whole seconds. No python3 in the path of a rebase.
 - `scripts/test-rebase-timing.sh` (`make test`) — runs that same file, the one
   the plugin ships, against throwaway repos: a repo with no hook must still
   rebase to completion, a passing hook must record one line per commit, a 0.4s

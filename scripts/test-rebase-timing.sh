@@ -117,13 +117,25 @@ else
 fi
 
 echo "3. timing accuracy — a 0.4s hook must not read as 0"
+# The recorder falls back to whole seconds where neither `date +%s.%N` nor perl
+# can give a fraction. That is a real environment, not a bug, so say so and move
+# on instead of failing.
+subsecond=no
+if [ -n "$(date +%s.%N 2>/dev/null | tr -d '0-9.')" ] \
+  && ! perl -MTime::HiRes=time -e 'printf "%.6f\n", time' >/dev/null 2>&1; then
+  subsecond=no
+else
+  subsecond=yes
+fi
 # Regression: 10-second polling floored sub-second hooks to 0, zeroing the
 # estimate; and whole-second `date +%s` did the same.
 repo=$(make_repo timing 1)
 set_hook "$repo" "sleep 0.4"
 rebase "$repo" || no "rebase failed with a sleeping hook"
 elapsed=$(awk 'NR==1 {print $3 - $2}' "$repo/.git/kix-hook-times")
-if python3 -c "import sys; sys.exit(0 if 0.35 <= $elapsed <= 1.5 else 1)"; then
+if [ "$subsecond" = no ]; then
+  printf '  skip — no sub-second clock here (whole-second date, no perl); measured %ss\n' "$elapsed"
+elif awk "BEGIN { exit !($elapsed >= 0.35 && $elapsed <= 1.5) }"; then
   ok "measured ${elapsed}s for a 0.4s hook"
 else
   no "measured ${elapsed}s for a 0.4s hook — outside 0.35–1.5s"
