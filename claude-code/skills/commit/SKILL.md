@@ -58,7 +58,9 @@ default is visible.
   files. The highest-priority file that sets it is the expected value: if it
   differs from the live variable, it was saved after this session started —
   list it as pending. List a lower file that sets a different value as shadowed
-  by that one, never as pending. E.g.
+  by that one, never as pending. When no file sets it but the variable is set,
+  name the source as the shell environment (exported before Claude Code
+  started). E.g.
   `commit mode: interactive (~/.claude/settings.json) · pending: auto (.claude/settings.local.json, next session)`.
   Change nothing.
 - **`--mode <mode>`**: set the session mode — this and later `/kix:commit` runs
