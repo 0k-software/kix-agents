@@ -21,9 +21,10 @@ Pick the mode per invocation:
   instead of rebasing (see [Setting the mode](#setting-the-mode)).
 
 First check for the **`--mode` flag**: when the first word of `$ARGUMENTS` is
-`--mode`, don't rebase — run [Setting the mode](#setting-the-mode) and stop.
-That section validates what follows. No branch name can start with `-`, so this
-never shadows a target.
+`--mode` or `--save` (`--save <scope>` alone means `--mode --save <scope>`),
+don't rebase — run [Setting the mode](#setting-the-mode) and stop. That section
+validates what follows. No branch name can start with `-`, so this never
+shadows a target.
 
 Otherwise, parse `$ARGUMENTS` to determine the mode and target branch:
 

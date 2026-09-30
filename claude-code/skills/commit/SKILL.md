@@ -10,8 +10,9 @@ staged otherwise — and generate the commit message.
 ## Argument parsing
 
 First check for the **`--mode` flag**: when the first word of `$ARGUMENTS` is
-`--mode`, don't commit — run [Setting the mode](#setting-the-mode) and stop.
-That section validates what follows.
+`--mode` or `--save` (`--save <scope>` alone means `--mode --save <scope>`),
+don't commit — run [Setting the mode](#setting-the-mode) and stop. That section
+validates what follows.
 
 Otherwise, `$ARGUMENTS` may start with a mode marker:
 
