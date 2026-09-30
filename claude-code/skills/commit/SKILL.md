@@ -1,7 +1,7 @@
 ---
 name: commit
 description: Commit current work using the project's commit procedure (staging strategy, message generation, pre-commit hook auto-fix).
-argument-hint: [!|?] [reason for the change] | --mode [interactive|auto] [--project]
+argument-hint: [!|?] [reason for the change] | --mode [interactive|auto] [--save local|project|user]
 ---
 
 Commit the current intent — everything if the index is clean, only what's
@@ -10,11 +10,8 @@ staged otherwise — and generate the commit message.
 ## Argument parsing
 
 First check for the **`--mode` flag**: when the first word of `$ARGUMENTS` is
-`--mode`, don't commit — run
-[Setting the default mode](#setting-the-default-mode) and stop. That section
-validates what follows: no value shows the default, `interactive` or `auto`
-sets it, anything else is an invalid value that changes nothing (`--project`
-may follow).
+`--mode`, don't commit — run [Setting the mode](#setting-the-mode) and stop.
+That section validates what follows.
 
 Otherwise, `$ARGUMENTS` may start with a mode marker:
 
@@ -24,68 +21,69 @@ Otherwise, `$ARGUMENTS` may start with a mode marker:
 
 Strip the leading marker and whitespace to obtain the **context text**. If
 there is no marker, the entire string is the context text and the mode is the
-**configured default** (see below).
+**configured mode** (see [Mode resolution](#mode-resolution)).
 
 If the context text is non-empty, treat it as the reason/motivation behind the
 changes and use it to write the commit body.
 
-### Configured default mode
+### Mode resolution
 
-When `$ARGUMENTS` carries no marker, resolve the default mode — first match
-wins:
+When `$ARGUMENTS` carries no marker, the mode is — first match wins:
 
-1. The `KIX_COMMIT_MODE` environment variable.
-2. The `commit.defaultMode` field of the kix config file:
-   `$XDG_CONFIG_HOME/kix/config.json` if `XDG_CONFIG_HOME` is set, else
-   `~/.config/kix/config.json` (`%APPDATA%\kix\config.json` on Windows).
+1. The **session mode**: the last `/kix:commit --mode <mode>` earlier in this
+   conversation (see [Setting the mode](#setting-the-mode)). It lasts only for
+   this session, and is lost if the conversation is compacted before it.
+2. The `KIX_COMMIT_MODE` environment variable. Claude Code builds it from the
+   `env` blocks of its settings files, highest first: the repo's
+   `.claude/settings.local.json`, the repo's `.claude/settings.json`, then
+   `~/.claude/settings.json` — a local value beats the project's, which beats
+   the user's.
 3. `interactive`.
 
-Valid values are `interactive` and `auto` (case-insensitive). Ignore an invalid
-value, a missing file, or unparseable JSON and fall through to the next source.
-Read both sources in one call:
+Valid values are `interactive` and `auto` (case-insensitive); ignore anything
+else and fall through. Read the variable with
+`printenv KIX_COMMIT_MODE || true`.
 
-```bash
-printenv KIX_COMMIT_MODE; cat "${XDG_CONFIG_HOME:-$HOME/.config}/kix/config.json" 2>/dev/null || true
-```
+State the resolved mode and its source in one short line before Step 1 (e.g.
+`mode: auto (session)` or `mode: auto (KIX_COMMIT_MODE)`), so a surprising
+default is visible.
 
-Per-project overrides need no extra mechanism: setting `KIX_COMMIT_MODE` in the
-`env` block of the repo's `.claude/settings.json` (or `settings.local.json`)
-lands in this environment and outranks the config file.
+### Setting the mode
 
-State the resolved mode and where it came from in one short line before Step 1
-(e.g. `mode: auto (KIX_COMMIT_MODE)`), so a surprising default is visible.
+`/kix:commit --mode [interactive|auto] [--save local|project|user]`:
 
-### Setting the default mode
-
-`/kix:commit --mode` shows the default mode; `/kix:commit --mode auto` (or
-`--mode interactive`) stores it, so the user doesn't edit JSON by hand:
-
-- **No value** (`--mode`, or `--mode --project`): report the current default
-  and its source, resolved as above. Also read `KIX_COMMIT_MODE` from the `env`
-  block of the repo's `.claude/settings.local.json`: a `--project` write only
-  loads at session start, so when that value is set and differs from the live
-  environment variable, report it as pending — e.g.
-  `commit default mode: interactive (~/.config/kix/config.json) · pending: auto (.claude/settings.local.json, next session)`.
+- **`--mode`** alone: report the resolved mode and its source. To name the
+  settings file behind `KIX_COMMIT_MODE`, read the `env` blocks of the three
+  files. A file value that differs from the live variable was saved after this
+  session started — list it as pending, e.g.
+  `commit mode: interactive (~/.claude/settings.json) · pending: auto (.claude/settings.local.json, next session)`.
   Change nothing.
-- **Invalid value**: reply that the valid values are `interactive` and `auto`.
-  Change nothing.
-- **User-wide (default):** write `commit.defaultMode` into the kix config file
-  (`$XDG_CONFIG_HOME/kix/config.json`, else `~/.config/kix/config.json`).
-  Create the directory and file if missing. Read the existing JSON first and
-  change only that one field — keep every other key (e.g. `rebase`). If the
-  file exists but isn't valid JSON, stop and show it rather than overwrite it.
-- **`--project`:** write `"KIX_COMMIT_MODE": "<mode>"` into the `env` block of
-  the repo's `.claude/settings.local.json` (personal, not committed), with the
-  same merge rules. First make sure it stays out of commits: if
-  `git check-ignore -q .claude/settings.local.json` fails, append
-  `.claude/settings.local.json` to the clone-local exclude file
-  (`git rev-parse --git-path info/exclude`) and tell the user it was added
-  there. Claude Code loads `env` at session start, so tell the user it takes
-  effect in the next session.
+- **`--mode <mode>`**: set the session mode — this and later `/kix:commit` runs
+  in this conversation use it. Persist nothing.
+- **`--save <scope>`**, with or without a `<mode>`: when a `<mode>` is given,
+  set the session mode as above. Then write the mode — the given one, else the
+  currently resolved one — as `"KIX_COMMIT_MODE": "<mode>"` into the `env`
+  block of the scope's file:
+  - `local` → the repo's `.claude/settings.local.json` (personal). Keep it out
+    of commits: if `git check-ignore -q .claude/settings.local.json` fails,
+    append it to the clone-local exclude file
+    (`git rev-parse --git-path info/exclude`) and say so.
+  - `project` → the repo's `.claude/settings.json` (committed, shared with the
+    team). Say it's a repo change to commit.
+  - `user` → `~/.claude/settings.json` (every project).
 
-After a user-wide write, if `KIX_COMMIT_MODE` is set in the environment, warn
-that it still overrides the file for as long as it's set. End with one line,
-e.g. `commit default mode: auto (~/.config/kix/config.json)`.
+  Create the file if missing. Read the existing JSON first and change only that
+  one key — keep every other key and setting. If the file exists but isn't
+  valid JSON, stop and show it rather than overwrite it. Claude Code loads
+  `env` at session start, so the saved value applies from the next session (the
+  session mode covers this one). If a higher-priority file already sets
+  `KIX_COMMIT_MODE`, warn that it shadows the value just saved.
+
+- **Invalid value or scope**: reply with the valid ones (`interactive`, `auto`;
+  `local`, `project`, `user`). Change nothing.
+
+End with one line, e.g.
+`commit mode: auto (session) · saved to .claude/settings.json`.
 
 ## Resume detection
 
@@ -103,7 +101,7 @@ exists, a previous `/commit` run was paused via Step 6 **Continue** — this is 
   saved `mode` (so the mode persists across resumes even if the configured
   default changed in between). If non-empty, the new value wins: a `!`/`?`
   marker sets the mode, and without one the mode is resolved fresh from the
-  configured default. A state file from before `mode` was saved has no `mode`
+  configured mode. A state file from before `mode` was saved has no `mode`
   field — derive it from the saved `arguments` (`!` → auto-fix, otherwise
   interactive).
 - **Skip Step 1** — the staging strategy was decided on the original run. Run

@@ -31,46 +31,30 @@ This repo declares itself as a Claude Code marketplace via
   failures and retries, `/kix:rebase` resolves conflicts on its own.
 
 A leading `!` (auto) or `?` (interactive) picks the mode for one run —
-`/kix:commit ! reason`, `/kix:rebase ? main`. Without a marker, each skill uses
-its configured default, resolved like this (first match wins):
+`/kix:commit ! reason`, `/kix:rebase ? main`. Without a marker, each skill
+resolves its mode like this (first match wins):
 
-1. Environment variable — `KIX_COMMIT_MODE` / `KIX_REBASE_MODE`.
-2. User config file — `$XDG_CONFIG_HOME/kix/config.json`, falling back to
-   `~/.config/kix/config.json` (`%APPDATA%\kix\config.json` on Windows):
-
-   ```json
-   {
-     "commit": { "defaultMode": "auto" },
-     "rebase": { "defaultMode": "interactive" }
-   }
-   ```
-
+1. The session mode — set by `--mode <mode>` earlier in the same session.
+2. The `KIX_COMMIT_MODE` / `KIX_REBASE_MODE` environment variable, which Claude
+   Code builds from the `env` blocks of its settings files, highest first:
+   - `.claude/settings.local.json` — this repo, just you (not committed)
+   - `.claude/settings.json` — this repo, the whole team (committed)
+   - `~/.claude/settings.json` — you, every project
 3. `interactive`.
 
-For a per-project default, set the environment variable in the repo's
-`.claude/settings.json` (shared with the team) or `.claude/settings.local.json`
-(just you) — Claude Code exports its `env` block into the session, so it
-outranks the user config file:
-
-```json
-{
-  "env": { "KIX_REBASE_MODE": "auto" }
-}
-```
-
-The same `env` block in `~/.claude/settings.json` sets a user-wide default.
-
-You don't have to edit these files by hand — each skill sets its own default:
+Each skill shows, sets and saves its own mode, so you don't edit JSON by hand:
 
 ```text
-/kix:rebase --mode auto             ← writes rebase.defaultMode to the config file
-/kix:commit --mode interactive      ← writes commit.defaultMode
-/kix:rebase --mode auto --project   ← writes KIX_REBASE_MODE to .claude/settings.local.json
-/kix:commit --mode                  ← shows the current default and where it comes from
+/kix:rebase --mode                        ← shows the mode and where it comes from
+/kix:rebase --mode auto                   ← auto for the rest of this session
+/kix:rebase --mode auto --save local      ← …and saves it to .claude/settings.local.json
+/kix:commit --mode auto --save project    ← …to .claude/settings.json (commit it)
+/kix:commit --mode interactive --save user ← …to ~/.claude/settings.json
+/kix:commit --mode --save user            ← saves the current mode as is
 ```
 
-A `--project` setting takes effect in the next session, since Claude Code reads
-`env` at session start.
+A saved value applies from the next session, since Claude Code reads `env` at
+session start; the session mode covers the current one.
 
 ## Layout
 

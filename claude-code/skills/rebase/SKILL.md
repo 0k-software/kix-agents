@@ -1,7 +1,7 @@
 ---
 name: rebase
 description: Rebase current branch onto another, handling pre-commit hook failures
-argument-hint: [!|?] [target-branch] | --mode [interactive|auto] [--project]
+argument-hint: [!|?] [target-branch] | --mode [interactive|auto] [--save local|project|user]
 ---
 
 Rebase the current branch on top of a target branch, handling pre-commit hook
@@ -16,16 +16,14 @@ Pick the mode per invocation:
 
 - **`/kix:rebase! [branch]`** — auto mode for this run.
 - **`/kix:rebase? [branch]`** — interactive mode for this run.
-- **`/kix:rebase [branch]`** — the configured default mode (see below).
-- **`/kix:rebase --mode [mode]`** — show or store the default mode instead of
-  rebasing (see [Setting the default mode](#setting-the-default-mode)).
+- **`/kix:rebase [branch]`** — the configured mode (see below).
+- **`/kix:rebase --mode [mode] [--save <scope>]`** — show, set or save the mode
+  instead of rebasing (see [Setting the mode](#setting-the-mode)).
 
 First check for the **`--mode` flag**: when the first word of `$ARGUMENTS` is
-`--mode`, don't rebase — run
-[Setting the default mode](#setting-the-default-mode) and stop. That section
-validates what follows: no value shows the default, `interactive` or `auto`
-sets it, anything else is an invalid value that changes nothing (`--project`
-may follow). No branch name can start with `-`, so this never shadows a target.
+`--mode`, don't rebase — run [Setting the mode](#setting-the-mode) and stop.
+That section validates what follows. No branch name can start with `-`, so this
+never shadows a target.
 
 Otherwise, parse `$ARGUMENTS` to determine the mode and target branch:
 
@@ -33,71 +31,71 @@ Otherwise, parse `$ARGUMENTS` to determine the mode and target branch:
    appears as the first character of `$ARGUMENTS` (i.e. `$ARGUMENTS` starts
    with `!` or `?`). `!` sets **auto mode**, `?` sets **interactive mode**.
    Strip the marker before parsing the branch name. With no marker, resolve the
-   configured default mode.
+   configured mode.
 2. Whatever remains after stripping is the **target branch**. If empty, detect
    the default branch with
    `git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@'`,
    falling back to `main`. Strip a leading `refs/remotes/origin/` or `origin/`
    if the user wrote one — the target is always a bare branch name here.
 
-### Configured default mode
+### Mode resolution
 
-When `$ARGUMENTS` carries no marker, resolve the default mode — first match
-wins:
+When `$ARGUMENTS` carries no marker, the mode is — first match wins:
 
-1. The `KIX_REBASE_MODE` environment variable.
-2. The `rebase.defaultMode` field of the kix config file:
-   `$XDG_CONFIG_HOME/kix/config.json` if `XDG_CONFIG_HOME` is set, else
-   `~/.config/kix/config.json` (`%APPDATA%\kix\config.json` on Windows).
+1. The **session mode**: the last `/kix:rebase --mode <mode>` earlier in this
+   conversation (see [Setting the mode](#setting-the-mode)). It lasts only for
+   this session, and is lost if the conversation is compacted before it.
+2. The `KIX_REBASE_MODE` environment variable. Claude Code builds it from the
+   `env` blocks of its settings files, highest first: the repo's
+   `.claude/settings.local.json`, the repo's `.claude/settings.json`, then
+   `~/.claude/settings.json` — a local value beats the project's, which beats
+   the user's.
 3. `interactive`.
 
-Valid values are `interactive` and `auto` (case-insensitive). Ignore an invalid
-value, a missing file, or unparseable JSON and fall through to the next source.
-Read both sources in one call:
+Valid values are `interactive` and `auto` (case-insensitive); ignore anything
+else and fall through. Read the variable with
+`printenv KIX_REBASE_MODE || true`.
 
-```bash
-printenv KIX_REBASE_MODE; cat "${XDG_CONFIG_HOME:-$HOME/.config}/kix/config.json" 2>/dev/null || true
-```
+State the resolved mode and its source in one short line before Step 1 (e.g.
+`mode: auto (session)` or `mode: auto (KIX_REBASE_MODE)`), so a surprising
+default is visible.
 
-Per-project overrides need no extra mechanism: setting `KIX_REBASE_MODE` in the
-`env` block of the repo's `.claude/settings.json` (or `settings.local.json`)
-lands in this environment and outranks the config file.
+### Setting the mode
 
-State the resolved mode and where it came from in one short line before Step 1
-(e.g. `mode: auto (~/.config/kix/config.json)`), so a surprising default is
-visible.
+`/kix:rebase --mode [interactive|auto] [--save local|project|user]`:
 
-### Setting the default mode
-
-`/kix:rebase --mode` shows the default mode; `/kix:rebase --mode auto` (or
-`--mode interactive`) stores it, so the user doesn't edit JSON by hand:
-
-- **No value** (`--mode`, or `--mode --project`): report the current default
-  and its source, resolved as above. Also read `KIX_REBASE_MODE` from the `env`
-  block of the repo's `.claude/settings.local.json`: a `--project` write only
-  loads at session start, so when that value is set and differs from the live
-  environment variable, report it as pending — e.g.
-  `rebase default mode: interactive (~/.config/kix/config.json) · pending: auto (.claude/settings.local.json, next session)`.
+- **`--mode`** alone: report the resolved mode and its source. To name the
+  settings file behind `KIX_REBASE_MODE`, read the `env` blocks of the three
+  files. A file value that differs from the live variable was saved after this
+  session started — list it as pending, e.g.
+  `rebase mode: interactive (~/.claude/settings.json) · pending: auto (.claude/settings.local.json, next session)`.
   Change nothing.
-- **Invalid value**: reply that the valid values are `interactive` and `auto`.
-  Change nothing.
-- **User-wide (default):** write `rebase.defaultMode` into the kix config file
-  (`$XDG_CONFIG_HOME/kix/config.json`, else `~/.config/kix/config.json`).
-  Create the directory and file if missing. Read the existing JSON first and
-  change only that one field — keep every other key (e.g. `commit`). If the
-  file exists but isn't valid JSON, stop and show it rather than overwrite it.
-- **`--project`:** write `"KIX_REBASE_MODE": "<mode>"` into the `env` block of
-  the repo's `.claude/settings.local.json` (personal, not committed), with the
-  same merge rules. First make sure it stays out of commits: if
-  `git check-ignore -q .claude/settings.local.json` fails, append
-  `.claude/settings.local.json` to the clone-local exclude file
-  (`git rev-parse --git-path info/exclude`) and tell the user it was added
-  there. Claude Code loads `env` at session start, so tell the user it takes
-  effect in the next session.
+- **`--mode <mode>`**: set the session mode — this and later `/kix:rebase` runs
+  in this conversation use it. Persist nothing.
+- **`--save <scope>`**, with or without a `<mode>`: when a `<mode>` is given,
+  set the session mode as above. Then write the mode — the given one, else the
+  currently resolved one — as `"KIX_REBASE_MODE": "<mode>"` into the `env`
+  block of the scope's file:
+  - `local` → the repo's `.claude/settings.local.json` (personal). Keep it out
+    of commits: if `git check-ignore -q .claude/settings.local.json` fails,
+    append it to the clone-local exclude file
+    (`git rev-parse --git-path info/exclude`) and say so.
+  - `project` → the repo's `.claude/settings.json` (committed, shared with the
+    team). Say it's a repo change to commit.
+  - `user` → `~/.claude/settings.json` (every project).
 
-After a user-wide write, if `KIX_REBASE_MODE` is set in the environment, warn
-that it still overrides the file for as long as it's set. End with one line,
-e.g. `rebase default mode: auto (~/.config/kix/config.json)`.
+  Create the file if missing. Read the existing JSON first and change only that
+  one key — keep every other key and setting. If the file exists but isn't
+  valid JSON, stop and show it rather than overwrite it. Claude Code loads
+  `env` at session start, so the saved value applies from the next session (the
+  session mode covers this one). If a higher-priority file already sets
+  `KIX_REBASE_MODE`, warn that it shadows the value just saved.
+
+- **Invalid value or scope**: reply with the valid ones (`interactive`, `auto`;
+  `local`, `project`, `user`). Change nothing.
+
+End with one line, e.g.
+`rebase mode: auto (session) · saved to .claude/settings.json`.
 
 ---
 

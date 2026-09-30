@@ -58,23 +58,21 @@ The format is based on
   makes intentional: the overridden `bd prime` output, `no-git-ops` becoming a
   no-op, Codex having no `PreCompact` hook to re-inject memories mid-session,
   and the stamp gate firing on a pin bump.
-- `/kix:commit` and `/kix:rebase` now have a configurable default mode
-  (`interactive` or `auto`), so a user who always wants the autonomous path no
-  longer has to type `!` on every run. The default resolves the way caveman's
-  `defaultMode` does: the `KIX_COMMIT_MODE` / `KIX_REBASE_MODE` environment
-  variable first, then `commit.defaultMode` / `rebase.defaultMode` in
-  `~/.config/kix/config.json` (or `$XDG_CONFIG_HOME/kix/config.json`), then
-  `interactive` — today's behavior. A per-project default is the environment
-  variable in the repo's `.claude/settings.json` `env` block. `!` still forces
-  auto for one run, and a new `?` marker forces interactive when the configured
-  default is `auto`. `/kix:commit` saves the resolved mode in its resume state,
-  so a resumed commit keeps the mode it started with. See the README's
-  Configuration section.
-- `/kix:commit --mode <mode>` and `/kix:rebase --mode <mode>` store that
-  default without hand-editing JSON: user-wide in `~/.config/kix/config.json`,
-  or with `--project` as the env var in the repo's
-  `.claude/settings.local.json`. A bare `--mode` shows the current default and
-  where it comes from.
+- `/kix:commit` and `/kix:rebase` now have a configurable mode (`interactive`
+  or `auto`), so a user who always wants the autonomous path no longer has to
+  type `!` on every run. Without a marker the mode is the session mode (set by
+  `--mode <mode>`), else the `KIX_COMMIT_MODE` / `KIX_REBASE_MODE` environment
+  variable — which Claude Code builds from the `env` blocks of
+  `.claude/settings.local.json`, `.claude/settings.json` and
+  `~/.claude/settings.json`, in that precedence — else `interactive`, today's
+  behavior. `!` still forces auto for one run, and a new `?` marker forces
+  interactive. `/kix:commit` saves the resolved mode in its resume state, so a
+  resumed commit keeps the mode it started with.
+- `--mode` on both skills: bare `--mode` shows the mode and where it comes
+  from, `--mode <mode>` sets it for the rest of the session, and
+  `--save local|project|user` writes it (or the current mode, when no value is
+  given) into that scope's settings file, keeping `.claude/settings.local.json`
+  out of commits. See the README's Configuration section.
 
 - `bootstrap-bd.sh` registers the Dolt remote from `sync.remote` in
   `.beads/config.yaml` and defaults `beads.role` to `maintainer`. Neither lives
