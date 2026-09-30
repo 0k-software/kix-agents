@@ -66,8 +66,10 @@ default is visible.
 
 - **`--mode`** alone: report the resolved mode and its source. To name the
   settings file behind `KIX_REBASE_MODE`, read the `env` blocks of the three
-  files. A file value that differs from the live variable was saved after this
-  session started — list it as pending, e.g.
+  files. The highest-priority file that sets it is the expected value: if it
+  differs from the live variable, it was saved after this session started —
+  list it as pending. List a lower file that sets a different value as shadowed
+  by that one, never as pending. E.g.
   `rebase mode: interactive (~/.claude/settings.json) · pending: auto (.claude/settings.local.json, next session)`.
   Change nothing.
 - **`--mode <mode>`**: set the session mode — this and later `/kix:rebase` runs
