@@ -226,6 +226,11 @@ used to silence.
    run instead, and if none is clean by the third commit, drop the estimate and
    say so.
 
+   A missing or empty `kix-hook-times` is not a slow sample: it means `--exec`
+   was not pointed at `time-hook.sh`, so no run will ever be recorded. Say
+   there is no estimate for this rebase and let it run — do not wait for a
+   sample that is not coming.
+
 5. Multiply **H** by the commits still to apply, read from the poll as
    `(end - msgnum) / 2`. Take it from the counters rather than assuming `N-1`:
    when the first commit conflicted and H came from the second or third
