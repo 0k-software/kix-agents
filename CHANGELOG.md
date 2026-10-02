@@ -7,6 +7,8 @@ The format is based on
 
 ## [Unreleased]
 
+## [0.4.1] — 2026-10-02
+
 ### Added
 
 - `/kix:commit` and `/kix:rebase` now have a configurable mode (`interactive`
