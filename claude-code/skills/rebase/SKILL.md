@@ -211,7 +211,7 @@ used to silence.
    right then that the hook has been running 60s and more, with
    `(end - msgnum) / 2` commits left, so the rest costs at least 60s times that
    many. In interactive mode ask at that point — let it finish, or
-   `git rebase --abort` — while the run continues in the background; in force
+   `git rebase --abort` — while the run continues in the background; in auto
    mode warn in red and let it run. This is the case where waiting for a clean
    measurement would mean waiting out the very thing being measured.
 
@@ -239,11 +239,15 @@ used to silence.
 Then apply the threshold that matches the estimate, **before letting the rebase
 go further**:
 
-| Estimate    | Interactive (`/kix:rebase`)       | Force (`/kix:rebase!`)            |
+| Estimate    | Interactive                       | Auto                              |
 | ----------- | --------------------------------- | --------------------------------- |
 | Under 2 min | Report the estimate, continue     | Report the estimate, continue     |
 | 2–5 min     | Warn, suggest squashing, continue | Warn, suggest squashing, continue |
 | Over 5 min  | **Ask** — rebase keeps running    | Big red warning, continue         |
+
+The columns are the **resolved** mode from [Mode resolution](#mode-resolution),
+not how the skill was invoked: a bare `/kix:rebase` is whatever the session
+mode or `KIX_REBASE_MODE` says, so it can be either column.
 
 **Nothing here ever pauses the rebase.** "Ask" means ask while it runs: you
 stop to wait for an answer, the background process does not. It has no pause —
@@ -267,8 +271,8 @@ Over 5 minutes, say so explicitly ("this will take more than 5 minutes") and:
   on their answer — and if the rebase has already finished by then, say so and
   treat an abort answer as a question about whether to squash the landed
   result, not as licence to throw it away.
-- **Force mode:** never ask. Render the warning as a large, prominent red
-  notice and let the rebase run on.
+- **Auto mode:** never ask. Render the warning as a large, prominent red notice
+  and let the rebase run on.
 
 ## Step 2 — Start the rebase
 
