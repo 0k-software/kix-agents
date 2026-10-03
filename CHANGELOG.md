@@ -9,13 +9,15 @@ The format is based on
 
 ### Added
 
-- `/kix:close`, `/kix:ship`, `/kix:preflight` and `/kix:title` — the session
-  lifecycle skills, moved unchanged from kelvinst's dotfiles. `kix:preflight`
-  rebases, runs six checks (code review, conversation, checklists, tracker,
-  look ahead, after ship) and turns every finding into a fix, a deferred task
-  or a reasoned dismissal; `kix:ship` fast-forwards the default branch to a
-  checked branch; `kix:close` ships, marks the task done and archives the
-  session; `kix:title` names the session `<emoji> <code>-<id> │ <description>`.
+- `/kix:close`, `/kix:ship`, `/kix:preflight`, `/kix:title` and `/kix:next-up`
+  — the session lifecycle skills, moved unchanged from kelvinst's dotfiles.
+  `kix:preflight` rebases, runs six checks (code review, conversation,
+  checklists, tracker, look ahead, after ship) and turns every finding into a
+  fix, a deferred task or a reasoned dismissal; `kix:ship` fast-forwards the
+  default branch to a checked branch; `kix:close` ships, marks the task done
+  and archives the session; `kix:title` names the session
+  `<emoji> <code>-<id> │ <description>`; `kix:next-up` prints a read-only
+  briefing of what to work on next from a repo's beads.
 - `project-code` on the Bash PATH (plugin `bin/`): the repo's 3-letter code for
   session titles, saved in `.claude/settings.json` as `env.PROJECT_CODE`.
 - Plugin hooks: a SessionStart hook that asks for `kix:title` after the first
