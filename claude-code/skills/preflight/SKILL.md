@@ -1,9 +1,9 @@
 ---
 name: preflight
 description:
-  Use when the user types /preflight, or asks whether the current branch is
+  Use when the user types /kix:preflight, or asks whether the current branch is
   ready to land on the default branch ("tá pronto pra main?", "revisa a
-  branch", "pode subir?"), or when another skill (ship, and close through ship)
+  branch", "pode subir?"), or when another skill (kix:ship, and kix:close through kix:ship)
   needs the branch checked before it moves.
 ---
 
@@ -12,8 +12,8 @@ description:
 Preflight answers one question — **can this branch land on the default branch
 without losing anything?** — and turns every loose end into a fix, a deferred
 item (when the repo has an inbox for them), or an explicit dismissal. It is the
-only place a review happens: `ship` and `close` run it, and never review on
-their own.
+only place a review happens: `kix:ship` and `kix:close` run it, and never
+review on their own.
 
 **Language.** This skill is written in English; everything you produce follows
 the language the user is speaking: replies, the findings list, ReportFindings
@@ -55,8 +55,8 @@ that ran the checks — written by step 2 right after its checks ran on that
 commit. The first word is what makes a commit checked; the session id only
 decides whether _Already checked_ may skip (older notes read just `checked`).
 The mark only records that the checks ran — it is not an approval; the approval
-is the user's "Ship" answer in `ship`. `ship` reads it; only preflight writes
-it.
+is the user's "Ship" answer in `kix:ship`. `kix:ship` reads it; only preflight
+writes it.
 
 ## Progress
 
@@ -66,21 +66,21 @@ before a question and the ⏳ line when a Fixes job starts, both below),
 numbered across the whole run the user started (the `<command>` of _Verdict_),
 not per skill. Each check of step 2 is a step of its own:
 
-| Step                                    | `/preflight` | `/ship` | `/close` |
-| --------------------------------------- | ------------ | ------- | -------- |
-| Rebase (1)                              | 1/11         | 1/15    | 1/17     |
-| Code review (2a)                        | 2/11         | 2/15    | 2/17     |
-| Conversation (2b)                       | 3/11         | 3/15    | 3/17     |
-| Checklists (2c)                         | 4/11         | 4/15    | 4/17     |
-| Tracker (2d)                            | 5/11         | 5/15    | 5/17     |
-| Look ahead (2e)                         | 6/11         | 6/15    | 6/17     |
-| After ship (2f)                         | 7/11         | 7/15    | 7/17     |
-| Report (3)                              | 8/11         | 8/15    | 8/17     |
-| Decide (4)                              | 9/11         | 9/15    | 9/17     |
-| Fixes (5)                               | 10/11        | 10/15   | 10/17    |
-| Verdict (6)                             | 11/11        | 11/15   | 11/17    |
-| Confirm, Gate, Push, Check (`ship` 2–5) | —            | 12–15   | 12–15    |
-| Mark task done, Archive (`close` 2a–2b) | —            | —       | 16–17    |
+| Step                                        | `/kix:preflight` | `/kix:ship` | `/kix:close` |
+| ------------------------------------------- | ---------------- | ----------- | ------------ |
+| Rebase (1)                                  | 1/11             | 1/15        | 1/17         |
+| Code review (2a)                            | 2/11             | 2/15        | 2/17         |
+| Conversation (2b)                           | 3/11             | 3/15        | 3/17         |
+| Checklists (2c)                             | 4/11             | 4/15        | 4/17         |
+| Tracker (2d)                                | 5/11             | 5/15        | 5/17         |
+| Look ahead (2e)                             | 6/11             | 6/15        | 6/17         |
+| After ship (2f)                             | 7/11             | 7/15        | 7/17         |
+| Report (3)                                  | 8/11             | 8/15        | 8/17         |
+| Decide (4)                                  | 9/11             | 9/15        | 9/17         |
+| Fixes (5)                                   | 10/11            | 10/15       | 10/17        |
+| Verdict (6)                                 | 11/11            | 11/15       | 11/17        |
+| Confirm, Gate, Push, Check (`kix:ship` 2–5) | —                | 12–15       | 12–15        |
+| Mark task done, Archive (`kix:close` 2a–2b) | —                | —           | 16–17        |
 
 Each line starts with an emoji for the step's state, then `<n>/<total>` and the
 step name:
@@ -99,9 +99,9 @@ commit or task id, when the job is done:
 `✅ 10.1/15 Fixes — job 1/2: ❓ before every question (bb5098b)`. The step's
 own ✅ line follows the last job.
 
-Before **every** AskUserQuestion — in any step of preflight, `ship` or `close`,
-each one-by-one finding question and each discard-reason question included —
-print a ❓ line right before calling the tool:
+Before **every** AskUserQuestion — in any step of preflight, `kix:ship` or
+`kix:close`, each one-by-one finding question and each discard-reason question
+included — print a ❓ line right before calling the tool:
 `❓ <n>/<total> <Step> — <very short summary of what is about to be asked>`
 (e.g. `❓ 9/15 Decide — finding 2/6: tally vs split`,
 `❓ 12/15 Confirm — ship these 3 commits?`,
@@ -125,7 +125,7 @@ and what to do, after the last step's line:
 
 ```
 ⚠️ Stopped at 11/15 Verdict — to do next:
-- skim bb5098b..44b795d, then run /ship again
+- skim bb5098b..44b795d, then run /kix:ship again
 - close dot-a7j after the ship
 ```
 
@@ -320,8 +320,8 @@ List each item the work affects, either way:
 
 Each is a finding with a concrete suggested fix: close or tick it, add a note
 or link saying what landed, add or drop a dependency, or rewrite the plan. The
-issue or quest the branch itself is about is not a finding: `close` marks it
-done after the ship — unless this session created or rewrote it (below).
+issue or quest the branch itself is about is not a finding: `kix:close` marks
+it done after the ship — unless this session created or rewrote it (below).
 
 **Items this session wrote.** A session whose work is the tracker itself — it
 created a bd issue or an arrival, or rewrote one's title, description, design
@@ -380,14 +380,14 @@ with the fix "do it now".
 
 Each is a finding (`category: after-ship`) whose suggested fix is to write it
 down in the current task, never to do it: the "Note in the task" job of step 5.
-Skip what the task already says. `close` reads the task before marking it done,
-so what the task says is still pending keeps it open. _(Neither)_ there is no
-tracker: the finding's fix is a ⚠️ line in the run's closing ⚠️ block.
+Skip what the task already says. `kix:close` reads the task before marking it
+done, so what the task says is still pending keeps it open. _(Neither)_ there
+is no tracker: the finding's fix is a ⚠️ line in the run's closing ⚠️ block.
 
 **Mark the checks.** As soon as the six checks have run (or been skipped by
 _Already checked_, which also skips this mark), mark the commit they looked at
 — HEAD — as checked. The mark says only that: the checks ran on this commit. It
-is not an approval; the approval is the user's "Ship" answer in `ship`. Any
+is not an approval; the approval is the user's "Ship" answer in `kix:ship`. Any
 later commit (a fix, an arrival) is not checked, and the next preflight checks
 it.
 
@@ -590,10 +590,10 @@ fixed (with its commit), deferred (arrival link or task id), discarded —
 
 ## 6. Verdict
 
-End every run with exactly one verdict. Callers (`ship`, and `close` through
-`ship`) move on only on **clear**. Below, `<command>` is the slash command of
-the skill the user started — `/preflight`, `/ship` or `/close` — even when they
-started it in plain words.
+End every run with exactly one verdict. Callers (`kix:ship`, and `kix:close`
+through `kix:ship`) move on only on **clear**. Below, `<command>` is the slash
+command of the skill the user started — `/kix:preflight`, `/kix:ship` or
+`/kix:close` — even when they started it in plain words.
 
 **Showing the diff.** Give the compare link when the remote is on GitHub, one
 link only — for the branch diff
@@ -625,8 +625,8 @@ often than not — and never tell the user a keyboard shortcut.
 
 **Rerun.** A link can't run a slash command, but an answer can. After a
 **changed** or **open** verdict's ⚠️ block, print a ❓ line (e.g.
-`❓ 11/15 Verdict — rerun /ship?`), write what is being asked and each option
-in the reply, as the global _Asking questions_ rule says, and ask with
+`❓ 11/15 Verdict — rerun /kix:ship?`), write what is being asked and each
+option in the reply, as the global _Asking questions_ rule says, and ask with
 AskUserQuestion. The only link is the compare link the verdict already printed
 in the reply — the step 5 commits for **changed**, the branch diff for **open**
 — never a second link with a different range, and never inside the question.
@@ -695,9 +695,10 @@ even when that run ships. On "Not now", stop — nothing runs after the answer.
 - Reviewing before the rebase, or rebasing with `notes.rewriteRef` still
   carrying check marks.
 - Hardcoding `main` instead of the detected default branch.
-- Numbering progress per skill (`1/11` inside a `/ship`) instead of across the
-  whole run, or dropping the line for a skipped step, printing a line when a
-  step starts instead of when it ends, or folding several steps into one line.
+- Numbering progress per skill (`1/11` inside a `/kix:ship`) instead of across
+  the whole run, or dropping the line for a skipped step, printing a line when
+  a step starts instead of when it ends, or folding several steps into one
+  line.
 - Printing several steps' progress lines in one text block instead of one
   message per step, each right after that step's own command.
 - Asking the user anything without printing the ❓ line first, or printing it

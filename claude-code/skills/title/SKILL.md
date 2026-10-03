@@ -1,7 +1,7 @@
 ---
 name: title
 description:
-  Use when the user types /title, asks to name or rename the session ("renomeia
+  Use when the user types /kix:title, asks to name or rename the session ("renomeia
   a sessão", "atualiza o título"), or when another skill or CLAUDE.md says to
   set the session title for a state change.
 ---
@@ -29,8 +29,8 @@ None → guess every part. Any part given overrides the guess, in any order:
 - a tracker id (`dot-abc`, `qst-abc`);
 - anything else → the description.
 
-**Called by another skill** (close — always with a state): never ask and never
-write. Several candidate items → take the best guess silently; skip the
+**Called by another skill** (`kix:close` — always with a state): never ask and
+never write. Several candidate items → take the best guess silently; skip the
 supersede and epic proposals. The caller is in the middle of its own work, and
 a question or a tracker write would stop it.
 
@@ -41,11 +41,11 @@ a question or a tracker write would stop it.
 | 📥    | `reg`     | the session only filed or edited tracker items                 |
 | 📐    | `plan`    | brainstorming, spec or plan work, no product code edited       |
 | 🏭    | `impl`    | code edited, or a plan being executed                          |
-| 📦    | `ship`    | close delivering landed work                                   |
+| 📦    | `ship`    | `kix:close` delivering landed work                             |
 | 🏁    | `shipped` | the item closed as shipped — the work is on the default branch |
 
-Reviews (preflight, debrief, a code review) and landing on the default branch
-are gates the item can pass while still being implemented — they are not
+Reviews (`kix:preflight`, debrief, a code review) and landing on the default
+branch are gates the item can pass while still being implemented — they are not
 states. Guessing: the latest of these signals in the session wins. 🏁 never
 comes from a guess alone — only when the work is in `origin/<default>`
 (`git merge-base --is-ancestor HEAD <base>`) and the item is closed. An item
@@ -54,14 +54,15 @@ own: leave the title as it is.
 
 ## Steps
 
-1. **Project code.** Run `project-code` (on PATH after `make install`; else
-   `bin/project-code` in the dotfiles repo) and use its output — it is the only
-   source of the code: the one saved in `.claude/settings.json`, else one
-   generated from the repo name. Never derive or ask for a code yourself. Exit
-   1 (not a git repo) → no code; the prefix is just `<emoji>`. Exit 3
-   (`.claude/settings.json` is not valid JSON) → no code this time; tell the
-   user the file needs fixing by hand. To pin another code, the user runs
-   `project-code set <code>`.
+1. **Project code.** Run `project-code` (on PATH from the kix plugin's `bin/`;
+   else `${CLAUDE_PLUGIN_ROOT}/bin/project-code`, or
+   `claude-code/bin/project-code` in a kix-agents checkout) and use its output
+   — it is the only source of the code: the one saved in
+   `.claude/settings.json`, else one generated from the repo name. Never derive
+   or ask for a code yourself. Exit 1 (not a git repo) → no code; the prefix is
+   just `<emoji>`. Exit 3 (`.claude/settings.json` is not valid JSON) → no code
+   this time; tell the user the file needs fixing by hand. To pin another code,
+   the user runs `project-code set <code>`.
 2. **Tracker.** From the repo root, first match wins: **Kingdone**
    (`Gates/Gates.md` exists; items are quests `qst-<id>`), **Beads** (`.beads/`
    exists and `command -v bd`), **neither** (no id in the title).

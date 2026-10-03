@@ -1,7 +1,7 @@
 ---
 name: ship
 description:
-  Use when the user types /ship, or asks to put the current branch's work on
+  Use when the user types /kix:ship, or asks to put the current branch's work on
   the default branch ("manda pra main", "mergear na main", "sobe pra main",
   "ship"), or when another skill needs the branch's commits in the default
   branch.
@@ -10,10 +10,10 @@ description:
 # Ship to the default branch
 
 "Merge into main" means GitHub's **rebase and merge**, done in two parts: the
-`preflight` skill rebases the branch onto the default branch and reviews it,
-and ship only fast-forwards the default branch to the checked branch — no merge
-commit, flat history. Ship never rebases and never reviews on its own; it runs
-`preflight` for both.
+`kix:preflight` skill rebases the branch onto the default branch and reviews
+it, and ship only fast-forwards the default branch to the checked branch — no
+merge commit, flat history. Ship never rebases and never reviews on its own; it
+runs `kix:preflight` for both.
 
 **Language.** Reply in the language the user is speaking.
 
@@ -30,10 +30,10 @@ name without `origin/`.
 ## Steps
 
 Print a progress line when each step ends, and a ❓ line before each question,
-as preflight's _Progress_ says: the preflight steps are 1–11, and steps 2–5
-below are 12–15 of 15 (of 17 when `close` called ship).
+as `kix:preflight`'s _Progress_ says: the preflight steps are 1–11, and steps
+2–5 below are 12–15 of 15 (of 17 when `kix:close` called ship).
 
-1. **Preflight.** Run the `preflight` skill, every time — even when HEAD
+1. **Preflight.** Run the `kix:preflight` skill, every time — even when HEAD
    already carries a check mark (preflight skips its git-only checks then, but
    still rebases and reruns the ones that read the session or bd). Its verdict
    decides:
@@ -48,10 +48,10 @@ below are 12–15 of 15 (of 17 when `close` called ship).
    step 5's line says `0 commits — <default> unchanged`. Never ask to ship an
    empty range.
 
-2. **Confirm.** Show the branch diff from `<base>` the way preflight's _Showing
-   the diff_ says — the compare link in the reply, never in the question — say
-   what "Ship" does, then ask with AskUserQuestion: "Reviewed — can I ship?"
-   Options:
+2. **Confirm.** Show the branch diff from `<base>` the way `kix:preflight`'s
+   _Showing the diff_ says — the compare link in the reply, never in the
+   question — say what "Ship" does, then ask with AskUserQuestion: "Reviewed —
+   can I ship?" Options:
 
    - "Ship" — "Not a merge: no merge commit. The branch was already rebased
      onto `<default>`, so its commits land on top of it as they are — flat
@@ -74,10 +74,11 @@ below are 12–15 of 15 (of 17 when `close` called ship).
    `checked` → stop. After the ⚠️ block, say in the reply what changed since
    the preflight (dirty tree / `<default>` moved / HEAD not checked) with the
    branch diff from `<base>` as its link, then ask "Run `<command>` again?"
-   with the same three options as preflight's _Verdict_ **changed** rerun
+   with the same three options as `kix:preflight`'s _Verdict_ **changed** rerun
    question (reviewed · skip my review · not now); on "skip my review", the ⚠️
    item names the branch range `<base>..HEAD`. `<command>` as _Verdict_ defines
-   it (`/close` when close called ship). Never rebase or review here to fix it.
+   it (`/kix:close` when close called ship). Never rebase or review here to fix
+   it.
 
 4. **Push the default branch, the branch and the notes.**
 
