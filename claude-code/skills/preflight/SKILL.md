@@ -447,16 +447,23 @@ First AskUserQuestion, a single question: "Apply all suggested fixes"
   the user answers in one sitting and walks away while the queue runs. Right
   before each question, after its ❓ line, print the finding in the reply as a
   short block the user can read and scroll back to — the card collapses to the
-  chosen label once answered. Print it as Markdown, not in a code block:
+  chosen label once answered. Print it as Markdown, not in a code block, with
+  exactly this shape — a bold heading, then one labelled bullet per line, never
+  a prose paragraph:
 
   ```
   **Finding 6/9 — `<file>:<line>`**
-  <problem: what goes wrong and when, one or two sentences>
+  - **Problem:** <what goes wrong and when — one line>
+  - **If left:** <the failure scenario — what breaks, for whom>
   - **Fix (recommended):** <the fix> — <why this one over the others>
-  - **<other fix>:** <what it does, its trade-off>   (one per extra fix)
-  - **Defer / Discard / Leave for later:** <only what is specific to this
-    finding, e.g. an existing task that already covers it>
+  - **Alt — <other fix>:** <what it does, its trade-off>   (one per extra fix)
+  - **Note:** <only what is specific to deferring, discarding or leaving this
+    finding, e.g. an existing task that already covers it — omit otherwise>
   ```
+
+  **Problem**, **If left** and **Fix** are always there, even under caveman
+  ultra — caveman shortens each bullet to fragments, it never drops a bullet or
+  merges them into a paragraph.
 
   The question is one short line pointing at that block — "Finding 6/9 — take
   the recommended fix?" — never the finding itself. Options, in this order,
@@ -660,6 +667,8 @@ even when that run ships. On "Not now", stop — nothing runs after the answer.
 - A chat list that leaves out what the ReportFindings card shows.
 - A one-by-one question with no finding block printed right before it, or with
   the whole finding stuffed into the question text instead.
+- A finding block written as a paragraph, or missing its **Problem**, **If
+  left** or **Fix** bullet.
 - One-by-one that skips the code-review findings.
 - One-by-one that applies each fix right after its answer (ask, fix, ask, fix)
   instead of asking every question first and running the queue after the last.

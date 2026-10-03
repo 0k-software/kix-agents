@@ -146,6 +146,20 @@ Otherwise ask with AskUserQuestion: "Archive this session now?" — "Archive"
 - **Pin.** When `pinned` is true, unpin it with `mcp__ccd_sidebar__set_pinned`
   (`session_id: "self"`, `pinned: false`), so the sidebar's Pinned list only
   holds live work.
+- **Remote branch.** Ship lands work as a fast-forward, never a GitHub merge,
+  so GitHub never deletes the branch. When the session is on a branch other
+  than `<default>`, delete its copy on `origin` once every commit of it is in
+  `<base>` — then it holds nothing `<base>` does not, and `g-` prunes the local
+  branch and its worktree on its next run:
+
+  ```bash
+  git fetch origin
+  git merge-base --is-ancestor origin/<branch> <base> \
+    && git push origin --delete <branch>
+  ```
+
+  No `origin/<branch>`, or it is not in `<base>`: leave it, say why in one
+  line, and go on. Never delete `<default>`.
 
 Then call `mcp__ccd_session_mgmt__archive_session` with `session_id: "self"`.
 Never archive without that answer, or while the work is not in `<base>`, or
@@ -165,6 +179,8 @@ while the task has items left (2a).
 - Archiving while the task still has items left after the ship.
 - Archiving after a ship that stopped.
 - Archiving with Remote Control still on, or the session still pinned.
+- Deleting the remote branch on "Leave it open", or before checking it is in
+  `<base>`.
 - In a terminal `claude remote-control` session (no `ccd_session_mgmt` tools),
   trying to turn Remote Control off or to archive — it ends the session; point
   the user to the phone instead.
