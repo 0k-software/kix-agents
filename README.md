@@ -65,12 +65,14 @@ session start; the session mode covers the current one.
 .kix/hooks/session-start.sh       ← shared SessionStart bootstrap entrypoint
 claude-code/                      ← Claude Code plugin (manifest + skills + …)
   .claude-plugin/plugin.json
+  bin/                            ← on the Bash PATH while enabled (project-code)
+  hooks/hooks.json                ← plugin hooks (title prompt, Remote Control off)
   skills/
   templates/
 docs/
   kix-agents.md                   ← what this repo is and how it fits in Kix
 scripts/bump-plugin.js            ← bump plugin.json version
-Makefile                          ← setup, autofix, check, bump
+Makefile                          ← setup, autofix, check, test, bump
 ```
 
 ## Known non-issues
