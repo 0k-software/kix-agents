@@ -10,6 +10,12 @@
 
 set -eu
 
+# Run from the pre-commit hook, git exports GIT_DIR, GIT_INDEX_FILE and friends
+# for the real repo, and every git call below would hit it instead of the
+# throwaway repos (kxa-6df: it re-inited kix-agents as bare). Drop them.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_OBJECT_DIRECTORY GIT_COMMON_DIR \
+  GIT_PREFIX GIT_ALTERNATE_OBJECT_DIRECTORIES
+
 RECORDER=${RECORDER:-claude-code/skills/rebase/time-hook.sh}
 case $RECORDER in /*) ;; *) RECORDER="$PWD/$RECORDER" ;; esac
 
