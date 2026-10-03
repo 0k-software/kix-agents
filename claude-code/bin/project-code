@@ -1,0 +1,114 @@
+#!/usr/bin/env bash
+# project-code — the repo's 3-letter project code (dot, kxa, okc...), kept in
+# the checked-in .claude/settings.json as env.PROJECT_CODE. The /title skill
+# puts it in the session title prefix.
+
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage: project-code [get|repo|set CODE]
+
+  get        Print the code (default): the saved one, else one generated
+             from the repo name — the same name always gives the same code.
+  repo       Print the original repo's folder name — a linked worktree
+             resolves to the repo it was made from.
+  set CODE   Save CODE (3 chars, a-z 0-9) into .claude/settings.json at
+             the worktree root, keeping every other key. For a repo whose
+             generated code clashes with another's, or reads badly.
+
+Exit 1 outside a git repo, 3 when .claude/settings.json is not a JSON
+object (a syntax error, say) — fix the file by hand then.
+EOF
+}
+
+# Called as file=$(settings): the exit 1 fails the assignment, and set -e
+# ends the script with it.
+settings() {
+  local top
+  top=$(git rev-parse --show-toplevel 2>/dev/null) || exit 1
+  echo "$top/.claude/settings.json"
+}
+
+# Exits 3 when the file exists but is not a JSON object: guessing a fix
+# for a hand-edited settings file is not this script's job.
+check_object() {
+  [ -f "$1" ] || return 0
+  jq -e 'type == "object" and ((.env // {}) | type == "object")' "$1" \
+    >/dev/null 2>&1 && return 0
+  echo "project-code: $1 is not a JSON object with an object env" >&2
+  exit 3
+}
+
+cmd_get() {
+  local file code=""
+  file=$(settings)
+  check_object "$file"
+  [ -f "$file" ] && code=$(jq -r '.env.PROJECT_CODE // empty' "$file")
+  if [ -n "$code" ]; then
+    echo "$code"
+  else
+    generate
+  fi
+}
+
+# The common dir is <repo>/.git for the main checkout and every worktree.
+cmd_repo() {
+  local common
+  common=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null) ||
+    exit 1
+  basename "$(dirname "$common")"
+}
+
+# Deterministic, from the repo name split into words on - _ . and camel
+# case: three or more words → the first letter of each of the first three
+# (obsidian-kingdone-chapel → okc); two → the first and last letter of the
+# first word and the first letter of the second (kix-agents → kxa); one →
+# its first three letters (dotfiles → dot). Two repos can land on the same
+# code; `set` overrides it.
+generate() {
+  local name w0 w1 words=()
+  name=$(cmd_repo)
+  read -r -a words <<<"$(printf '%s' "$name" |
+    sed -E 's/([a-z0-9])([A-Z])/\1 \2/g' | tr '_.-' '   ' |
+    tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9 ')" || true
+  case ${#words[@]} in
+  0) echo ;;
+  1) echo "${words[0]:0:3}" ;;
+  2)
+    w0=${words[0]}
+    w1=${words[1]}
+    echo "${w0:0:1}${w0:${#w0}-1:1}${w1:0:1}"
+    ;;
+  *) echo "${words[0]:0:1}${words[1]:0:1}${words[2]:0:1}" ;;
+  esac
+}
+
+cmd_set() {
+  local code=${1-} file tmp
+  if ! [[ $code =~ ^[a-z0-9]{3}$ ]]; then
+    echo "project-code: code must be 3 characters, a-z or 0-9: '$code'" >&2
+    exit 1
+  fi
+  file=$(settings)
+  check_object "$file"
+  mkdir -p "$(dirname "$file")"
+  [ -f "$file" ] || echo '{}' >"$file"
+  tmp=$(mktemp)
+  # Expanded now: tmp is local and gone by the time EXIT fires.
+  # shellcheck disable=SC2064
+  trap "rm -f '$tmp'" EXIT
+  jq --arg c "$code" '.env.PROJECT_CODE = $c' "$file" >"$tmp"
+  cat "$tmp" >"$file"
+}
+
+case ${1-get} in
+get) cmd_get ;;
+repo) cmd_repo ;;
+set) cmd_set "${2-}" ;;
+-h | --help | help) usage ;;
+*)
+  usage >&2
+  exit 1
+  ;;
+esac
