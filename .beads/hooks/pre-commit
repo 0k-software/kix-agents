@@ -43,18 +43,18 @@ make autofix
 git add .
 make check
 
-# --- Rebase-timing tests (kix-agents only) ---
+# --- Shell tests (kix-agents only) ---
 # `make test` runs real rebases, so it costs seconds, and this hook runs once
 # per commit during a rebase — unconditionally running it would make every
 # rebase in this repo slower for no reason. Run it only when the files it covers
 # are staged. Names come from the index, after the autofix above re-staged.
 if git diff --cached --name-only \
-  | grep -qE '^(claude-code/skills/rebase/time-hook\.sh|scripts/test-rebase-timing\.sh|Makefile)$'; then
-  echo "pre-commit: rebase timing files changed — running make test"
+  | grep -qE '^(claude-code/skills/rebase/time-hook\.sh|claude-code/bin/project-code|claude-code/hooks/title-first-prompt\.sh|scripts/test-[a-z-]+\.sh|Makefile)$'; then
+  echo "pre-commit: tested shell files changed — running make test"
   make test || {
     echo ""
-    echo "Commit rejected: the rebase-timing tests fail on this change."
-    echo "Fix them (or the recorder) and commit again, or use --no-verify to"
+    echo "Commit rejected: make test fails on this change."
+    echo "Fix the tests (or the script) and commit again, or use --no-verify to"
     echo "bypass deliberately."
     exit 1
   }

@@ -91,14 +91,14 @@ cp -rf source dest          # NOT: cp -r source dest
 ## Build & Test
 
 This repo is Markdown content (slash commands, templates, docs) — there is no
-runtime. The toolchain is Prettier + a small release pipeline, plus one test
-suite for the shell contract the rebase skill hands agents:
+runtime. The toolchain is Prettier + a small release pipeline, plus test suites
+for the shell the skills ship:
 
 ```bash
 make setup     # point core.hooksPath at .beads/hooks/ (beads + Prettier gate)
 make autofix   # prettier --write .
 make check     # prettier --check .  (the formatting gate)
-make test      # scripts/test-rebase-timing.sh — the rebase skill's hook recorder
+make test      # scripts/test-*.sh — rebase hook recorder, project-code, title hook
 make all       # autofix && check
 make bump PART=patch|minor|major   # bump claude-code/.claude-plugin/plugin.json
 make release   # cut a GitHub release at the current plugin.json version
@@ -147,6 +147,12 @@ kix-agents ships a Claude Code marketplace + plugin — no application code:
   runtime (e.g. `claude-code/skills/setup/setup.sh` and
   `claude-code/skills/setup/assets/`), referenced via
   `${CLAUDE_PLUGIN_ROOT}/skills/<name>/…`.
+- `claude-code/bin/` — executables Claude Code puts on the Bash tool's PATH
+  while the plugin is enabled (`project-code`, which `kix:title` calls bare).
+- `claude-code/hooks/hooks.json` — plugin hooks, active in every session with
+  the plugin enabled: `title-first-prompt.sh` (SessionStart, asks for
+  `kix:title` after the first message) and `allow-remote-control-off.sh`
+  (PreToolUse, lets `kix:close` turn Remote Control off without a prompt).
 - `claude-code/templates/*.md` — orphaned body templates from removed creation
   skills; not consumed by anything today
 - `docs/kix/<bd-id>/spec.md` — long-form specs for non-trivial epics tracked in
@@ -190,10 +196,11 @@ kix-agents ships a Claude Code marketplace + plugin — no application code:
   → JSONL sync (managed section, between the `BEGIN/END BEADS INTEGRATION`
   markers), then the Prettier gate (reject-if-dirty → `make autofix` → re-stage
   → `make check`), then `make test` **only when**
-  `claude-code/skills/rebase/time-hook.sh`, `scripts/test-rebase-timing.sh` or
-  the `Makefile` is staged. The condition matters: the suite runs real rebases,
-  and this hook runs once per commit during a rebase, so gating every commit on
-  it would slow every rebase in this repo. CI runs `make test` unconditionally,
+  `claude-code/skills/rebase/time-hook.sh`, `claude-code/bin/project-code`,
+  `claude-code/hooks/title-first-prompt.sh`, a `scripts/test-*.sh` or the
+  `Makefile` is staged. The condition matters: the suite runs real rebases, and
+  this hook runs once per commit during a rebase, so gating every commit on it
+  would slow every rebase in this repo. CI runs `make test` unconditionally,
   which covers both an unrelated commit that breaks it and a `--no-verify`
   bypass. This gate is local to kix-agents and deliberately absent from
   `claude-code/skills/setup/assets/pre-commit`, the hook shipped to other repos

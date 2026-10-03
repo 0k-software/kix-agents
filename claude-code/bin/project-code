@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # project-code — the repo's 3-letter project code (dot, kxa, okc...), kept in
-# the checked-in .claude/settings.json as env.PROJECT_CODE. The /title skill
+# the checked-in .claude/settings.json as env.PROJECT_CODE. The /kix:title skill
 # puts it in the session title prefix.
 
 set -euo pipefail

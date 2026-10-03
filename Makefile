@@ -19,11 +19,14 @@ autofix:
 check: check-prime
 	$(PRETTIER) --check .
 
-# Exercises the kix-time-hook recorder from the rebase skill against throwaway
-# repos. Not in `check`: it runs real rebases, so it is seconds rather than
-# milliseconds, and the pre-commit hook runs `check` on every commit.
+# Exercises the shell the skills ship: the kix-time-hook recorder from the
+# rebase skill (real rebases against throwaway repos), project-code and the
+# kix:title SessionStart hook. Not in `check`: the rebase suite is seconds
+# rather than milliseconds, and the pre-commit hook runs `check` on every commit.
 test:
 	sh scripts/test-rebase-timing.sh
+	bash scripts/test-project-code.sh
+	bash scripts/test-title-first-prompt.sh
 
 # Fails when .beads/PRIME.md is stamped for a different bd version than the pin
 # in .kix/hooks/install-bd.sh. No-op when either file is absent.

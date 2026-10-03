@@ -7,6 +7,21 @@ The format is based on
 
 ## [Unreleased]
 
+### Added
+
+- `/kix:close`, `/kix:ship`, `/kix:preflight` and `/kix:title` — the session
+  lifecycle skills, moved unchanged from kelvinst's dotfiles. `kix:preflight`
+  rebases, runs six checks (code review, conversation, checklists, tracker,
+  look ahead, after ship) and turns every finding into a fix, a deferred task
+  or a reasoned dismissal; `kix:ship` fast-forwards the default branch to a
+  checked branch; `kix:close` ships, marks the task done and archives the
+  session; `kix:title` names the session `<emoji> <code>-<id> │ <description>`.
+- `project-code` on the Bash PATH (plugin `bin/`): the repo's 3-letter code for
+  session titles, saved in `.claude/settings.json` as `env.PROJECT_CODE`.
+- Plugin hooks: a SessionStart hook that asks for `kix:title` after the first
+  message, and a PreToolUse hook that lets `kix:close` turn Remote Control off
+  without a prompt.
+
 ## [0.4.1] — 2026-10-02
 
 ### Added

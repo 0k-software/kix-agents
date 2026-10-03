@@ -5,7 +5,7 @@
 # reads or writes a real repo's .claude/settings.json.
 set -uo pipefail
 
-PROJECT_CODE_BIN=${PROJECT_CODE_BIN:-"$(cd "$(dirname "$0")/.." && pwd)/bin/project-code"}
+PROJECT_CODE_BIN=${PROJECT_CODE_BIN:-"$(cd "$(dirname "$0")/.." && pwd)/claude-code/bin/project-code"}
 failures=0
 
 git_q() { git -c user.name=t -c user.email=t@t "$@" >/dev/null 2>&1; }

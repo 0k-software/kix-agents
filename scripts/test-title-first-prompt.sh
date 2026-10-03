@@ -3,7 +3,7 @@
 # valid hook JSON whose context tells the agent to run the title skill.
 set -uo pipefail
 
-HOOK=${HOOK:-"$(cd "$(dirname "$0")/.." && pwd)/claude/hooks/title-first-prompt.sh"}
+HOOK=${HOOK:-"$(cd "$(dirname "$0")/.." && pwd)/claude-code/hooks/title-first-prompt.sh"}
 failures=0
 
 check() {
