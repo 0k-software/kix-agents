@@ -36,13 +36,19 @@ a question or a tracker write would stop it.
 
 ## States
 
-| Emoji | Word      | When                                                           |
-| ----- | --------- | -------------------------------------------------------------- |
-| 📥    | `reg`     | the session only filed or edited tracker items                 |
-| 📐    | `plan`    | brainstorming, spec or plan work, no product code edited       |
-| 🏭    | `impl`    | code edited, or a plan being executed                          |
-| 📦    | `ship`    | `kix:close` delivering landed work                             |
-| 🏁    | `shipped` | the item closed as shipped — the work is on the default branch |
+| Emoji | Word      | When                                                                |
+| ----- | --------- | ------------------------------------------------------------------- |
+| 📥    | `reg`     | items filed or triaged (created, classified, moved), none worked on |
+| 📐    | `plan`    | the work shaped (brainstorm, spec, plan) but not done               |
+| 🏭    | `impl`    | the item's own work being done                                      |
+| 📦    | `ship`    | `kix:close` delivering landed work                                  |
+| 🏁    | `shipped` | the item closed as shipped — the work is on the default branch      |
+
+States follow the item's work, not the file type. 🏭 is whatever the item
+delivers: in a code repo, code (or a plan being executed); in a notes or docs
+repo (a Kingdone vault), the deliverable notes, research, documents, or ticking
+the item's checklist by doing it. Editing an item note counts as 📥 only when
+the edit files or triages it.
 
 Reviews (`kix:preflight`, debrief, a code review) and landing on the default
 branch are gates the item can pass while still being implemented — they are not
@@ -101,6 +107,8 @@ printing the proposed title.
 ## Common mistakes
 
 - Taking the repo name from the worktree folder — always `project-code repo`.
+- Reading 🏭 as code-only — in a notes repo, researching and writing the item's
+  documents is the work, even when no code and only "tracker" notes changed.
 - Setting 🏁 because ship started, or because close ran with another reason.
 - Writing a supersede or an epic without the user's yes.
 - Dropping the user's description on every rename instead of swapping only the

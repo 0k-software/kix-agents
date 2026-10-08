@@ -24,6 +24,12 @@ The format is based on
   message, and a PreToolUse hook that lets `kix:close` turn Remote Control off
   without a prompt.
 
+### Changed
+
+- `kix:title` states follow the item's work, not code: 🏭 covers notes,
+  research and documents in a notes repo (a Kingdone vault), and 📥 means only
+  filing or triaging items without working on them.
+
 ## [0.4.1] — 2026-10-02
 
 ### Added
