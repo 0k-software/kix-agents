@@ -2,9 +2,8 @@
 name: next-up
 description:
   Use when the user types /kix:next-up, or asks what to work on next in a repo
-  tracked with beads (bd) — "what's next", "what should I pick up", "o que vem
-  agora", "próxima tarefa" — typically when few sessions are left, or when
-  kix:close offers it before archiving.
+  tracked with beads (bd) — "what's next", "what should I pick up" — typically
+  when few sessions are left, or when kix:close offers it before archiving.
 ---
 
 # Next up
@@ -35,10 +34,12 @@ AskUserQuestion: a link in a question card cannot be opened on mobile.
 the count.
 
 **Language.** Everything you print and ask follows the language the user is
-speaking.
+speaking. Beads may be written in other languages too: read them for meaning
+whatever their language, and quote their titles as written.
 
-**Beads only.** When the repo has no `.beads/` directory or `command -v bd`
-fails, say in one line that next-up needs a beads tracker, and stop.
+**Beads only, for now.** When the repo has no `.beads/` directory or
+`command -v bd` fails, say in one line that next-up needs a beads tracker, and
+stop.
 
 ## Conventions
 
@@ -94,9 +95,10 @@ Bound the id in that grep: a bare `--grep='<id>'` is a substring match, so
 `okc-2h2.1` also matches every `okc-2h2.12` commit.
 
 **PR-less repos.** A repo works without PRs when a bd memory says so (e.g.
-`no-prs-local-checks`) or `origin` is not on GitHub. There, make no `gh` call
-at all: work has landed when it is in `origin/<default>`, and nothing else
-counts. Otherwise also read the PRs:
+`no-prs-local-checks`), `origin` is not on GitHub, or the GitHub repo has pull
+requests turned off (`gh api repos/{owner}/{repo} --jq .has_pull_requests`
+prints `false`). There, make no other `gh` call at all: work has landed when it
+is in `origin/<default>`, and nothing else counts. Otherwise also read the PRs:
 
 ```bash
 gh pr list --state open --json number,title,headRefName,isDraft,reviewDecision
