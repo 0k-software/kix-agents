@@ -265,8 +265,11 @@ their go-ahead — with `initiation: "user_asked"`, `context: "fresh"`,
 and the context paragraph as `background`. Then turn Remote Control on for it:
 `mcp__ccd_session_mgmt__set_remote_control` with the new session's id and
 `enabled: true`. The tool needs a session that has run a turn: when it is
-refused for that, call it again when the note of the new session's first turn
-arrives. Say in one line which session started, linked by its id.
+refused for that, call it again once more right before next-up returns, and
+again when the note of the new session's first turn arrives, whichever comes
+first. When kix:close called next-up, the archive may come before that note:
+close's _Side sessions_ step retries it then. Say in one line which session
+started, linked by its id, and whether Remote Control is on.
 
 **Plain CLI** (no `start_session`), or a start the app refused: print the
 prompt in a `text` code block for the user to paste into a new session in its

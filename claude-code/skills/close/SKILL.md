@@ -169,8 +169,11 @@ Otherwise ask with AskUserQuestion: "Archive this session now?" — "Archive"
   `start_session`) are archived with it unless detached. List them with
   `mcp__ccd_session_mgmt__list_sessions` (`linked: true`), and call
   `mcp__ccd_session_mgmt__detach_session` on each whose `startedBy` is this
-  session — no question, the tool needs no approval. Say in one line which
-  sessions were detached.
+  session — no question, the tool needs no approval. Before detaching a session
+  next-up handed off whose `remoteControlActive` is not true, turn its Remote
+  Control on (`mcp__ccd_session_mgmt__set_remote_control`, its id,
+  `enabled: true`): next-up's own retry may not have run yet. Say in one line
+  which sessions were detached.
 
 Then call `mcp__ccd_session_mgmt__archive_session` with `session_id: "self"`.
 Never archive without that answer, or while the work is not in `<base>`, or
