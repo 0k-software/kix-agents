@@ -27,7 +27,8 @@ These are the defaults. The repo's own bd memories refine or override them
 
 - **An epic is a Shape Up project**: a shaped bet with an appetite, a single
   feature big enough to be broken into pieces that depend on one another. Not a
-  theme bucket. Loose issues with no epic are fine.
+  theme bucket. Loose issues with no epic are fine. The issue type alone marks
+  an epic — no `epic` label.
 - **Epic status** follows its children, first match wins: closeable when every
   child is closed; `blocked` when it has open children and every one is
   blocked; `in_progress` when any child is in_progress, or when it holds both
@@ -35,10 +36,8 @@ These are the defaults. The repo's own bd memories refine or override them
 - **A bead closes only after its work lands** on the default branch — its PR
   merged, or its branch's commits in `origin/<default>` for work shipped
   without a PR. Opening a PR, or committing on a branch, leaves it in_progress.
-- **Every open epic carries the label `epic`**, and no non-epic does — children
-  created with `--parent` inherit it and should drop it.
-- **An epic carries the union of its children's labels** (minus `epic`), so
-  label overlap between an epic and other work means area overlap.
+- **An epic carries the union of its children's labels**, so label overlap
+  between an epic and other work means area overlap.
 - **Type `task` = still being shaped.** Work on a task is shaping, never
   implementing; it ends as a bug/feature/chore, a split, or an epic. A question
   is a `decision` (a choice) or a `spike` (a fact to find out); a spike that
@@ -93,11 +92,9 @@ briefing or from a memory.
   its old parent after it was reparented. Trust the JSON `.parent` field.
 - `bd list` and `bd ready` cap output at 100 rows (`Showing 100 of …`). Pass
   `--limit 0`.
-- To hide epics from `bd ready`, use `--exclude-type epic`.
-  `--exclude-label epic` also hides every child that inherited the `epic` label
-  from `--parent` (flag those as drift, Step 2). bd 1.0.3 silently ignored
-  `--exclude-type` in `bd ready`; there, fall back to `--exclude-label epic`
-  and filter `.issue_type` from the JSON.
+- To hide epics from `bd ready`, use `--exclude-type epic`. bd 1.0.3 silently
+  ignored `--exclude-type` in `bd ready`; there, filter `.issue_type` from the
+  JSON.
 
 ## Step 2 — Analyze and print
 
@@ -112,7 +109,6 @@ in one line rather than dropping it.
    - an issue already closed whose work has not landed — PR still open, or
      branch commits not yet in `origin/<default>`;
    - an epic whose status breaks the epic-status rule;
-   - an open epic without the `epic` label, or a non-epic carrying it;
    - an epic that is a theme, not a project: no `blocks` edge between its open
      children (parent-child and `related` edges don't count) — worth splitting
      into loose issues, or linking if its pitch says the pieces depend on one
@@ -176,8 +172,6 @@ in one line rather than dropping it.
 - Looping `bd show` over single ids, or trusting `bd list --parent` over
   `.parent`.
 - Reading only the first 100 rows of `bd ready` / `bd list`.
-- Hiding epics with `--exclude-label epic` and silently losing children that
-  inherited the label.
 - Recommending implementation straight from a `task`.
 - Recommending new work while a started epic still has ready children.
 - Checking collisions in one direction only.

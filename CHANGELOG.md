@@ -26,6 +26,8 @@ The format is based on
 
 ### Changed
 
+- `kix:next-up` no longer expects an `epic` label on epics nor flags its
+  absence as drift: the issue type alone marks an epic.
 - `kix:title` states follow the item's work, not code: 🏭 covers notes,
   research and documents in a notes repo (a Kingdone vault), and 📥 means only
   filing or triaging items without working on them.
