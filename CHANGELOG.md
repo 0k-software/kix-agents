@@ -26,6 +26,14 @@ The format is based on
 
 ### Changed
 
+- `kix:next-up` walks instead of briefing: it gathers silently, prints a short
+  fix list, asks each tracker fix in its own question (or "Apply all"), runs
+  the approved commands itself after the last answer, then names the next five
+  pieces of work and starts the first in a new session (own worktree, Remote
+  Control on) with a ready prompt — or prints that prompt in a plain CLI. No
+  `gh` calls in PR-less repos; every bead named by id and title.
+- `kix:close` offers `/kix:next-up` before the archive question, and detaches
+  the sessions it started before archiving, so they are not archived with it.
 - `kix:next-up` no longer expects an `epic` label on epics nor flags its
   absence as drift: the issue type alone marks an epic.
 - `kix:title` states follow the item's work, not code: 🏭 covers notes,

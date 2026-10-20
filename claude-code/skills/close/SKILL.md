@@ -125,14 +125,18 @@ there is no task or no tracker — the work is on the default branch now; `🏭`
 when the user chose to leave it open, or when 2a stops on items left — landed
 is not finished.
 
-**b. Archive.** First check the session's mode. When the
-`mcp__ccd_session_mgmt__*` tools are not available, the session was started
-from the phone through a terminal `claude remote-control` server: Remote
-Control is its only transport, so turning it off would kill the session, and
-nothing inside it can archive it. There, skip this step's question, switch and
-archive entirely — tell the user in one line that the work is shipped and the
-session can be archived from the phone (the session's menu → Archive), and
-stop.
+**b. Archive.** First ask with AskUserQuestion: "Run `/kix:next-up` now?" —
+"Run it" (Recommended) · "Skip". On "Run it", run the `kix:next-up` skill, then
+come back here. It goes before the archive: after it, nothing in this session
+runs.
+
+Then check the session's mode. When the `mcp__ccd_session_mgmt__*` tools are
+not available, the session was started from the phone through a terminal
+`claude remote-control` server: Remote Control is its only transport, so
+turning it off would kill the session, and nothing inside it can archive it.
+There, skip this step's question, switch and archive entirely — tell the user
+in one line that the work is shipped and the session can be archived from the
+phone (the session's menu → Archive), and stop.
 
 Otherwise ask with AskUserQuestion: "Archive this session now?" — "Archive"
 (Recommended) · "Leave it open". On "Archive", get this session's state with
@@ -161,6 +165,13 @@ Otherwise ask with AskUserQuestion: "Archive this session now?" — "Archive"
   No `origin/<branch>`, or it is not in `<base>`: leave it, say why in one
   line, and go on. Never delete `<default>`.
 
+- **Side sessions.** Sessions this one started (a next-up hand-off, any other
+  `start_session`) are archived with it unless detached. List them with
+  `mcp__ccd_session_mgmt__list_sessions` (`linked: true`), and call
+  `mcp__ccd_session_mgmt__detach_session` on each whose `startedBy` is this
+  session — no question, the tool needs no approval. Say in one line which
+  sessions were detached.
+
 Then call `mcp__ccd_session_mgmt__archive_session` with `session_id: "self"`.
 Never archive without that answer, or while the work is not in `<base>`, or
 while the task has items left (2a).
@@ -178,7 +189,9 @@ while the task has items left (2a).
   pending.
 - Archiving while the task still has items left after the ship.
 - Archiving after a ship that stopped.
-- Archiving with Remote Control still on, or the session still pinned.
+- Archiving with Remote Control still on, the session still pinned, or a side
+  session still attached.
+- Offering `/kix:next-up` after the archive, where it never runs.
 - Deleting the remote branch on "Leave it open", or before checking it is in
   `<base>`.
 - In a terminal `claude remote-control` session (no `ccd_session_mgmt` tools),
