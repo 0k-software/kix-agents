@@ -137,17 +137,17 @@ run or from a memory.
 Turn every tracker problem into a small, independent fix, one command (or a
 short set) each:
 
-| Problem                                                                                                                                   | Fix                                                                                        |
-| ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| in_progress issue whose work landed (PR merged, its branch in `origin/<default>`, or a commit there citing its id)                        | `bd close <id> --reason="shipped to <default>"`                                            |
-| closed issue whose work has not landed (PR still open, branch commits not in `origin/<default>`)                                          | `bd reopen <id>`                                                                           |
-| epic whose status breaks the epic-status rule                                                                                             | `bd update <epic> --status=<…>` — the mixed case is a question: set in_progress / leave it |
-| collision with a sweeping epic, either direction: current work makes the sweep harder, or the sweep will move or rewrite the current work | fold / hybrid / keep both (Step 3)                                                         |
-| ordering hint living in a description or notes instead of an edge ("do after X", "whichever lands second accounts for the other")         | `bd dep add <later> <earlier>`                                                             |
-| ready `task` whose description already reads as shaped                                                                                    | `bd update <id> --type=<bug\|feature\|chore>`                                              |
-| stale in_progress: no branch, no worktree, no recent commit for it                                                                        | back to open (`bd update <id> --status=open`) / leave it                                   |
-| worktree whose branch already landed or sits at the default branch                                                                        | `git worktree remove <path>`                                                               |
-| unmerged branch no bead points at (and, outside PR-less repos, an open PR no bead points at)                                              | file a bead for it / leave it — never delete the branch                                    |
+| Problem                                                                                                                                                                                                                                                                                 | Fix                                                                                        |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| in_progress issue whose work landed (PR merged, its branch in `origin/<default>`, or a commit there citing its id)                                                                                                                                                                      | `bd close <id> --reason="shipped to <default>"`                                            |
+| closed issue whose work has not landed (PR still open, branch commits not in `origin/<default>`)                                                                                                                                                                                        | `bd reopen <id>`                                                                           |
+| epic whose status breaks the epic-status rule                                                                                                                                                                                                                                           | `bd update <epic> --status=<…>` — the mixed case is a question: set in_progress / leave it |
+| collision with a sweeping epic, either direction: current work makes the sweep harder, or the sweep will move or rewrite the current work                                                                                                                                               | fold / hybrid / keep both (Step 3)                                                         |
+| ordering hint living in a description or notes instead of an edge ("do after X", "whichever lands second accounts for the other")                                                                                                                                                       | `bd dep add <later> <earlier>`                                                             |
+| ready `task` whose description already reads as shaped                                                                                                                                                                                                                                  | `bd update <id> --type=<bug\|feature\|chore>`                                              |
+| stale in_progress: no branch, no worktree, no recent commit for it                                                                                                                                                                                                                      | back to open (`bd update <id> --status=open`) / leave it                                   |
+| worktree whose branch landed with at least one commit, whose tree is clean (`git -C <path> status --porcelain` empty), and that no active session works in (`list_sessions`, when available) — a branch merely sitting at the default branch is a fresh session's worktree, never stale | remove it (`git worktree remove <path>`) / leave it                                        |
+| unmerged branch no bead points at (and, outside PR-less repos, an open PR no bead points at)                                                                                                                                                                                            | file a bead for it / leave it — never delete the branch                                    |
 
 Print the list once, strict: numbered, one line per fix, the verb and every
 bead it touches as id + title — no why, no command:
@@ -173,8 +173,8 @@ First question: "Apply all" (Recommended) · "Go one by one".
 
 - **Apply all:** queue every fix with its recommended option. No more
   questions, except a fix that has no recommended option (the mixed-epic
-  status, a stale in_progress, an orphan branch): those are still asked one by
-  one.
+  status, a stale in_progress, a worktree removal, an orphan branch): those are
+  still asked one by one.
 - **Go one by one:** one question per fix (or per linked group), in the list's
   order. Right before each question, print the fix in the reply as a short
   Markdown block — the card collapses to the chosen label once answered, and
