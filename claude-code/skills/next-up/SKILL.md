@@ -314,11 +314,9 @@ Otherwise, in order:
 
 2. **Title.** Run the `kix:title` skill with the bead's id as its argument —
    the new bead is this session's main item now.
-3. **Keep the conversation.** Never clear the session or ask the user to: the
-   earlier context may be needed later, and the agent cannot clear it anyway
-   (`clear_session` leaves the session idle with nothing queued, and the app
-   refuses it for a session serving Remote Control). The printed prompt is the
-   new task's anchor; compaction handles the length.
+3. **Keep the conversation.** Never clear the session, nor offer or suggest
+   `/clear`: clearing loses the earlier context, which may be needed later. The
+   printed prompt is the new task's anchor; compaction handles the length.
 4. **Work.** Print the prompt in a `text` code block, then follow it as this
    session's task: `bd show`, `bd update <id> --claim`, /using-superpowers, the
    repo's flow.
@@ -348,4 +346,4 @@ here.
   here", or retitling it for tracker moves.
 - Starting here on top of unlanded work, before fetching, or in the main
   checkout's own branch.
-- Clearing the session, or asking the user to `/clear`, before starting here.
+- Clearing the session, or offering `/clear`, when starting here.
