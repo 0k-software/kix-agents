@@ -157,15 +157,14 @@ marked_by_session() {
     git notes --ref=checks show "$1" 2>/dev/null | grep -qxF "checked $session"
 }
 
+# One git call whatever the branch length: each commit prints a "commit <sha>"
+# line, then its note's lines, newest first.
 newest_marked() {
-  local c
   [ -n "$base" ] && [ -n "$session" ] || return 0
-  for c in $(git rev-list "$base..HEAD"); do
-    marked_by_session "$c" && {
-      echo "$c"
-      return
-    }
-  done
+  git log --notes=checks --format='commit %H%n%N' "$base..HEAD" 2>/dev/null |
+    awk -v want="checked $session" '
+      /^commit [0-9a-f]+$/ { c = $2; next }
+      $0 == want { print c; exit }'
 }
 
 # Committed (vs the merge base) and uncommitted, untracked included. quotePath
