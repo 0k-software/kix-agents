@@ -255,11 +255,21 @@ cp_marker() {
 }
 
 # file:line of each unchecked item outside fenced code blocks: a "- [ ]" in a
-# ``` or ~~~ block is a template or an example, not pending work.
+# ``` or ~~~ block is a template or an example, not pending work. As in
+# CommonMark, only a run of the opening fence's character, at least as long and
+# with nothing after it, closes the block, so a ~~~ inside ``` stays inside.
 unchecked_items() {
   awk -v f="$1" '
-    /^[[:space:]]*(```|~~~)/ { fence = !fence; next }
-    !fence && /^[[:space:]]*[-*+] \[ \]/ { print f ":" FNR }
+    {
+      line = $0; sub(/^[[:space:]]*/, "", line)
+      if (match(line, /^(```+|~~~+)/)) {
+        run = substr(line, 1, RLENGTH); rest = substr(line, RLENGTH + 1)
+        if (fence == "") { fence = run; next }
+        if (substr(run, 1, 1) == substr(fence, 1, 1) && length(run) >= length(fence) &&
+          rest ~ /^[[:space:]]*$/) { fence = ""; next }
+      }
+    }
+    fence == "" && /^[[:space:]]*[-*+] \[ \]/ { print f ":" FNR }
   ' "$1"
 }
 

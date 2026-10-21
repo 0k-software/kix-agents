@@ -183,6 +183,15 @@ run
 check "items" "$(detail before-shipping)" "skill.md:11"
 teardown
 
+echo "a fence closes only on its own kind and length"
+setup
+# Literal backticks, not command substitution.
+# shellcheck disable=SC2016
+printf '```\n~~~\n- [ ] a\n```\n- [ ] b\n````md\n```\n- [ ] c\n```\n````\n- [ ] d\n' >mixed.md
+run
+check "items" "$(detail before-shipping)" "mixed.md:5, mixed.md:11"
+teardown
+
 echo "untouched Markdown is not listed"
 setup
 printf -- '- [ ] old\n' >old.md
