@@ -231,7 +231,9 @@ Only ready beads count; first match wins:
 1. **Named next** — the session says explicitly which bead comes next: the
    user's own words ("kxa-xyz is next", "create a P1 for right after this
    one"), or a bead filed in this session with a note that it follows this
-   work. A bead that only came up in the conversation does not count.
+   work. A bead that only came up in the conversation does not count. A named
+   bead that is not ready: say in one line what blocks it (id and title), and
+   go on to the next rule.
 2. **Its epic's next child** — the session's bead (the one it claimed or worked
    on) has a parent epic with open children: the epic's next ready child, in
    the order its edges imply.
