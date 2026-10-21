@@ -44,7 +44,7 @@ commit() {
   git_q commit -q --allow-empty -m "$1"
 }
 
-run() { out=$("$BIN" --tsv --no-fetch --session s1); }
+run() { out=$("$BIN" --format tsv --no-fetch --session s1); }
 
 # The status and detail columns of one line of $out.
 field() { printf '%s\n' "$out" | awk -F'\t' -v n="$1" -v c="$2" '$1 == n { print $c }'; }
@@ -147,7 +147,7 @@ check "stacked union lines" "$(status marker)" "pass"
 git_q notes --ref=checks add -f -m "checked s10" HEAD
 run
 check "no prefix match" "$(status marker)" "stale"
-out=$("$BIN" --tsv --no-fetch --session "")
+out=$("$BIN" --format tsv --no-fetch --session "")
 check "no session id" "$(detail marker)" "no session id"
 check "no session: from" "$(detail from)" "-"
 teardown
@@ -192,29 +192,36 @@ check "exit status" "$?" "0"
 check "default" "$(detail default)" "-"
 check "unlanded" "$(status unlanded)" "skip"
 check "rebase" "$(status rebase)" "skip"
-check "fetch" "$("$BIN" --tsv --session s1 | awk -F'\t' '$1 == "fetch" { print $3 }')" "skipped"
+check "fetch" "$("$BIN" --format tsv --session s1 | awk -F'\t' '$1 == "fetch" { print $3 }')" "skipped"
 teardown
 
 echo "cached fetch"
 setup
 advance_origin 1
-out=$(KIX_FETCH_TTL=0 "$BIN" --tsv --session s1)
+out=$(KIX_FETCH_TTL=0 "$BIN" --format tsv --session s1)
 check "stale cache fetches" "$(detail fetch)" "fetched"
 check "fetched commit seen" "$(status rebase)" "finding"
-out=$(KIX_FETCH_TTL=60 "$BIN" --tsv --session s1)
+out=$(KIX_FETCH_TTL=60 "$BIN" --format tsv --session s1)
 check "fresh cache skips" "$(detail fetch)" "fresh"
 teardown
 
-echo "default output is an aligned Markdown table"
+echo "--format pretty is an aligned Markdown table"
 setup
-printf -- '- [ ] a | b\n' >pipe.md
-out=$("$BIN" --no-fetch --session s1)
+printf -- '- [ ] a\n' >todo.md
+out=$("$BIN" --format pretty --no-fetch --session s1)
 check "header" "$(printf '%s\n' "$out" | sed -n 1p | tr -s ' ')" "| name | status | detail |"
 check "rule" "$(printf '%s\n' "$out" | sed -n 2p | tr -d ' |-')" ""
 check "rows" "$(printf '%s\n' "$out" | wc -l | tr -d ' ')" "13"
 check "every line one width" "$(printf '%s\n' "$out" | awk '{ print length }' | sort -u | wc -l | tr -d ' ')" "1"
 check "row" "$(printf '%s\n' "$out" | grep '^| default ' | tr -s ' ')" "| default | fact | origin/main |"
-check "tsv has no header" "$("$BIN" --tsv --no-fetch | grep -c '^name')" "0"
+check "finding row" "$(printf '%s\n' "$out" | grep '^| before-shipping ' | tr -s ' ')" "| before-shipping | finding | todo.md:1 |"
+check "pretty is the default" "$("$BIN" --no-fetch --session s1)" "$out"
+check "--format=pretty" "$("$BIN" --format=pretty --no-fetch --session s1)" "$out"
+check "tsv has no header" "$("$BIN" --format tsv --no-fetch | grep -c '^name')" "0"
+check "--format=tsv" "$("$BIN" --format=tsv --no-fetch --session s1)" "$("$BIN" --format tsv --no-fetch --session s1)"
+"$BIN" --format json --no-fetch >/dev/null 2>&1
+check "unknown format exits 1" "$?" "1"
+check "unknown format prints nothing" "$("$BIN" --format json --no-fetch 2>/dev/null)" ""
 teardown
 
 echo "outside a git repo"

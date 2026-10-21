@@ -9,16 +9,17 @@ set -uo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: preflight-checks [--tsv] [--no-fetch] [--session ID]
+Usage: preflight-checks [--format pretty|tsv] [--no-fetch] [--session ID]
 
-Prints a table, one row per fact, then one per checkpoint:
+Prints one row per fact, then one per checkpoint. --format pretty (the
+default) prints them as an aligned Markdown table:
 
   | name    | status | detail      |
   | ------- | ------ | ----------- |
   | default | fact   | origin/main |
 
---tsv prints the same rows as bare tab-separated lines, no header — for
-scripts.
+--format tsv prints the same rows as bare tab-separated lines, no header —
+for scripts.
 
 Facts (status "fact"):
   default    the default branch's remote ref (origin/main), or "-"
@@ -47,12 +48,17 @@ EOF
 }
 
 fetch=1
-tsv=0
+# The default lives here so it can become configurable later.
+format=pretty
 session=${CLAUDE_CODE_SESSION_ID-}
 while [ $# -gt 0 ]; do
   case $1 in
   --no-fetch) fetch=0 ;;
-  --tsv) tsv=1 ;;
+  --format)
+    format=${2-}
+    shift
+    ;;
+  --format=*) format=${1#--format=} ;;
   --session)
     session=${2-}
     shift
@@ -62,6 +68,14 @@ while [ $# -gt 0 ]; do
   esac
   shift
 done
+
+case $format in
+pretty | tsv) ;;
+*)
+  echo "preflight-checks: --format must be pretty or tsv: '$format'" >&2
+  exit 1
+  ;;
+esac
 
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 || {
   echo "preflight-checks: not inside a git work tree" >&2
@@ -285,8 +299,7 @@ cp_notes_guard
 cp_marker
 cp_before_shipping
 
-if [ "$tsv" = 1 ]; then
-  printf '%s' "$rows"
-else
-  table
-fi
+case $format in
+tsv) printf '%s' "$rows" ;;
+pretty) table ;;
+esac
