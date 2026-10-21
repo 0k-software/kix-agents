@@ -49,10 +49,9 @@ The format is based on
   filing or triaging items without working on them.
 - `kix:next-up` can start the pick here: "Start here" moves the current session
   to a fresh branch at the just-fetched tip of the default branch (only once
-  this session's work has landed), retitles it, prints the prompt and lets the
-  user `/clear` and paste it for a clean start or reply `go` to keep the
-  conversation — recommended where there is no start-session tool (plain CLI,
-  the phone). From `kix:close` it replaces the archive.
+  this session's work has landed), retitles it and starts the work with the
+  conversation kept — recommended where there is no start-session tool (plain
+  CLI, the phone). From `kix:close` it replaces the archive.
 
 ## [0.4.1] — 2026-10-02
 

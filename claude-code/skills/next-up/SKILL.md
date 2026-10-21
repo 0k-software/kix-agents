@@ -257,10 +257,9 @@ here". Recommend "New session" when `mcp__ccd_session__start_session` exists
 one stays as it is." — and "Start here" when it does not (plain CLI, the
 phone), where a new session means pasting a prompt by hand — "Paste a prompt
 into a new session yourself.". "Start here": "This session moves to a fresh
-branch from `<default>` and starts it; `/clear` first if you want a clean
-slate." When "Start here" is not possible, go to a new session without asking,
-and say why in one line
-(`Not here: <branch> holds unlanded work — /kix:ship it first`).
+branch from `<default>` and starts it, the conversation so far kept." When
+"Start here" is not possible, go to a new session without asking, and say why
+in one line (`Not here: <branch> holds unlanded work — /kix:ship it first`).
 
 On a start, build the prompt:
 
@@ -314,16 +313,15 @@ Otherwise, in order:
    Then confirm: `git rev-parse HEAD` equals `git rev-parse origin/<default>`.
 
 2. **Title.** Run the `kix:title` skill with the bead's id as its argument —
-   the new bead is this session's main item now. The title outlives a `/clear`.
-3. **Clean slate or not.** Print the prompt in a `text` code block, then end
-   the turn with one line: "`/clear` and paste this prompt for a clean start,
-   or reply `go` to start it here with this conversation kept." Only the user
-   can clear: never call `clear_session` — it leaves the session idle with
-   nothing queued, and the app refuses it for a session serving Remote Control.
-   After a `/clear` the old conversation is still there (the app's "Resume
-   previous session").
-4. **Work.** On `go`, follow the prompt as this session's task: `bd show`,
-   `bd update <id> --claim`, /using-superpowers, the repo's flow.
+   the new bead is this session's main item now.
+3. **Keep the conversation.** Never clear the session or ask the user to: the
+   earlier context may be needed later, and the agent cannot clear it anyway
+   (`clear_session` leaves the session idle with nothing queued, and the app
+   refuses it for a session serving Remote Control). The printed prompt is the
+   new task's anchor; compaction handles the length.
+4. **Work.** Print the prompt in a `text` code block, then follow it as this
+   session's task: `bd show`, `bd update <id> --claim`, /using-superpowers, the
+   repo's flow.
 
 Outside "Start here", this session stays on planning: never start the work
 here.
@@ -350,5 +348,4 @@ here.
   here", or retitling it for tracker moves.
 - Starting here on top of unlanded work, before fetching, or in the main
   checkout's own branch.
-- Clearing the session yourself, or starting the work before the user chose
-  `/clear` or `go`.
+- Clearing the session, or asking the user to `/clear`, before starting here.
