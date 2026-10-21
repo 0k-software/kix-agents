@@ -313,14 +313,15 @@ Otherwise, in order:
 
    Then confirm: `git rev-parse HEAD` equals `git rev-parse origin/<default>`.
 
-2. **Title.** Run the `kix:title` skill with the bead's id as its argument —
-   the new bead is this session's main item now.
+2. **Claim and title.** `bd update <id> --claim < /dev/null`, then run the
+   `kix:title` skill with the bead's id as its argument — the new bead is this
+   session's main item now, and its title state reads the claim.
 3. **Keep the conversation.** Never clear the session, nor offer or suggest
    `/clear`: clearing loses the earlier context, which may be needed later. The
    printed prompt is the new task's anchor; compaction handles the length.
 4. **Work.** Print the prompt in a `text` code block, then follow it as this
-   session's task: `bd show`, `bd update <id> --claim`, /using-superpowers, the
-   repo's flow.
+   session's task: `bd show`, /using-superpowers, the repo's flow (the claim is
+   already done).
 
 Outside "Start here", this session stays on planning: never start the work
 here.
