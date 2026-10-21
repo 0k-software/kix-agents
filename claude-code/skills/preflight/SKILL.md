@@ -188,14 +188,21 @@ a glob matching it (`refs/notes/*`): unset each in the scope it came from —
 otherwise follow rebased commits and fake the checks. A glob also stops
 rewriting the other notes it covered; say so.
 
-Then rebase onto `<base>` with the `kix:rebase` skill when it is available — it
-re-runs the pre-commit hook on every commit; slow, but worth the wait. Invoke
-it with a leading `?` (`kix:rebase ? <base>`) to force its interactive mode
-whatever the user's configured default: the abort-on-conflict step below needs
-the rebase to stop on a conflict, not auto-resolve it. An older `kix:rebase`
-(its _Invocation modes_ list no `?` marker) would read the `?` as part of the
-branch name: invoke it with just `<default>` then — interactive is its only
-default. Without it, `git rebase <base>`. Then
+**Skip when already on `<default>`.** The rebase is a step of its own, apart
+from the commit above: a `rebase` row of `pass` (`already on <base>`: `<base>`
+is an ancestor of HEAD) means nothing would move. Skip the rebase and the
+force-push, and end the step with `✅ 1/<total> Rebase — already on <default>`.
+The commit of a dirty tree does not change that answer — it only adds on top of
+HEAD. Only a `finding` row runs what follows.
+
+Otherwise rebase onto `<base>` with the `kix:rebase` skill when it is available
+— it re-runs the pre-commit hook on every commit; slow, but worth the wait.
+Invoke it with a leading `?` (`kix:rebase ? <base>`) to force its interactive
+mode whatever the user's configured default: the abort-on-conflict step below
+needs the rebase to stop on a conflict, not auto-resolve it. An older
+`kix:rebase` (its _Invocation modes_ list no `?` marker) would read the `?` as
+part of the branch name: invoke it with just `<default>` then — interactive is
+its only default. Without it, `git rebase <base>`. Then
 `git push --force-with-lease origin HEAD` (on `<default>` itself there is no
 branch push).
 
@@ -710,6 +717,8 @@ even when that run ships. On "Not now", stop — nothing runs after the answer.
   wrote.
 - Reviewing before the rebase, or rebasing with `notes.rewriteRef` still
   carrying check marks.
+- Running `kix:rebase` or the force-push when the `rebase` row reads `pass` —
+  nothing moves, and the hook reruns on every commit for nothing.
 - Hardcoding `main` instead of the detected default branch.
 - Numbering progress per skill (`1/11` inside a `/kix:ship`) instead of across
   the whole run, or dropping the line for a skipped step, printing a line when

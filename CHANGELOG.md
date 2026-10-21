@@ -56,6 +56,10 @@ The format is based on
   next, else the next ready child of the session's epic, else the tracker
   ranking as before. It asks when an urgent bead competes with that pick, and
   #1's line says which rule picked it.
+- `kix:preflight` skips the rebase and the force-push when the branch already
+  sits on the default branch (the `rebase` row of `preflight-checks` reads
+  `pass`), so the pre-commit hook no longer reruns on every commit for nothing.
+  A dirty tree is still committed first.
 
 ## [0.4.1] — 2026-10-02
 
