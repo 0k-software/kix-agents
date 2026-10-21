@@ -98,7 +98,8 @@ for the shell the skills ship:
 make setup     # point core.hooksPath at .beads/hooks/ (beads + Prettier gate)
 make autofix   # prettier --write .
 make check     # prettier --check .  (the formatting gate)
-make test      # scripts/test-*.sh — rebase hook recorder, project-code, title hook,
+make test      # scripts/test-*.sh — rebase hook recorder, project-code,
+               # preflight-checks, title hook,
                # each run under a sentinel GIT_DIR by scripts/test-git-env.sh
 make all       # autofix && check
 make bump PART=patch|minor|major   # bump claude-code/.claude-plugin/plugin.json
@@ -149,7 +150,9 @@ kix-agents ships a Claude Code marketplace + plugin — no application code:
   `claude-code/skills/setup/assets/`), referenced via
   `${CLAUDE_PLUGIN_ROOT}/skills/<name>/…`.
 - `claude-code/bin/` — executables Claude Code puts on the Bash tool's PATH
-  while the plugin is enabled (`project-code`, which `kix:title` calls bare).
+  while the plugin is enabled (`project-code`, which `kix:title` calls bare;
+  `preflight-checks`, which `kix:preflight` calls for its deterministic
+  checkpoints — one tab-separated line per fact and per checkpoint).
 - `claude-code/hooks/hooks.json` — plugin hooks, active in every session with
   the plugin enabled: `title-first-prompt.sh` (SessionStart, asks for
   `kix:title` after the first message) and `allow-remote-control-off.sh`
@@ -198,6 +201,7 @@ kix-agents ships a Claude Code marketplace + plugin — no application code:
   markers), then the Prettier gate (reject-if-dirty → `make autofix` → re-stage
   → `make check`), then `make test` **only when**
   `claude-code/skills/rebase/time-hook.sh`, `claude-code/bin/project-code`,
+  `claude-code/bin/preflight-checks`,
   `claude-code/hooks/title-first-prompt.sh`, a `scripts/test-*.sh` or the
   `Makefile` is staged. The condition matters: the suite runs real rebases, and
   this hook runs once per commit during a rebase, so gating every commit on it

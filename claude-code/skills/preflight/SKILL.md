@@ -37,15 +37,34 @@ Everything marked _(Kingdone)_ or _(Beads)_ below applies only to that type. In
 a Kingdone repo the vault's own conventions (its `CLAUDE.md`) apply to every
 job: renames through the Obsidian CLI, and so on.
 
-**Default branch.** Never assume `main`:
+## Deterministic checkpoints
 
-```bash
-git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null \
-  || { git remote set-head origin --auto >/dev/null && git symbolic-ref --short refs/remotes/origin/HEAD; }
-```
+`preflight-checks` (on PATH from the kix plugin's `bin/`; else
+`claude-code/bin/preflight-checks` in a kix-agents checkout) runs every check
+that needs no judgement in one call and prints one tab-separated
+`<name> <status> <detail>` line each — read its lines instead of running the
+git commands yourself:
 
-This prints e.g. `origin/main`. Below, `<base>` is that ref and `<default>` is
-the branch name without `origin/`.
+| Line              | Status                | What it says                                                   |
+| ----------------- | --------------------- | -------------------------------------------------------------- |
+| `default`         | fact                  | `<base>`, e.g. `origin/main` (`-`: no default branch found)    |
+| `from`            | fact                  | newest commit after `<base>` this session checked, or `-`      |
+| `shortstat`       | fact                  | diff from `<from>` (else the merge base with `<base>`) to HEAD |
+| `markdown`        | fact                  | Markdown files the branch or the dirty tree touches            |
+| `fetch`           | fact                  | `fetched`, `fresh` (cached), `failed` or `skipped`             |
+| `dirty-tree`      | pass · finding        | uncommitted changes                                            |
+| `unlanded`        | pass · finding · skip | commits not on `<base>`                                        |
+| `rebase`          | pass · finding · skip | `<base>` is not an ancestor of HEAD                            |
+| `notes-guard`     | pass · finding        | a `notes.rewriteRef` entry that would carry check marks        |
+| `marker`          | pass · stale          | _Already checked_ below: `pass` is its `SKIP`                  |
+| `before-shipping` | pass · finding        | unchecked `- [ ]` lines in touched Markdown, as `file:line`    |
+
+It runs twice: at step 1 as `KIX_FETCH_TTL=0 preflight-checks` (always fetches,
+the check marks too), and at the start of step 2 as
+`preflight-checks --no-fetch`, after step 1 may have committed or rebased.
+
+**Default branch.** Never assume `main`: `<base>` is the `default` line (e.g.
+`origin/main`) and `<default>` is the branch name without `origin/`.
 
 ## Check marks
 
@@ -147,29 +166,26 @@ one text block: the app shrinks such a block into one summary line.
 ## 1. Rebase onto the default branch
 
 Before any review, bring the branch up to date, so everything is reviewed on
-top of the current `<default>`. On a dirty tree, commit first (project commit
-procedure) — a rebase needs a clean tree.
-
-**Notes guard.** Check marks must not survive a rebase: a rebased commit sits
-on new code and needs a new review. Check:
+top of the current `<default>`. Start with one call — it fetches origin and the
+check marks (so marks pushed from another clone count), and reads everything
+below:
 
 ```bash
-git config --show-scope --get-all notes.rewriteRef
+KIX_FETCH_TTL=0 preflight-checks
 ```
 
-If any value is `refs/notes/checks`, or a glob that matches it
-(`refs/notes/*`), unset that entry in the scope it came from —
+On a `dirty-tree` finding, commit first (project commit procedure) — a rebase
+needs a clean tree. A `fetch` of `failed` means origin was unreachable: say so,
+and go on against the `<base>` this clone already has.
+
+**Notes guard.** Check marks must not survive a rebase: a rebased commit sits
+on new code and needs a new review. A `notes-guard` finding names each
+`notes.rewriteRef` entry, as `<scope> <value>`, that is `refs/notes/checks` or
+a glob matching it (`refs/notes/*`): unset each in the scope it came from —
 `git config --<scope> --unset-all notes.rewriteRef '^<value>$'` (escape `*` as
 `\*`) — and warn the user: which scope, which value, and that check marks would
 otherwise follow rebased commits and fake the checks. A glob also stops
 rewriting the other notes it covered; say so.
-
-Fetch (the check marks too, so marks pushed from another clone count):
-
-```bash
-git fetch origin
-git fetch origin refs/notes/checks:refs/notes/checks 2>/dev/null || true
-```
 
 Then rebase onto `<base>` with the `kix:rebase` skill when it is available — it
 re-runs the pre-commit hook on every commit; slow, but worth the wait. Invoke
@@ -200,19 +216,21 @@ an agent either misses it or pays for a copy of it. A measured run found
 nothing an agent caught that the inline run missed, at about three times the
 tokens.
 
-**Skips.** After _Already checked_ (below), one Bash call finds the checks with
-nothing to look at:
+Open the step with one call, which every skip below reads — step 1 may have
+committed or moved the branch since its own run:
 
 ```bash
-git diff --shortstat <from>..HEAD   # a: <from> as check a finds it, else <base>
-git diff --name-only <base>...HEAD -- '*.md'   # c
+preflight-checks --no-fetch
 ```
 
-| Check          | Skip when                                 |
-| -------------- | ----------------------------------------- |
-| a. Code review | nothing after `<from>`                    |
-| c. Checklists  | no Markdown file touched                  |
-| d. Tracker     | _(Neither)_ — there is no tracker to read |
+**Skips.** After _Already checked_ (below), the same lines find the checks with
+nothing to look at:
+
+| Check          | Skip when                                            |
+| -------------- | ---------------------------------------------------- |
+| a. Code review | `shortstat` reads `no changes` and the tree is clean |
+| c. Checklists  | the `markdown` line is empty                         |
+| d. Tracker     | _(Neither)_ — there is no tracker to read            |
 
 A skipped check prints `⏭️ <n>/<total> <Step> — <reason>` (e.g.
 `no Markdown touched`), right after that call. b, e and f always run.
@@ -223,22 +241,16 @@ last run checked, so every check that reads only committed git state gives the
 same answer: skip it. A rebase that moved the branch, or step 1's commit of a
 dirty tree, leaves HEAD unchecked, so nothing is skipped then. A mark from
 another session or clone (notes come from origin) skips nothing either: this
-session has no findings of its own to carry over. Decide it with this one test
-— no judgement, no reading the conversation:
+session has no findings of its own to carry over. The `marker` line decides it
+— no judgement, no reading the conversation: `pass` (a clean tree, and a line
+`checked $CLAUDE_CODE_SESSION_ID` in HEAD's note) is `SKIP`. It matches any
+line of the note, not only the first: when a rejected notes push falls back to
+`git notes merge -s union` (below), two sessions' lines stack on the same
+commit.
 
-```bash
-[ -z "$(git status --porcelain)" ] && [ -n "$CLAUDE_CODE_SESSION_ID" ] \
-  && git notes --ref=checks show HEAD 2>/dev/null | grep -qx "checked $CLAUDE_CODE_SESSION_ID" \
-  && echo SKIP
-```
+Skip only on a `marker` `pass`; otherwise run every check.
 
-It matches any line of the note, not only the first: when a rejected notes push
-falls back to `git notes merge -s union` (below), two sessions' lines stack on
-the same commit.
-
-Skip only when it prints `SKIP`; otherwise run every check.
-
-| Check           | When the test prints `SKIP`                                                          |
+| Check           | When `marker` is `pass`                                                              |
 | --------------- | ------------------------------------------------------------------------------------ |
 | a. Code review  | skip — reads only the diff                                                           |
 | b. Conversation | run — reads the session                                                              |
@@ -252,22 +264,15 @@ A skipped check prints
 `⏭️ <n>/<total> <Step> — HEAD <short sha> already checked` and carries over
 every finding of its kind from this session's latest ReportFindings call that
 has no `outcome` — still open, into the new report as they were. Its line still
-follows a real command (the test above).
+follows a real command (the `preflight-checks` call above).
 
-**a. Code review.** Find `<from>`, the newest commit this session checked (see
-_Check marks_) — a mark from another session or clone does not count, for the
-same reason _Already checked_ ignores it: its findings are not here to carry
-over:
-
-```bash
-[ -n "$CLAUDE_CODE_SESSION_ID" ] && for c in $(git rev-list <base>..HEAD); do
-  git notes --ref=checks show "$c" 2>/dev/null | grep -qx "checked $CLAUDE_CODE_SESSION_ID" \
-    && { echo "$c"; break; }
-done
-```
+**a. Code review.** `<from>` is the `from` line: the newest commit this session
+checked (see _Check marks_) — a mark from another session or clone does not
+count, for the same reason _Already checked_ ignores it: its findings are not
+here to carry over.
 
 Run the `code-review` skill at level `medium` on everything after it — or on
-the whole branch against `<base>` when it prints nothing — plus any uncommitted
+the whole branch against `<base>` when it reads `-` — plus any uncommitted
 change — unless _Already checked_ skips it. Keep its findings for the combined
 report below.
 
@@ -294,10 +299,11 @@ unanswered.
 
 **c. Checklists.** For every Markdown file the branch (or the dirty tree)
 touched — _(Kingdone)_ every note outside `Gates/` — look at its unchecked
-`- [ ]` items. Each one is a finding when the file is marked done (a completed
-quest or plan, a closed status, a "done" heading) or the item is pending work
-the session left behind. Usual causes: it was cancelled, it was deferred
-somewhere nobody linked, or it was done and not ticked.
+`- [ ]` items: the `before-shipping` line lists them as `file:line`. Each one
+is a finding when the file is marked done (a completed quest or plan, a closed
+status, a "done" heading) or the item is pending work the session left behind.
+Usual causes: it was cancelled, it was deferred somewhere nobody linked, or it
+was done and not ticked.
 
 **d. Tracker.** Search the tracker for items related to the work — by the
 files, the feature, the names and the terms the branch touches, not only by the
@@ -692,7 +698,7 @@ even when that run ships. On "Not now", stop — nothing runs after the answer.
 - Treating "Leave for later" as a discard.
 - Discarding without a reason, or inventing one for the user.
 - Rerunning a git-only check (code review, checklists, a Kingdone tracker
-  search) when the _Already checked_ test prints `SKIP`, or skipping the
+  search) when _Already checked_ reads `marker` `pass`, or skipping the
   conversation, look-ahead or a bd tracker search because HEAD is checked.
 - Skipping on a check mark written by another session (or with
   `$CLAUDE_CODE_SESSION_ID` unset) — only an exact `checked <this session id>`

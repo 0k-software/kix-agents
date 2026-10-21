@@ -1,0 +1,253 @@
+#!/usr/bin/env bash
+# preflight-checks — every deterministic checkpoint of the current branch in one
+# call, plus the facts kix:preflight reads before its checks (kxa-cx0). No LLM,
+# no network beyond a cached fetch: fast enough for a Stop hook (kxa-v9v).
+# Each checkpoint is its own cp_* function so the check library (kxa-102) and
+# the gate runner (kxa-efc) can name and reuse them.
+
+set -uo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage: preflight-checks [--no-fetch] [--session ID]
+
+Prints one tab-separated line per fact, then one per checkpoint:
+
+  <name>	<status>	<detail>
+
+Facts (status "fact"):
+  default    the default branch's remote ref (origin/main), or "-"
+  from       newest commit after it whose check mark this session wrote, or "-"
+  shortstat  git diff --shortstat from <from> (else the merge base) to HEAD
+  markdown   Markdown files the branch or the dirty tree touches, ", "-joined
+  fetch      fresh | fetched | failed | skipped
+
+Checkpoints (status pass | finding | stale | skip):
+  dirty-tree       uncommitted changes
+  unlanded         commits in HEAD that are not on the default branch
+  rebase           the default branch is not an ancestor of HEAD
+  notes-guard      notes.rewriteRef would carry check marks across a rebase
+  marker           HEAD's check mark was written by this session on a clean
+                   tree (pass), or not (stale)
+  before-shipping  unchecked "- [ ]" lines in touched Markdown, as file:line
+
+  --no-fetch    never fetch; the default fetches origin (and refs/notes/checks)
+                only when the last fetch is older than KIX_FETCH_TTL minutes
+                (default 5)
+  --session ID  the session whose check marks count (default
+                $CLAUDE_CODE_SESSION_ID)
+
+Exit 1 outside a git work tree, 0 otherwise — findings are output, not errors.
+EOF
+}
+
+fetch=1
+session=${CLAUDE_CODE_SESSION_ID-}
+while [ $# -gt 0 ]; do
+  case $1 in
+  --no-fetch) fetch=0 ;;
+  --session)
+    session=${2-}
+    shift
+    ;;
+  -h | --help) usage && exit 0 ;;
+  *) usage >&2 && exit 1 ;;
+  esac
+  shift
+done
+
+git rev-parse --is-inside-work-tree >/dev/null 2>&1 || {
+  echo "preflight-checks: not inside a git work tree" >&2
+  exit 1
+}
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+emit() { printf '%s\t%s\t%s\n' "$1" "$2" "$3"; }
+
+# --- facts ---------------------------------------------------------------
+
+# Cached: a Stop hook calls this after every turn, and the network is the only
+# slow part. FETCH_HEAD's mtime is the last fetch.
+do_fetch() {
+  local head ttl=${KIX_FETCH_TTL:-5}
+  [ "$fetch" = 1 ] || {
+    echo skipped
+    return
+  }
+  git remote get-url origin >/dev/null 2>&1 || {
+    echo skipped
+    return
+  }
+  head=$(git rev-parse --git-path FETCH_HEAD)
+  if [ -f "$head" ] && [ -n "$(find "$head" -mmin -"$ttl" 2>/dev/null)" ]; then
+    echo fresh
+    return
+  fi
+  if GIT_TERMINAL_PROMPT=0 git fetch -q origin 2>/dev/null; then
+    GIT_TERMINAL_PROMPT=0 git fetch -q origin \
+      refs/notes/checks:refs/notes/checks 2>/dev/null || true
+    echo fetched
+  else
+    echo failed
+  fi
+}
+
+# Never assumes main, and never asks the remote (`remote set-head --auto` is a
+# network call): origin/HEAD, else the usual names that exist locally.
+default_ref() {
+  local ref
+  ref=$(git symbolic-ref --short -q refs/remotes/origin/HEAD 2>/dev/null) && {
+    echo "$ref"
+    return
+  }
+  for ref in origin/main origin/master; do
+    git rev-parse -q --verify "refs/remotes/$ref" >/dev/null && {
+      echo "$ref"
+      return
+    }
+  done
+}
+
+# A mark is a refs/notes/checks note with a line "checked <session>"; any line,
+# since a union merge of notes stacks two sessions' lines on one commit.
+marked_by_session() {
+  [ -n "$session" ] &&
+    git notes --ref=checks show "$1" 2>/dev/null | grep -qxF "checked $session"
+}
+
+newest_marked() {
+  local c
+  [ -n "$base" ] && [ -n "$session" ] || return 0
+  for c in $(git rev-list "$base..HEAD"); do
+    marked_by_session "$c" && {
+      echo "$c"
+      return
+    }
+  done
+}
+
+# Committed (vs the merge base) and uncommitted, untracked included.
+touched_markdown() {
+  {
+    [ -n "$base" ] && git diff --name-only "$base...HEAD" -- '*.md'
+    git diff --name-only HEAD -- '*.md'
+    git ls-files --others --exclude-standard -- '*.md'
+  } 2>/dev/null | sort -u
+}
+
+join() { paste -sd, - | sed 's/,/, /g'; }
+
+# --- checkpoints ---------------------------------------------------------
+
+cp_dirty_tree() {
+  local n
+  n=$(git status --porcelain | wc -l | tr -d ' ')
+  if [ "$n" = 0 ]; then
+    emit dirty-tree pass "clean"
+  else
+    emit dirty-tree finding "$n uncommitted path(s)"
+  fi
+}
+
+cp_unlanded() {
+  local n
+  [ -n "$base" ] || {
+    emit unlanded skip "no default branch"
+    return
+  }
+  n=$(git rev-list --count "$base..HEAD")
+  if [ "$n" = 0 ]; then
+    emit unlanded pass "all on $base"
+  else
+    emit unlanded finding "$n commit(s) not on $base"
+  fi
+}
+
+# Same test as kxa-2b1: when the base is an ancestor of HEAD, there is nothing
+# to rebase onto.
+cp_rebase() {
+  local n
+  [ -n "$base" ] || {
+    emit rebase skip "no default branch"
+    return
+  }
+  if git merge-base --is-ancestor "$base" HEAD; then
+    emit rebase pass "already on $base"
+  else
+    n=$(git rev-list --count "HEAD..$base")
+    emit rebase finding "$base has $n commit(s) not in HEAD"
+  fi
+}
+
+# notes.rewriteRef set to refs/notes/checks, or a glob matching it, makes check
+# marks follow rebased commits and fake the checks.
+cp_notes_guard() {
+  local line scope value hits=()
+  while IFS= read -r line; do
+    scope=${line%%$'\t'*}
+    value=${line#*$'\t'}
+    # Unquoted on the right: the configured value is a glob pattern.
+    # shellcheck disable=SC2053
+    [[ refs/notes/checks == $value ]] && hits+=("$scope $value")
+  done < <(git config --show-scope --get-all notes.rewriteRef 2>/dev/null)
+  if [ ${#hits[@]} = 0 ]; then
+    emit notes-guard pass "check marks stay behind on rebase"
+  else
+    emit notes-guard finding "notes.rewriteRef: $(printf '%s\n' "${hits[@]}" | join)"
+  fi
+}
+
+# kix:preflight's Already checked test: a clean tree whose HEAD this session
+# marked is exactly what its last run checked.
+cp_marker() {
+  if [ -z "$session" ]; then
+    emit marker stale "no session id"
+  elif [ -n "$(git status --porcelain)" ]; then
+    emit marker stale "dirty tree"
+  elif marked_by_session HEAD; then
+    emit marker pass "HEAD $(git rev-parse --short HEAD) already checked"
+  else
+    emit marker stale "HEAD $(git rev-parse --short HEAD) not checked by this session"
+  fi
+}
+
+cp_before_shipping() {
+  local items
+  items=$(printf '%s\n' "$markdown" | while IFS= read -r f; do
+    [ -n "$f" ] && [ -f "$f" ] && grep -nE '^[[:space:]]*[-*+] \[ \]' -- "$f" |
+      cut -d: -f1 | sed "s|^|$f:|"
+  done)
+  if [ -z "$items" ]; then
+    emit before-shipping pass "no unchecked items"
+  else
+    emit before-shipping finding "$(printf '%s\n' "$items" | join)"
+  fi
+}
+
+# --- run -----------------------------------------------------------------
+
+fetched=$(do_fetch)
+base=$(default_ref)
+from=$(newest_marked)
+markdown=$(touched_markdown)
+
+if [ -n "$from" ]; then
+  stat=$(git diff --shortstat "$from..HEAD" | sed 's/^ *//')
+elif [ -n "$base" ]; then
+  stat=$(git diff --shortstat "$base...HEAD" | sed 's/^ *//')
+else
+  stat=""
+fi
+
+emit default fact "${base:--}"
+emit from fact "${from:--}"
+emit shortstat fact "${stat:-no changes}"
+emit markdown fact "$(printf '%s\n' "$markdown" | sed '/^$/d' | join)"
+emit fetch fact "$fetched"
+
+cp_dirty_tree
+cp_unlanded
+cp_rebase
+cp_notes_guard
+cp_marker
+cp_before_shipping
