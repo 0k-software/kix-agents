@@ -51,7 +51,13 @@ make check
 if git diff --cached --name-only \
   | grep -qE '^(claude-code/skills/rebase/time-hook\.sh|claude-code/bin/project-code|claude-code/hooks/title-first-prompt\.sh|scripts/test-[a-z-]+\.sh|Makefile)$'; then
   echo "pre-commit: tested shell files changed — running make test"
-  make test || {
+  # git exports GIT_DIR, GIT_INDEX_FILE and friends to this hook; a suite that
+  # inherits them runs its throwaway git commands against this repo (kxa-6df).
+  (
+    unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_OBJECT_DIRECTORY \
+      GIT_COMMON_DIR GIT_PREFIX GIT_ALTERNATE_OBJECT_DIRECTORIES
+    make test
+  ) || {
     echo ""
     echo "Commit rejected: make test fails on this change."
     echo "Fix the tests (or the script) and commit again, or use --no-verify to"

@@ -98,7 +98,8 @@ for the shell the skills ship:
 make setup     # point core.hooksPath at .beads/hooks/ (beads + Prettier gate)
 make autofix   # prettier --write .
 make check     # prettier --check .  (the formatting gate)
-make test      # scripts/test-*.sh — rebase hook recorder, project-code, title hook
+make test      # scripts/test-*.sh — rebase hook recorder, project-code, title hook,
+               # each run under a sentinel GIT_DIR by scripts/test-git-env.sh
 make all       # autofix && check
 make bump PART=patch|minor|major   # bump claude-code/.claude-plugin/plugin.json
 make release   # cut a GitHub release at the current plugin.json version
@@ -204,6 +205,12 @@ kix-agents ships a Claude Code marketplace + plugin — no application code:
   which covers both an unrelated commit that breaks it and a `--no-verify`
   bypass. This gate is local to kix-agents and deliberately absent from
   `claude-code/skills/setup/assets/pre-commit`, the hook shipped to other repos
-  — they have no such tests. `make setup` wires it up by pointing
-  `core.hooksPath` at `.beads/hooks/`; run setup once after cloning. Don't add
-  a `.git-hooks/` dir — it's gone.
+  — they have no such tests. Git exports `GIT_DIR`/`GIT_INDEX_FILE` to the
+  hook, so a suite's throwaway `git init` would hit the real repo (kxa-6df: it
+  re-inited kix-agents as bare); the hook unsets them before `make test`, each
+  suite that runs git unsets them too, and `scripts/test-git-env.sh` (what
+  `make test` runs) runs every other `scripts/test-*.sh` with them pointed at a
+  sentinel repo and fails if that repo changes — a new suite is picked up by
+  its name alone. `make setup` wires it up by pointing `core.hooksPath` at
+  `.beads/hooks/`; run setup once after cloning. Don't add a `.git-hooks/` dir
+  — it's gone.

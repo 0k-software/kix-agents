@@ -23,10 +23,11 @@ check: check-prime
 # rebase skill (real rebases against throwaway repos), project-code and the
 # kix:title SessionStart hook. Not in `check`: the rebase suite is seconds
 # rather than milliseconds, and the pre-commit hook runs `check` on every commit.
+# test-git-env.sh runs every other scripts/test-*.sh with GIT_DIR exported for a
+# sentinel repo, as the pre-commit hook does for the real one, and fails if a
+# suite fails or writes to that repo (kxa-6df).
 test:
-	sh scripts/test-rebase-timing.sh
-	bash scripts/test-project-code.sh
-	bash scripts/test-title-first-prompt.sh
+	bash scripts/test-git-env.sh
 
 # Fails when .beads/PRIME.md is stamped for a different bd version than the pin
 # in .kix/hooks/install-bd.sh. No-op when either file is absent.
