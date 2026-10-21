@@ -9,11 +9,16 @@ set -uo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: preflight-checks [--no-fetch] [--session ID]
+Usage: preflight-checks [--tsv] [--no-fetch] [--session ID]
 
-Prints one tab-separated line per fact, then one per checkpoint:
+Prints a table, one row per fact, then one per checkpoint:
 
-  <name>	<status>	<detail>
+  | name    | status | detail      |
+  | ------- | ------ | ----------- |
+  | default | fact   | origin/main |
+
+--tsv prints the same rows as bare tab-separated lines, no header — for
+scripts.
 
 Facts (status "fact"):
   default    the default branch's remote ref (origin/main), or "-"
@@ -42,10 +47,12 @@ EOF
 }
 
 fetch=1
+tsv=0
 session=${CLAUDE_CODE_SESSION_ID-}
 while [ $# -gt 0 ]; do
   case $1 in
   --no-fetch) fetch=0 ;;
+  --tsv) tsv=1 ;;
   --session)
     session=${2-}
     shift
@@ -62,7 +69,25 @@ git rev-parse --is-inside-work-tree >/dev/null 2>&1 || {
 }
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
-emit() { printf '%s\t%s\t%s\n' "$1" "$2" "$3"; }
+rows=""
+emit() { rows+=$(printf '%s\t%s\t%s' "$1" "$2" "$3")$'\n'; }
+
+# A Markdown table padded to its widest cell, so it reads aligned in a terminal
+# and renders as a table when pasted into a chat. "|" in a cell is escaped.
+table() {
+  printf 'name\tstatus\tdetail\n%s' "$rows" | awk -F'\t' '
+    { for (i = 1; i <= 3; i++) {
+        gsub(/\|/, "\\|", $i); cell[NR, i] = $i
+        if (length($i) > w[i]) w[i] = length($i)
+      } }
+    function row(a, b, c) { printf "| %-*s | %-*s | %-*s |\n", w[1], a, w[2], b, w[3], c }
+    function dash(n,   s) { s = ""; while (n-- > 0) s = s "-"; return s }
+    END {
+      row(cell[1, 1], cell[1, 2], cell[1, 3])
+      row(dash(w[1]), dash(w[2]), dash(w[3]))
+      for (r = 2; r <= NR; r++) row(cell[r, 1], cell[r, 2], cell[r, 3])
+    }'
+}
 
 # --- facts ---------------------------------------------------------------
 
@@ -259,3 +284,9 @@ cp_rebase
 cp_notes_guard
 cp_marker
 cp_before_shipping
+
+if [ "$tsv" = 1 ]; then
+  printf '%s' "$rows"
+else
+  table
+fi

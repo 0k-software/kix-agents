@@ -24,9 +24,9 @@ The format is based on
   branch in one call — dirty tree, unlanded commits, rebase needed, the
   `notes.rewriteRef` guard, check-mark freshness and unchecked `- [ ]` items in
   touched Markdown — plus the facts `kix:preflight` reads (default branch, this
-  session's newest checked commit, diff shortstat, touched Markdown), one
-  tab-separated line each. No LLM; the fetch is cached for a later Stop hook.
-  `kix:preflight` now reads it instead of running about six git commands
+  session's newest checked commit, diff shortstat, touched Markdown), one table
+  row each (`--tsv` for scripts). No LLM; the fetch is cached for a later Stop
+  hook. `kix:preflight` now reads it instead of running about six git commands
   itself.
 - Plugin hooks: a SessionStart hook that asks for `kix:title` after the first
   message, and a PreToolUse hook that lets `kix:close` turn Remote Control off

@@ -41,9 +41,9 @@ job: renames through the Obsidian CLI, and so on.
 
 `preflight-checks` (on PATH from the kix plugin's `bin/`; else
 `claude-code/bin/preflight-checks` in a kix-agents checkout) runs every check
-that needs no judgement in one call and prints one tab-separated
-`<name> <status> <detail>` line each — read its lines instead of running the
-git commands yourself:
+that needs no judgement in one call and prints a table, one
+`name | status | detail` row each — read its lines instead of running the git
+commands yourself:
 
 | Line              | Status                | What it says                                                   |
 | ----------------- | --------------------- | -------------------------------------------------------------- |

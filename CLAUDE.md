@@ -152,7 +152,7 @@ kix-agents ships a Claude Code marketplace + plugin — no application code:
 - `claude-code/bin/` — executables Claude Code puts on the Bash tool's PATH
   while the plugin is enabled (`project-code`, which `kix:title` calls bare;
   `preflight-checks`, which `kix:preflight` calls for its deterministic
-  checkpoints — one tab-separated line per fact and per checkpoint).
+  checkpoints — a table row per fact and per checkpoint, `--tsv` for scripts).
 - `claude-code/hooks/hooks.json` — plugin hooks, active in every session with
   the plugin enabled: `title-first-prompt.sh` (SessionStart, asks for
   `kix:title` after the first message) and `allow-remote-control-off.sh`

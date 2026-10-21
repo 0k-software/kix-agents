@@ -44,7 +44,7 @@ commit() {
   git_q commit -q --allow-empty -m "$1"
 }
 
-run() { out=$("$BIN" --no-fetch --session s1); }
+run() { out=$("$BIN" --tsv --no-fetch --session s1); }
 
 # The status and detail columns of one line of $out.
 field() { printf '%s\n' "$out" | awk -F'\t' -v n="$1" -v c="$2" '$1 == n { print $c }'; }
@@ -147,7 +147,7 @@ check "stacked union lines" "$(status marker)" "pass"
 git_q notes --ref=checks add -f -m "checked s10" HEAD
 run
 check "no prefix match" "$(status marker)" "stale"
-out=$("$BIN" --no-fetch --session "")
+out=$("$BIN" --tsv --no-fetch --session "")
 check "no session id" "$(detail marker)" "no session id"
 check "no session: from" "$(detail from)" "-"
 teardown
@@ -192,17 +192,29 @@ check "exit status" "$?" "0"
 check "default" "$(detail default)" "-"
 check "unlanded" "$(status unlanded)" "skip"
 check "rebase" "$(status rebase)" "skip"
-check "fetch" "$("$BIN" --session s1 | awk -F'\t' '$1 == "fetch" { print $3 }')" "skipped"
+check "fetch" "$("$BIN" --tsv --session s1 | awk -F'\t' '$1 == "fetch" { print $3 }')" "skipped"
 teardown
 
 echo "cached fetch"
 setup
 advance_origin 1
-out=$(KIX_FETCH_TTL=0 "$BIN" --session s1)
+out=$(KIX_FETCH_TTL=0 "$BIN" --tsv --session s1)
 check "stale cache fetches" "$(detail fetch)" "fetched"
 check "fetched commit seen" "$(status rebase)" "finding"
-out=$(KIX_FETCH_TTL=60 "$BIN" --session s1)
+out=$(KIX_FETCH_TTL=60 "$BIN" --tsv --session s1)
 check "fresh cache skips" "$(detail fetch)" "fresh"
+teardown
+
+echo "default output is an aligned Markdown table"
+setup
+printf -- '- [ ] a | b\n' >pipe.md
+out=$("$BIN" --no-fetch --session s1)
+check "header" "$(printf '%s\n' "$out" | sed -n 1p | tr -s ' ')" "| name | status | detail |"
+check "rule" "$(printf '%s\n' "$out" | sed -n 2p | tr -d ' |-')" ""
+check "rows" "$(printf '%s\n' "$out" | wc -l | tr -d ' ')" "13"
+check "every line one width" "$(printf '%s\n' "$out" | awk '{ print length }' | sort -u | wc -l | tr -d ' ')" "1"
+check "row" "$(printf '%s\n' "$out" | grep '^| default ' | tr -s ' ')" "| default | fact | origin/main |"
+check "tsv has no header" "$("$BIN" --tsv --no-fetch | grep -c '^name')" "0"
 teardown
 
 echo "outside a git repo"
