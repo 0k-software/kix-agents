@@ -238,6 +238,10 @@ chmod +x "$work/ssh"
 out=$(GIT_SSH_COMMAND="$work/ssh" KIX_FETCH_TTL=0 "$BIN" --format tsv --session s1 </dev/null)
 check "fetch" "$(detail fetch)" "failed"
 check "BatchMode passed" "$(grep -c 'BatchMode=yes' "$work/ssh-args")" "1"
+rm -f "$work/ssh-args"
+git config core.sshCommand "$work/ssh -i custom-key"
+out=$(env -u GIT_SSH_COMMAND KIX_FETCH_TTL=0 "$BIN" --format tsv --session s1 </dev/null)
+check "core.sshCommand kept" "$(grep -c -- '-i custom-key -o BatchMode=yes' "$work/ssh-args")" "1"
 teardown
 
 echo "--format pretty is an aligned Markdown table"

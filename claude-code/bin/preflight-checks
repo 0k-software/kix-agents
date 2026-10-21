@@ -118,14 +118,19 @@ do_fetch() {
     return
   }
   head=$(git rev-parse --git-path FETCH_HEAD)
-  if [ -f "$head" ] && [ -n "$(find "$head" -mmin -"$ttl" 2>/dev/null)" ]; then
+  # TTL 0 means always fetch: find's minute rounding can call a FETCH_HEAD
+  # written this same second younger than 0 minutes.
+  if [ "$ttl" != 0 ] && [ -f "$head" ] &&
+    [ -n "$(find "$head" -mmin -"$ttl" 2>/dev/null)" ]; then
     echo fresh
     return
   fi
   # Fail instead of prompting: GIT_TERMINAL_PROMPT covers HTTPS credentials,
-  # BatchMode an ssh host key or passphrase. Nobody answers a Stop hook.
+  # BatchMode an ssh host key or passphrase. Nobody answers a Stop hook. The
+  # env var beats core.sshCommand, so build on whichever the user set.
   export GIT_TERMINAL_PROMPT=0
-  export GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-ssh} -o BatchMode=yes"
+  GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-$(git config core.sshCommand || echo ssh)} -o BatchMode=yes"
+  export GIT_SSH_COMMAND
   if git fetch -q origin 2>/dev/null; then
     git fetch -q origin refs/notes/checks:refs/notes/checks 2>/dev/null || true
     echo fetched
