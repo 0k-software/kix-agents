@@ -20,8 +20,9 @@ decision ("nothing urgent", an empty category) are not printed at all.
 
 **Writes on yes only.** next-up runs `bd` and `git worktree` commands itself,
 but only the ones the user approved, and only in the queue step, after the last
-answer. It never starts the work it recommends — that goes to a new session —
-and never retitles this session for the tracker moves it makes.
+answer. It starts the work it recommends only when the user picks "Start here"
+(Step 6) — otherwise that goes to a new session — and never retitles this
+session for the tracker moves it makes.
 
 **Names.** Every bead, epics included, is named by its id and its title
 (`kxa-9so "Bar"`), everywhere: the fix list, the fix blocks, the questions, the
@@ -244,6 +245,21 @@ here. Fewer than five ready → list what there is. None → say so, and stop.
 Ask: "Start #1" (Recommended) · "Start another" · "Not now". "Start another" →
 a second question with the other items (#2–#5) as options. "Not now" → stop.
 
+**Where.** A start runs in a new session or here, in this one. Here is possible
+only when this session's own work has landed: the tree is clean
+(`git status --porcelain` prints nothing) and `HEAD` holds no commit missing
+from `origin/<default>` (`git merge-base --is-ancestor HEAD origin/<default>`)
+— the next bead never starts on top of unlanded work. When it is possible, ask
+"New session" · "Start here". Recommend "New session" when
+`mcp__ccd_session__start_session` exists (load it with ToolSearch if it is
+deferred) — "Its own worktree session; this one stays as it is." — and "Start
+here" when it does not, as on the phone, where a new session means pasting a
+prompt by hand — "Paste a prompt into a new session yourself.". "Start here":
+"This session claims it and starts it on a fresh branch from `<default>`; the
+conversation so far stays." When "Start here" is not possible, go to a new
+session without asking, and say why in one line
+(`Not here: <branch> holds unlanded work — /kix:ship it first`).
+
 On a start, build the prompt:
 
 ```
@@ -258,24 +274,52 @@ the repo's CLAUDE.md or memories, e.g. "commit on the branch, then offer
 /kix:ship">.
 ```
 
-**Desktop app** (`mcp__ccd_session__start_session` exists; load it with
-ToolSearch if it is deferred): start the session — the user's "Start" answer is
-their go-ahead — with `initiation: "user_asked"`, `context: "fresh"`,
-`use_worktree: true`, a short `title` (`<id> <title>`), the prompt as `prompt`
-and the context paragraph as `background`. Then turn Remote Control on for it:
-`mcp__ccd_session_mgmt__set_remote_control` with the new session's id and
-`enabled: true`. The tool needs a session that has run a turn: when it is
-refused for that, call it again once more right before next-up returns, and
-again when the note of the new session's first turn arrives, whichever comes
-first. When kix:close called next-up, the archive may come before that note:
-close's _Side sessions_ step retries it then. Say in one line which session
-started, linked by its id, and whether Remote Control is on.
+**New session, desktop app** (`start_session` exists): start the session — the
+user's "Start" answer is their go-ahead — with `initiation: "user_asked"`,
+`context: "fresh"`, `use_worktree: true`, a short `title` (`<id> <title>`), the
+prompt as `prompt` and the context paragraph as `background`. Then turn Remote
+Control on for it: `mcp__ccd_session_mgmt__set_remote_control` with the new
+session's id and `enabled: true`. The tool needs a session that has run a turn:
+when it is refused for that, call it again once more right before next-up
+returns, and again when the note of the new session's first turn arrives,
+whichever comes first. When kix:close called next-up, the archive may come
+before that note: close's _Side sessions_ step retries it then. Say in one line
+which session started, linked by its id, and whether Remote Control is on.
 
-**Plain CLI** (no `start_session`), or a start the app refused: print the
-prompt in a `text` code block for the user to paste into a new session in its
-own worktree.
+**New session without `start_session`** (plain CLI, the phone), or a start the
+app refused: print the prompt in a `text` code block for the user to paste into
+a new session in its own worktree.
 
-This session stays on planning: never start the work here.
+**Start here.** When kix:close called next-up, stop here and hand the prompt
+back to close: close finishes its own cleanup first and then runs these steps.
+Otherwise, in order:
+
+1. **Fresh branch.** `git fetch origin`, then a new branch
+   `<id>-<two-or-three-word slug of the title>` (`kxa-e5h-start-here`) from
+   `origin/<default>`:
+   - in a linked worktree (`git rev-parse --git-dir` differs from
+     `git rev-parse --git-common-dir`):
+     `git switch -c <branch> origin/<default>`. The previous branch stays as it
+     is; its work is already on `<default>`.
+   - in the main checkout: never switch it — other worktrees and the plugin may
+     read it. Enter a new worktree with the `EnterWorktree` tool
+     (`name: <branch>`, loaded with ToolSearch if deferred); then make sure
+     `HEAD` is `origin/<default>` (`git merge --ff-only origin/<default>` when
+     it is behind). Without that tool, do not start here: print the prompt as
+     the plain CLI does.
+2. **Keep the conversation.** Never `/clear` or clear the session: the earlier
+   context may be needed later, a clear leaves the session idle with nothing to
+   run, and a session serving Remote Control cannot be cleared at all. The
+   printed prompt (step 4) is the new task's anchor; compaction handles the
+   length. A clean slate is what "New session" is for.
+3. **Title.** Run the `kix:title` skill with the bead's id as its argument —
+   the new bead is this session's main item now.
+4. **Work.** Print the prompt in a `text` code block, then follow it as this
+   session's task: `bd show`, `bd update <id> --claim`, /using-superpowers, the
+   repo's flow.
+
+Outside "Start here", this session stays on planning: never start the work
+here.
 
 ## Common mistakes
 
@@ -295,5 +339,7 @@ This session stays on planning: never start the work here.
 - Reading only the first 100 rows of `bd ready` / `bd list`.
 - Recommending implementation straight from a `task`.
 - Recommending new work while a started epic still has ready children.
-- Starting the recommended work in this session, or retitling it for tracker
-  moves.
+- Starting the recommended work in this session without the user's "Start
+  here", or retitling it for tracker moves.
+- Starting here on top of unlanded work, or in the main checkout's own branch.
+- Clearing the session before starting here.

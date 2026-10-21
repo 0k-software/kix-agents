@@ -48,8 +48,9 @@ as `kix:preflight`'s _Progress_ says: `kix:ship` (with its preflight) prints
 
 Shipping is always the **last** thing a session does: nothing — no fix, no
 arrival, no task, no other work — runs after it. The only exceptions are the
-bookkeeping of step 2 (marking the shipped task done on the user's yes) and the
-archive.
+bookkeeping of step 2 (marking the shipped task done on the user's yes), the
+archive, and a next bead the user picks to "Start here" in `kix:next-up` (2b):
+a new task on a fresh branch, not more work on the shipped one.
 
 Run the `kix:ship` skill. It runs `kix:preflight` (rebase, the six checks,
 findings, fixes and deferrals), asks the user to confirm, and pushes. If it
@@ -130,6 +131,12 @@ is not finished.
 come back here. It goes before the archive: after it, nothing in this session
 runs.
 
+**Start here.** When the user picked "Start here" in next-up, the session goes
+on with that bead instead of being archived: skip the mode check, the archive
+question and every item under it but **Remote branch** — run that one for the
+shipped branch now, before anything switches it. Then run next-up's _Start
+here_ steps with the prompt it handed back; close ends there.
+
 Then check the session's mode. When the `mcp__ccd_session_mgmt__*` tools are
 not available, the session was started from the phone through a terminal
 `claude remote-control` server: Remote Control is its only transport, so
@@ -195,6 +202,7 @@ while the task has items left (2a).
 - Archiving with Remote Control still on, the session still pinned, or a side
   session still attached.
 - Offering `/kix:next-up` after the archive, where it never runs.
+- Archiving, or asking to, after the user picked "Start here" in next-up.
 - Deleting the remote branch on "Leave it open", or before checking it is in
   `<base>`.
 - In a terminal `claude remote-control` session (no `ccd_session_mgmt` tools),
