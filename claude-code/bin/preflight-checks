@@ -211,11 +211,19 @@ cp_marker() {
   fi
 }
 
+# file:line of each unchecked item outside fenced code blocks: a "- [ ]" in a
+# ``` or ~~~ block is a template or an example, not pending work.
+unchecked_items() {
+  awk -v f="$1" '
+    /^[[:space:]]*(```|~~~)/ { fence = !fence; next }
+    !fence && /^[[:space:]]*[-*+] \[ \]/ { print f ":" FNR }
+  ' "$1"
+}
+
 cp_before_shipping() {
   local items
   items=$(printf '%s\n' "$markdown" | while IFS= read -r f; do
-    [ -n "$f" ] && [ -f "$f" ] && grep -nE '^[[:space:]]*[-*+] \[ \]' -- "$f" |
-      cut -d: -f1 | sed "s|^|$f:|"
+    [ -n "$f" ] && [ -f "$f" ] && unchecked_items "$f"
   done)
   if [ -z "$items" ]; then
     emit before-shipping pass "no unchecked items"

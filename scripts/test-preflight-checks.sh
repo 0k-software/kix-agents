@@ -163,6 +163,15 @@ check "before-shipping" "$(status before-shipping)" "finding"
 check "items" "$(detail before-shipping)" "draft.md:1, plan.md:4, plan.md:5"
 teardown
 
+echo "items inside fenced code blocks are examples, not work"
+setup
+# Literal backticks, not command substitution.
+# shellcheck disable=SC2016
+printf '# Skill\n\n```markdown\n- [ ] template\n```\n\n  ~~~\n  - [ ] indented\n  ~~~\n\n- [ ] real\n' >skill.md
+run
+check "items" "$(detail before-shipping)" "skill.md:11"
+teardown
+
 echo "untouched Markdown is not listed"
 setup
 printf -- '- [ ] old\n' >old.md
