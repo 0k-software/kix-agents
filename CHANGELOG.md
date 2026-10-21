@@ -52,6 +52,10 @@ The format is based on
   this session's work has landed), retitles it and starts the work with the
   conversation kept — recommended where there is no start-session tool (plain
   CLI, the phone). From `kix:close` it replaces the archive.
+- `kix:next-up` takes #1 from the session first: a bead the session named as
+  next, else the next ready child of the session's epic, else the tracker
+  ranking as before. It asks when an urgent bead competes with that pick, and
+  #1's line says which rule picked it.
 
 ## [0.4.1] — 2026-10-02
 
