@@ -216,6 +216,21 @@ out=$(KIX_FETCH_TTL=60 "$BIN" --format tsv --session s1)
 check "fresh cache skips" "$(detail fetch)" "fresh"
 teardown
 
+echo "an ssh origin never prompts: the fetch fails instead"
+setup
+git remote set-url origin "ssh://nobody@127.0.0.1:1/x.git"
+# A fake ssh that records its arguments and fails like an unreachable host.
+cat >"$work/ssh" <<'SH'
+#!/bin/sh
+echo "$@" >"$(dirname "$0")/ssh-args"
+exit 255
+SH
+chmod +x "$work/ssh"
+out=$(GIT_SSH_COMMAND="$work/ssh" KIX_FETCH_TTL=0 "$BIN" --format tsv --session s1 </dev/null)
+check "fetch" "$(detail fetch)" "failed"
+check "BatchMode passed" "$(grep -c 'BatchMode=yes' "$work/ssh-args")" "1"
+teardown
+
 echo "--format pretty is an aligned Markdown table"
 setup
 printf -- '- [ ] a\n' >todo.md

@@ -122,9 +122,12 @@ do_fetch() {
     echo fresh
     return
   fi
-  if GIT_TERMINAL_PROMPT=0 git fetch -q origin 2>/dev/null; then
-    GIT_TERMINAL_PROMPT=0 git fetch -q origin \
-      refs/notes/checks:refs/notes/checks 2>/dev/null || true
+  # Fail instead of prompting: GIT_TERMINAL_PROMPT covers HTTPS credentials,
+  # BatchMode an ssh host key or passphrase. Nobody answers a Stop hook.
+  export GIT_TERMINAL_PROMPT=0
+  export GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-ssh} -o BatchMode=yes"
+  if git fetch -q origin 2>/dev/null; then
+    git fetch -q origin refs/notes/checks:refs/notes/checks 2>/dev/null || true
     echo fetched
   else
     echo failed
