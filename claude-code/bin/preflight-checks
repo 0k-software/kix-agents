@@ -165,12 +165,14 @@ newest_marked() {
   done
 }
 
-# Committed (vs the merge base) and uncommitted, untracked included.
+# Committed (vs the merge base) and uncommitted, untracked included. quotePath
+# off: git otherwise prints a non-ASCII path quoted and octal-escaped
+# ("A\303\247\303\243o.md"), which names no file.
 touched_markdown() {
   {
-    [ -n "$base" ] && git diff --name-only "$base...HEAD" -- '*.md'
-    git diff --name-only HEAD -- '*.md'
-    git ls-files --others --exclude-standard -- '*.md'
+    [ -n "$base" ] && git -c core.quotePath=false diff --name-only "$base...HEAD" -- '*.md'
+    git -c core.quotePath=false diff --name-only HEAD -- '*.md'
+    git -c core.quotePath=false ls-files --others --exclude-standard -- '*.md'
   } 2>/dev/null | sort -u
 }
 

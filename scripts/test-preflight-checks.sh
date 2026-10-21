@@ -163,6 +163,17 @@ check "before-shipping" "$(status before-shipping)" "finding"
 check "items" "$(detail before-shipping)" "draft.md:1, plan.md:4, plan.md:5"
 teardown
 
+echo "non-ASCII Markdown paths are read, not skipped"
+setup
+mkdir -p Notas
+printf -- '- [ ] pendente\n' >"Notas/Ação.md"
+commit nota
+printf -- '- [ ] rascunho\n' >"Rascunho é.md"
+run
+check "markdown" "$(detail markdown)" "Notas/Ação.md, Rascunho é.md"
+check "items" "$(detail before-shipping)" "Notas/Ação.md:1, Rascunho é.md:1"
+teardown
+
 echo "items inside fenced code blocks are examples, not work"
 setup
 # Literal backticks, not command substitution.
