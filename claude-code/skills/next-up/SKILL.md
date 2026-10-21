@@ -224,6 +224,28 @@ Next up:
 2. kxa-def "Baz" — unblocks kxa-ghi "Qux" and kxa-jkl "Quux"
 ```
 
+**#1 from this session first.** What this session already settled beats the
+tracker's order — when kix:close called next-up, that is the closing session.
+Only ready beads count; first match wins:
+
+1. **Named next** — the session says explicitly which bead comes next: the
+   user's own words ("kxa-xyz is next", "create a P1 for right after this
+   one"), or a bead filed in this session with a note that it follows this
+   work. A bead that only came up in the conversation does not count.
+2. **Its epic's next child** — the session's bead (the one it claimed or worked
+   on) has a parent epic with open children: the epic's next ready child, in
+   the order its edges imply.
+3. Neither → no session pick; the ranking below picks #1.
+
+A session pick is #1 and the rest keep the ranking's order after it — unless
+the ranking's own #1 is **Urgent** (below) and is another bead. Then ask, with
+AskUserQuestion, which one is #1: each option names the bead by id and title
+and says why it is there ("named in this session", "next child of kxa-5l3
+"Close rewrite"", "P1 bug"). The other one follows it.
+
+Either way, #1's line says which rule picked it: "named in this session", "next
+ready child of <epic id> "<epic title>"", or the ranking's own why.
+
 Rank, first rule wins:
 
 1. **Urgent** — P0/P1 bugs, defects that corrupt or mis-write user data,
@@ -268,7 +290,8 @@ Work bead <id> "<title>" (<priority> <type>). Start with `bd show <id>` — its
 description, design and notes are the spec — and `bd update <id> --claim`.
 
 Context: <what it is, in a sentence>. <What it waits on, or what it unblocks.>
-<Decisions taken in this next-up run that touch it.>
+<Why it is #1: the rule that picked it.> <Decisions taken in this next-up run
+that touch it.>
 
 Process: /using-superpowers, then the repo's own flow — <commit/ship steps from
 the repo's CLAUDE.md or memories, e.g. "commit on the branch, then offer
@@ -344,6 +367,9 @@ here.
 - Reading only the first 100 rows of `bd ready` / `bd list`.
 - Recommending implementation straight from a `task`.
 - Recommending new work while a started epic still has ready children.
+- Ranking from the tracker alone when the session already named the next bead
+  or works under an epic with a ready child — or picking between a session pick
+  and an Urgent bead without asking.
 - Starting the recommended work in this session without the user's "Start
   here", or retitling it for tracker moves.
 - Starting here on top of unlanded work, before fetching, or in the main
