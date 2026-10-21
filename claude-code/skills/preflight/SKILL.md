@@ -41,9 +41,10 @@ job: renames through the Obsidian CLI, and so on.
 
 `preflight-checks` (on PATH from the kix plugin's `bin/`; else
 `claude-code/bin/preflight-checks` in a kix-agents checkout) runs every check
-that needs no judgement in one call and prints a table, one
-`name | status | detail` row each — read its lines instead of running the git
-commands yourself:
+that needs no judgement in one call. Preflight calls it with `--format tsv`:
+one bare tab-separated `<name> <status> <detail>` line each, no table padding
+to spend tokens on (the default, `pretty`, is a table for a person at a
+terminal). Read its lines instead of running the git commands yourself:
 
 | Line              | Status                | What it says                                                   |
 | ----------------- | --------------------- | -------------------------------------------------------------- |
@@ -59,9 +60,9 @@ commands yourself:
 | `marker`          | pass · stale          | _Already checked_ below: `pass` is its `SKIP`                  |
 | `before-shipping` | pass · finding        | unchecked `- [ ]` lines in touched Markdown, as `file:line`    |
 
-It runs twice: at step 1 as `KIX_FETCH_TTL=0 preflight-checks` (always fetches,
-the check marks too), and at the start of step 2 as
-`preflight-checks --no-fetch`, after step 1 may have committed or rebased.
+It runs twice: at step 1 with `KIX_FETCH_TTL=0` (always fetches, the check
+marks too), and at the start of step 2 with `--no-fetch`, after step 1 may have
+committed or rebased.
 
 **Default branch.** Never assume `main`: `<base>` is the `default` line (e.g.
 `origin/main`) and `<default>` is the branch name without `origin/`.
@@ -171,7 +172,7 @@ check marks (so marks pushed from another clone count), and reads everything
 below:
 
 ```bash
-KIX_FETCH_TTL=0 preflight-checks
+KIX_FETCH_TTL=0 preflight-checks --format tsv
 ```
 
 On a `dirty-tree` finding, commit first (project commit procedure) — a rebase
@@ -220,7 +221,7 @@ Open the step with one call, which every skip below reads — step 1 may have
 committed or moved the branch since its own run:
 
 ```bash
-preflight-checks --no-fetch
+preflight-checks --no-fetch --format tsv
 ```
 
 **Skips.** After _Already checked_ (below), the same lines find the checks with
