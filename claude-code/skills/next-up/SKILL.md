@@ -242,11 +242,11 @@ Only ready beads count; first match wins:
 A session pick is #1 and the rest keep the ranking's order after it — unless
 the ranking's own #1 is **Urgent** (below) and is another bead. Then ask, with
 AskUserQuestion, which one is #1: each option names the bead by id and title
-and says why it is there ("named in this session", "next child of kxa-5l3
-"Close rewrite"", "P1 bug"). The other one follows it.
+and says why it is there (`named in this session`,
+`next child of kxa-5l3 "Close rewrite"`, `P1 bug`). The other one follows it.
 
-Either way, #1's line says which rule picked it: "named in this session", "next
-ready child of <epic id> "<epic title>"", or the ranking's own why.
+Either way, #1's line says which rule picked it: `named in this session`,
+`next ready child of <epic id> "<epic title>"`, or the ranking's own why.
 
 Rank, first rule wins:
 
