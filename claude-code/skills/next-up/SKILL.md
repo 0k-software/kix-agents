@@ -245,19 +245,21 @@ here. Fewer than five ready → list what there is. None → say so, and stop.
 Ask: "Start #1" (Recommended) · "Start another" · "Not now". "Start another" →
 a second question with the other items (#2–#5) as options. "Not now" → stop.
 
-**Where.** A start runs in a new session or here, in this one. Here is possible
-only when this session's own work has landed: the tree is clean
-(`git status --porcelain` prints nothing) and `HEAD` holds no commit missing
-from `origin/<default>` (`git merge-base --is-ancestor HEAD origin/<default>`)
-— the next bead never starts on top of unlanded work. When it is possible, ask
-"New session" · "Start here". Recommend "New session" when
-`mcp__ccd_session__start_session` exists (load it with ToolSearch if it is
-deferred) — "Its own worktree session; this one stays as it is." — and "Start
-here" when it does not, as on the phone, where a new session means pasting a
-prompt by hand — "Paste a prompt into a new session yourself.". "Start here":
-"This session claims it and starts it on a fresh branch from `<default>`; the
-conversation so far stays." When "Start here" is not possible, go to a new
-session without asking, and say why in one line
+**Where.** A start runs in a new session or here, in this one. First
+`git fetch origin`: the previous branch may have just gone to `<default>`, and
+every check and branch below must see its tip. Here is possible only when this
+session's own work has landed: the tree is clean (`git status --porcelain`
+prints nothing) and `HEAD` holds no commit missing from `origin/<default>`
+(`git merge-base --is-ancestor HEAD origin/<default>`) — the next bead never
+starts on top of unlanded work. When it is possible, ask "New session" · "Start
+here". Recommend "New session" when `mcp__ccd_session__start_session` exists
+(load it with ToolSearch if it is deferred) — "Its own worktree session; this
+one stays as it is." — and "Start here" when it does not (plain CLI, the
+phone), where a new session means pasting a prompt by hand — "Paste a prompt
+into a new session yourself.". "Start here": "This session moves to a fresh
+branch from `<default>` and starts it; `/clear` first if you want a clean
+slate." When "Start here" is not possible, go to a new session without asking,
+and say why in one line
 (`Not here: <branch> holds unlanded work — /kix:ship it first`).
 
 On a start, build the prompt:
@@ -294,9 +296,10 @@ a new session in its own worktree.
 back to close: close finishes its own cleanup first and then runs these steps.
 Otherwise, in order:
 
-1. **Fresh branch.** `git fetch origin`, then a new branch
-   `<id>-<two-or-three-word slug of the title>` (`kxa-e5h-start-here`) from
-   `origin/<default>`:
+1. **Fresh branch.** A new branch `<id>-<two-or-three-word slug of the title>`
+   (`kxa-e5h-start-here`) at the tip of `origin/<default>` as fetched in
+   _Where_ — fetch again if anything ran since, so it sits on top of the commit
+   the previous branch just landed:
    - in a linked worktree (`git rev-parse --git-dir` differs from
      `git rev-parse --git-common-dir`):
      `git switch -c <branch> origin/<default>`. The previous branch stays as it
@@ -305,18 +308,22 @@ Otherwise, in order:
      read it. Enter a new worktree with the `EnterWorktree` tool
      (`name: <branch>`, loaded with ToolSearch if deferred); then make sure
      `HEAD` is `origin/<default>` (`git merge --ff-only origin/<default>` when
-     it is behind). Without that tool, do not start here: print the prompt as
-     the plain CLI does.
-2. **Keep the conversation.** Never `/clear` or clear the session: the earlier
-   context may be needed later, a clear leaves the session idle with nothing to
-   run, and a session serving Remote Control cannot be cleared at all. The
-   printed prompt (step 4) is the new task's anchor; compaction handles the
-   length. A clean slate is what "New session" is for.
-3. **Title.** Run the `kix:title` skill with the bead's id as its argument —
-   the new bead is this session's main item now.
-4. **Work.** Print the prompt in a `text` code block, then follow it as this
-   session's task: `bd show`, `bd update <id> --claim`, /using-superpowers, the
-   repo's flow.
+     it is behind). Without that tool, do not start here: print the prompt for
+     a new session instead.
+
+   Then confirm: `git rev-parse HEAD` equals `git rev-parse origin/<default>`.
+
+2. **Title.** Run the `kix:title` skill with the bead's id as its argument —
+   the new bead is this session's main item now. The title outlives a `/clear`.
+3. **Clean slate or not.** Print the prompt in a `text` code block, then end
+   the turn with one line: "`/clear` and paste this prompt for a clean start,
+   or reply `go` to start it here with this conversation kept." Only the user
+   can clear: never call `clear_session` — it leaves the session idle with
+   nothing queued, and the app refuses it for a session serving Remote Control.
+   After a `/clear` the old conversation is still there (the app's "Resume
+   previous session").
+4. **Work.** On `go`, follow the prompt as this session's task: `bd show`,
+   `bd update <id> --claim`, /using-superpowers, the repo's flow.
 
 Outside "Start here", this session stays on planning: never start the work
 here.
@@ -341,5 +348,7 @@ here.
 - Recommending new work while a started epic still has ready children.
 - Starting the recommended work in this session without the user's "Start
   here", or retitling it for tracker moves.
-- Starting here on top of unlanded work, or in the main checkout's own branch.
-- Clearing the session before starting here.
+- Starting here on top of unlanded work, before fetching, or in the main
+  checkout's own branch.
+- Clearing the session yourself, or starting the work before the user chose
+  `/clear` or `go`.

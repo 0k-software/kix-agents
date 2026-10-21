@@ -47,11 +47,12 @@ The format is based on
 - `kix:title` states follow the item's work, not code: 🏭 covers notes,
   research and documents in a notes repo (a Kingdone vault), and 📥 means only
   filing or triaging items without working on them.
-- `kix:next-up` can start the pick here: "Start here" claims it in the current
-  session on a fresh branch from the default branch (only once this session's
-  work has landed), retitles the session and keeps its conversation —
-  recommended where there is no start-session tool, as on the phone. From
-  `kix:close` it replaces the archive.
+- `kix:next-up` can start the pick here: "Start here" moves the current session
+  to a fresh branch at the just-fetched tip of the default branch (only once
+  this session's work has landed), retitles it, prints the prompt and lets the
+  user `/clear` and paste it for a clean start or reply `go` to keep the
+  conversation — recommended where there is no start-session tool (plain CLI,
+  the phone). From `kix:close` it replaces the archive.
 
 ## [0.4.1] — 2026-10-02
 
