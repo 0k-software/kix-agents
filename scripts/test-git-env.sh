@@ -31,12 +31,18 @@ tmproot=$(mktemp -d)
 trap 'rm -rf "$tmproot"' EXIT
 
 sentinel="$tmproot/sentinel"
-git init -q -b main "$sentinel"
-git -C "$sentinel" config user.email sentinel@example.invalid
-git -C "$sentinel" config user.name sentinel
-echo sentinel >"$sentinel/file"
-git -C "$sentinel" add file
-git -C "$sentinel" commit -q -m sentinel
+# No sentinel means empty snapshots that always match: fail instead.
+{
+  git init -q -b main "$sentinel" &&
+    git -C "$sentinel" config user.email sentinel@example.invalid &&
+    git -C "$sentinel" config user.name sentinel &&
+    echo sentinel >"$sentinel/file" &&
+    git -C "$sentinel" add file &&
+    git -C "$sentinel" -c commit.gpgsign=false commit -q -m sentinel
+} || {
+  echo "FAIL: could not build the sentinel repo"
+  exit 1
+}
 
 # Every file in the repo and its .git, with its content hash.
 snapshot() { (cd "$sentinel" && find . -type f -exec shasum {} + | sort -k2); }
