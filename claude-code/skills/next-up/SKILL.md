@@ -301,8 +301,9 @@ Otherwise, in order:
    the previous branch just landed:
    - in a linked worktree (`git rev-parse --git-dir` differs from
      `git rev-parse --git-common-dir`):
-     `git switch -c <branch> origin/<default>`. The previous branch stays as it
-     is; its work is already on `<default>`.
+     `git switch --no-track -c <branch> origin/<default>` — `--no-track`, or a
+     bare `git push` / `git pull` would target `<default>`. The previous branch
+     stays as it is; its work is already on `<default>`.
    - in the main checkout: never switch it — other worktrees and the plugin may
      read it. Enter a new worktree with the `EnterWorktree` tool
      (`name: <branch>`, loaded with ToolSearch if deferred); then make sure
