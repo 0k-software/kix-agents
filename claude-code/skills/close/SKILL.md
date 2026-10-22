@@ -90,7 +90,6 @@ Also look for what is still open under the task:
   `bd dep list <id>`) or, for an epic, any open child (`bd children <id>`);
 - _(Kingdone)_ the quest's notes, and the arrivals they link that are still in
   `Gates/`;
-- _(Neither)_ the after-ship findings of this run's preflight.
 
 When there is any, do not offer to mark the task done: print
 `⚠️ 16/17 Mark task done — <task> has <n> item(s) left`, list each — when it

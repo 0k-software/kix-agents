@@ -60,6 +60,9 @@ The format is based on
   sits on the default branch (the `rebase` row of `preflight-checks` reads
   `pass`), so the pre-commit hook no longer reruns on every commit for nothing.
   A dirty tree is still committed first.
+- `kix:close` step 2a no longer lists a no-tracker source of leftover items:
+  with no tracker there is no task to mark done, so the bullet could never
+  apply.
 
 ## [0.4.1] — 2026-10-02
 
