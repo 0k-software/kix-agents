@@ -129,15 +129,16 @@ rewritten, so a crash or a concurrent append never loses data.
 {"check":"acceptance-criteria","at":"…","run":"…","head":"…","clean":true,"bead":{"id":"kxa-102","updated":"2026-10-22T11:30:00Z"},"findings":[]}
 ```
 
-| Field      | Written for                             | Meaning                                                                   |
-| ---------- | --------------------------------------- | ------------------------------------------------------------------------- |
-| `head`     | checks reading commits                  | full SHA of HEAD when marked                                              |
-| `clean`    | same                                    | tree clean when marked; `false` makes the next status stale               |
-| `turn`     | checks reading the conversation         | uuid + timestamp of the turn start this run happened in (from transcript) |
-| `run`      | every check                             | start time of the preflight run (the 🛫 line's time)                      |
-| `bd`       | `related-tracker-items` in a Beads repo | marker time used for `--updated-after`                                    |
-| `bead`     | `acceptance-criteria`                   | the branch bead's id and its `updated_at` when marked                     |
-| `findings` | every check                             | ids this run raised or carried                                            |
+| Field      | Written for                             | Meaning                                                          |
+| ---------- | --------------------------------------- | ---------------------------------------------------------------- |
+| `head`     | checks reading commits                  | full SHA of HEAD when marked                                     |
+| `clean`    | same                                    | tree clean when marked; `false` makes the next status stale      |
+| `turn`     | checks reading the conversation         | uuid + timestamp of the latest transcript entry when marked      |
+| `run`      | every check                             | start time of the preflight run (the 🛫 line's time)             |
+| `bd`       | `related-tracker-items` in a Beads repo | marker time used for `--updated-after`                           |
+| `bead`     | `acceptance-criteria`                   | the branch bead's id and its `updated_at` when marked            |
+| `findings` | every check                             | ids this run raised (history only; open state lives in findings) |
+| `branch`   | every line, markers and findings        | `git branch --show-current` (detached: `HEAD`)                   |
 
 A run-start line `{"run":"<time>"}` is appended when a preflight run starts
 (see _Script interface_).
@@ -157,8 +158,22 @@ A run-start line `{"run":"<time>"}` is appended when a preflight run starts
   `discarded` (with `reason`). Only `open` findings are carried and resurfaced.
 - `file` / `line` are optional (conversation and tracker findings point at no
   file; tracker findings may carry `ref`).
+- Every finding line also carries `branch` (below).
 - A later line for the same id merges over the earlier ones (an outcome line
   carries only what changed).
+
+**Old findings on a delta rerun.** A finding stays open through
+`findings.jsonl` until something resolves it; `mark` takes only new findings,
+nothing needs passing back to carry. A stale check reads its own open findings
+(`findings <check>`) along with its delta, and when the delta made one moot —
+fixed by hand, or the user said "never mind" — the check resolves it itself:
+`fixed`, or `discarded` with the reason ("obsolete: …"). No other outcome.
+
+**Branches.** Status, carry and `findings-leftovers` only look at lines whose
+`branch` is the current branch, so a session that moves between worktrees or
+branches never mixes markers, and findings raised on branch A never block
+shipping branch B. Conversation findings are tied to the branch they were
+raised on too (kxa-289 handles a session acting on a branch it does not own).
 
 Resolving a finding appends to `findings.jsonl` only. The marker is untouched,
 so the fix commit still makes `diff-review` stale — that is the point of the
@@ -166,22 +181,28 @@ split.
 
 ## Turns and the transcript
 
-"A new turn started" covers anything that makes the conversation move: a typed
-prompt, an automated turn (a side-session event, a notification). Answers to
-AskUserQuestion arrive inside the same turn as tool results, so a run's own
-questions (Decide) never stale its own markers; a question that ends the run
-(the Verdict's rerun question) is answered in a new turn, which stales the
-conversation checks so the next run reviews just that delta.
+"A new turn started" (the tables above) means **new conversation after the
+marker**: a typed prompt, an automated turn (a side-session event, a
+notification), or an answer to an AskUserQuestion. The answers count because
+they arrive inside the same turn as tool results: the Decide answers and the
+Verdict's rerun answer (preflight reruns right away, in the same turn) carry
+free text under "Other" and are conversation the checks have not read. Since
+each check is marked right after it runs, everything after it — Decide, Fixes,
+the rerun answer — stales the conversation checks, and the next run reviews
+just that delta (cheap). Preflight's own process questions are never leftovers
+themselves; only what the answers say is.
 
 **With the transcript** (`~/.claude/projects/*/<session-id>.jsonl`, honoring
 `CLAUDE_CONFIG_DIR`): a turn start is an entry with `type: "user"`, no
 `isMeta: true`, whose content is a string or an array that does not start with
 a `tool_result` (checked against a real transcript on 2026-10-22). The script:
 
-- at `mark`, records the latest turn start's uuid + timestamp;
-- at status time, reports `stale` when a turn start exists after that uuid
-  (uuid not found: after that timestamp), and prints where the delta begins
-  (the first new turn's timestamp).
+- at `mark`, records the uuid + timestamp of the latest transcript entry;
+- at status time, reports `stale` when, after that entry (uuid not found: after
+  that timestamp), there is a turn start or a `tool_result` answering an
+  `AskUserQuestion` tool use, and prints where the delta begins (that entry's
+  timestamp). Other tool results (Bash, Read, …) and assistant text never
+  stale.
 
 **Without the transcript** (not found, unreadable): the marker keeps the run
 time only, and the check's status is `unknown since <run time>`. The model then
@@ -194,26 +215,32 @@ whole session and say so.
 
 `preflight-checks` keeps its current call and gains subcommands. `--session ID`
 (default `$CLAUDE_CODE_SESSION_ID`) picks the session directory for all of
-them; no session id → LLM checks report `unknown`, `mark`/`resolve` fail with a
-message.
+them. No session id (a terminal outside Claude Code, Codex) → the directory is
+`unknown`, as today's `checked unknown` note; prompt-based checks then report
+`unknown since <run time>` (no transcript to read), and everything else works,
+ship included.
 
 - **`preflight-checks [--format pretty|tsv] [--no-fetch]`** — as today: facts,
   then one row per check. Deterministic checks report `pass` / `finding` /
   `skip`. LLM checks and `open-checkboxes` report their marker status: `fresh`
-  · `stale` · `never` · `unknown` · `skip` (does not apply), with a detail
-  saying the delta start (`since b9db0ab`, `since 2026-10-22 11:56`,
+  · `stale` · `never` · `unknown` · `skip` (does not apply). Freshness is
+  decided first: a marker that matches (same HEAD, clean tree, no new
+  conversation, …) is `fresh` even when the check would not apply now; `skip`
+  is only for a check with no marker and nothing to look at (`diff-review` with
+  no marker: no commits since the merge base and a clean tree). Each row has a
+  detail saying the delta start (`since b9db0ab`, `since 2026-10-22 11:56`,
   `3 bd updates`) and the open findings count. `findings-leftovers` lists open
   finding ids. The `from` fact becomes `diff-review`'s marker HEAD (when still
   an ancestor of HEAD), else `-`; `shortstat` keeps reading from it.
   `open-checkboxes`' detail is its `file:line` list.
 - **`preflight-checks start`** — appends a run-start line and prints the 🛫
   line with that time. Every `mark` until the next `start` records it as `run`.
-- **`preflight-checks mark <check> [--bead <id>]`** — reads a JSON array of
-  findings on stdin: ones without `id` are new (the script assigns ids and
-  appends them to `findings.jsonl`), ones with `id` are carried (appended only
-  when a field changed). Appends the marker line, filling the snapshot fields
-  for that check itself (HEAD, clean, turn, bd time, bead `updated_at` via
-  `bd show --json`). Prints the assigned ids.
+- **`preflight-checks mark <check> [--bead <id>]`** — reads a JSON array of the
+  run's **new** findings on stdin (may be `[]`); the script assigns ids and
+  appends them to `findings.jsonl`. Old open ones stay open on their own.
+  Appends the marker line, filling the snapshot fields for that check itself
+  (HEAD, clean, turn, bd time, bead `updated_at` via `bd show --json`). Prints
+  the assigned ids.
 - **`preflight-checks resolve <id> fixed|deferred <ref>|discarded <reason>`** —
   appends an outcome line.
 - **`preflight-checks findings [<check>]`** — current open findings (all, or
@@ -241,8 +268,8 @@ Tsv stays the scripting format; JSON only for findings in and out.
 Step 3 (Gate) stops reading the git note. It runs
 `preflight-checks --no-fetch --format tsv` after its fetch and requires
 `uncommitted-changes` pass, `behind-default-branch` pass, `diff-review` `fresh`
-(or `skip` with no commits) and `findings-leftovers` empty. Step 4 stops
-pushing notes.
+(or `skip`: no commits) and `findings-leftovers` empty. Step 4 stops pushing
+notes.
 
 ## Git notes
 
