@@ -33,7 +33,7 @@ Facts (status "fact"):
   markdown   Markdown files the branch or the dirty tree touches, ", "-joined
   fetch      fresh | fetched | failed | skipped
 
-Checkpoints (status pass | finding | fresh | stale | never | skip):
+Checkpoints (status pass | finding | fresh | stale | unknown | never | skip):
   uncommitted-changes    uncommitted changes
   unlanded-commits       commits in HEAD that are not on the default branch
   behind-default-branch  the default branch is not an ancestor of HEAD
@@ -258,11 +258,69 @@ bead_updated() {
     jq -r 'if type == "array" then .[0] else . end | .updated_at // empty' 2>/dev/null
 }
 
+conversation_checks="conversation-leftovers related-tracker-items unraised-follow-ups post-landing-steps"
+is_conversation_check() { case " $conversation_checks " in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
+
+# The session's transcript: first match of <config>/projects/*/<session>.jsonl,
+# empty when there is none or the session is unknown.
+transcript_path() {
+  local f
+  [ -n "${session:-}" ] && [ "$session" != unknown ] || return 0
+  for f in "${CLAUDE_CONFIG_DIR:-$HOME/.claude}"/projects/*/"$session.jsonl"; do
+    [ -f "$f" ] && {
+      echo "$f"
+      return
+    }
+  done
+}
+
+# {"turn": {uuid, ts}} of the last parseable transcript line with a uuid; {}
+# without a transcript or a uuid line. Unparseable lines (Claude Code writing)
+# are skipped.
+turn_snapshot() {
+  local t
+  t=$(transcript_path)
+  [ -n "$t" ] || {
+    echo '{}'
+    return
+  }
+  jq -cR 'fromjson? | select(type == "object" and (.uuid | type) == "string")' "$t" |
+    jq -sc 'if length == 0 then {} else last | {turn: {uuid: .uuid, ts: .timestamp}} end'
+}
+
+# Timestamp of the first transcript entry after the marker's turn that starts
+# a turn (a prompt that is not injected meta text) or answers an
+# AskUserQuestion; empty when there is none. "After" is the lines following the
+# marker's uuid, else the entries stamped later than its ts.
+conversation_since() {
+  jq -cR 'fromjson? | select(type == "object")' "$1" | jq -rs --arg uuid "$2" --arg ts "$3" '
+    . as $e
+    | [ $e[] | select(.type == "assistant") | .message.content? | arrays | .[]
+        | select(type == "object" and .type == "tool_use" and .name == "AskUserQuestion") | .id ] as $ask
+    | (first(range(0; length) as $i | select($e[$i].uuid == $uuid) | $i) // null) as $at
+    | (if $at != null then $e[$at + 1:] else [$e[] | select((.timestamp | type) == "string" and .timestamp > $ts)] end)
+    | first(.[]
+        | select(.type == "user" and (.timestamp | type) == "string")
+        | (.message.content?) as $c
+        | select(
+            (.isMeta != true and (($c | type) == "string" or (($c | type) == "array" and ($c[0]?.type? != "tool_result"))))
+            or (($c | type) == "array" and $c[0]?.type? == "tool_result" and ($c[0].tool_use_id | IN($ask[]))))
+        | .timestamp) // empty'
+}
+
 # Extra marker fields as a JSON object: what the check saw, to compare with
 # later. Per-check snapshots join here, so the writer below stays the only
 # place a marker line is built. $2 is the marker's time, $bead_ts the bead's
 # updated_at (read before anything is written).
 marker_snapshot() {
+  if is_conversation_check "$1"; then
+    jq -nc --argjson a "$(marker_snapshot_base "$1" "$2")" --argjson b "$(turn_snapshot)" '$a + $b'
+  else
+    marker_snapshot_base "$1" "$2"
+  fi
+}
+
+marker_snapshot_base() {
   local head dirty=true
   case $1 in
   open-checkboxes | diff-review | acceptance-criteria | related-tracker-items | unraised-follow-ups | post-landing-steps)
@@ -452,7 +510,7 @@ marker_from() {
 # Prints "status<TAB>detail" for a markable check: fresh, stale or never. The
 # skip cases belong to the callers, who know what there is to check.
 marker_status() {
-  local check=$1 m reasons=() h n b id upd now_upd
+  local check=$1 m reasons=() h n b id upd now_upd tx tu tts since unknown=""
   m=$(marker_of "$check")
   if [ -z "$m" ]; then
     printf 'never\tno marker\n'
@@ -482,9 +540,23 @@ marker_status() {
     now_upd=$(bead_updated "$id")
     [ "$now_upd" != "$upd" ] && reasons+=("$id updated")
   fi
-  if [ ${#reasons[@]} -eq 0 ]; then
+  if is_conversation_check "$check"; then
+    tx=$(transcript_path)
+    tu=$(printf '%s' "$m" | jq -r '.turn.uuid // empty')
+    tts=$(printf '%s' "$m" | jq -r '.turn.ts // empty')
+    if [ -z "$tx" ] || [ -z "$tu$tts" ]; then
+      unknown="conversation unknown since $(printf '%s' "$m" | jq -r '.run // .at')"
+    else
+      since=$(conversation_since "$tx" "$tu" "$tts")
+      [ -n "$since" ] && reasons+=("conversation since $since")
+    fi
+  fi
+  if [ ${#reasons[@]} -eq 0 ] && [ -n "$unknown" ]; then
+    printf 'unknown\tsince %s\n' "$(printf '%s' "$m" | jq -r '.run // .at')"
+  elif [ ${#reasons[@]} -eq 0 ]; then
     printf 'fresh\tno changes since %s\n' "$(printf '%s' "$m" | jq -r .at)"
   else
+    [ -n "$unknown" ] && reasons+=("$unknown")
     printf 'stale\t%s\n' "$(printf '%s\n' "${reasons[@]}" | join)"
   fi
 }

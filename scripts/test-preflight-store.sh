@@ -163,6 +163,40 @@ echo '[]' | env -u CLAUDE_CODE_SESSION_ID "$BIN" mark diff-review >/dev/null
 check "unknown store" "$(lines "$work/repo/.git/kix/checks/unknown/markers.jsonl")" "1"
 teardown
 
+# Transcript fixtures in the shape Claude Code writes: one JSON object per line
+# at $work/cfg/projects/p/s1.jsonl. Timestamps carry milliseconds.
+tx=""
+tx_init() {
+  export CLAUDE_CONFIG_DIR="$work/cfg"
+  mkdir -p "$work/cfg/projects/p"
+  tx="$work/cfg/projects/p/s1.jsonl"
+  : >"$tx"
+}
+tx_turn() {
+  jq -nc --arg u "$1" --arg t "$2" --arg x "$3" \
+    '{type: "user", uuid: $u, timestamp: $t, message: {role: "user", content: $x}}' >>"$tx"
+}
+tx_meta() {
+  jq -nc --arg u "$1" --arg t "$2" \
+    '{type: "user", isMeta: true, uuid: $u, timestamp: $t, message: {role: "user", content: [{type: "text", text: "skill text"}]}}' >>"$tx"
+}
+tx_ask() {
+  jq -nc --arg u "$1" --arg t "$2" --arg i "$3" \
+    '{type: "assistant", uuid: $u, timestamp: $t, message: {role: "assistant", content: [{type: "tool_use", id: $i, name: "AskUserQuestion", input: {}}]}}' >>"$tx"
+}
+tx_bash() {
+  jq -nc --arg u "$1" --arg t "$2" --arg i "$3" \
+    '{type: "assistant", uuid: $u, timestamp: $t, message: {role: "assistant", content: [{type: "tool_use", id: $i, name: "Bash", input: {}}]}}' >>"$tx"
+}
+tx_result() {
+  jq -nc --arg u "$1" --arg t "$2" --arg i "$3" \
+    '{type: "user", uuid: $u, timestamp: $t, message: {role: "user", content: [{type: "tool_result", tool_use_id: $i, content: "ok"}]}}' >>"$tx"
+}
+T1=2026-10-22T11:00:00.100Z
+T2=2026-10-22T11:05:00.200Z
+T3=2026-10-22T11:10:00.300Z
+T4=2026-10-22T11:15:00.400Z
+
 # A bd stub first on PATH: `list` answers with $work/bd-list.json, `show` with
 # $work/bd-show.json (missing file: not found). Never the real bd.
 stub_bd() {
@@ -238,6 +272,8 @@ teardown
 echo "bd updates stale related-tracker-items"
 setup
 stub_bd
+tx_init
+tx_turn u1 $T1 "hello"
 check "never" "$(row related-tracker-items)" "never/no marker"
 echo '[]' | "$BIN" mark related-tracker-items >/dev/null
 at=$(tail -n1 "$store/markers.jsonl" | jq -r .at)
@@ -279,9 +315,103 @@ teardown
 
 echo "conversation-leftovers: never, then fresh"
 setup
+tx_init
+tx_turn u1 $T1 "hello"
 check "never" "$(row conversation-leftovers)" "never/no marker"
 echo '[]' | "$BIN" mark conversation-leftovers >/dev/null
+check "turn recorded" "$(tail -n1 "$store/markers.jsonl" | jq -c .turn)" "{\"uuid\":\"u1\",\"ts\":\"$T1\"}"
 check "fresh" "$(row conversation-leftovers | cut -d/ -f1)" "fresh"
+teardown
+
+echo "conversation: new prompt stales"
+setup
+tx_init
+tx_turn u1 $T1 "hello"
+echo '[]' | "$BIN" mark conversation-leftovers >/dev/null
+tx_turn u2 $T2 "more"
+check "stale" "$(row conversation-leftovers)" "stale/conversation since $T2"
+teardown
+
+echo "conversation: own tool output does not"
+setup
+tx_init
+tx_turn u1 $T1 "hello"
+echo '[]' | "$BIN" mark conversation-leftovers >/dev/null
+tx_bash a1 $T2 b1
+tx_result r1 $T3 b1
+check "fresh" "$(row conversation-leftovers | cut -d/ -f1)" "fresh"
+teardown
+
+echo "conversation: question answers stale"
+setup
+tx_init
+tx_turn u1 $T1 "hello"
+echo '[]' | "$BIN" mark conversation-leftovers >/dev/null
+tx_ask a1 $T2 q1
+check "asked, unanswered" "$(row conversation-leftovers | cut -d/ -f1)" "fresh"
+tx_result r1 $T3 q1
+check "answered" "$(row conversation-leftovers)" "stale/conversation since $T3"
+teardown
+
+echo "conversation: meta lines do not"
+setup
+tx_init
+tx_turn u1 $T1 "hello"
+echo '[]' | "$BIN" mark conversation-leftovers >/dev/null
+tx_meta m1 $T2
+check "fresh" "$(row conversation-leftovers | cut -d/ -f1)" "fresh"
+teardown
+
+echo "conversation: uuid gone, timestamp fallback"
+setup
+tx_init
+tx_turn u1 $T1 "hello"
+tx_turn u2 $T2 "second"
+echo '[]' | "$BIN" mark conversation-leftovers >/dev/null
+: >"$tx"
+tx_turn u0 $T1 "hello"
+check "only earlier" "$(row conversation-leftovers | cut -d/ -f1)" "fresh"
+tx_turn u3 $T4 "later"
+check "later turn" "$(row conversation-leftovers)" "stale/conversation since $T4"
+teardown
+
+echo "conversation: malformed line skipped"
+setup
+tx_init
+tx_turn u1 $T1 "hello"
+echo '[]' | "$BIN" mark conversation-leftovers >/dev/null
+printf '{"type":"user",\n' >>"$tx"
+check "status" "$(row conversation-leftovers | cut -d/ -f1)" "fresh"
+"$BIN" --format tsv --no-fetch >/dev/null
+check "exit" "$?" "0"
+tx_turn u2 $T2 "more"
+check "still stales" "$(row conversation-leftovers)" "stale/conversation since $T2"
+teardown
+
+echo "conversation: no transcript"
+setup
+tx_init
+tx_turn u1 $T1 "hello"
+run=$("$BIN" start)
+run=${run##* · }
+echo '[]' | "$BIN" mark conversation-leftovers >/dev/null
+echo '[]' | "$BIN" mark related-tracker-items >/dev/null
+mkdir "$work/empty"
+export CLAUDE_CONFIG_DIR="$work/empty"
+check "unknown" "$(row conversation-leftovers)" "unknown/since $run"
+echo c >c.txt && commit c
+check "stale and unknown" "$(row related-tracker-items)" "stale/new commits since $(git rev-parse HEAD~1 | cut -c1-7), conversation unknown since $run"
+teardown
+setup
+export CLAUDE_CONFIG_DIR="$work/empty2"
+mkdir "$work/empty2"
+run=$("$BIN" start)
+run=${run##* · }
+echo '[]' | "$BIN" mark conversation-leftovers >/dev/null
+check "marked without transcript: no turn" "$(tail -n1 "$store/markers.jsonl" | jq 'has("turn")')" "false"
+tx_init
+tx_turn u1 $T1 "hello"
+check "marker without turn" "$(row conversation-leftovers)" "unknown/since $run"
 teardown
 
 echo "stray lines in the store are skipped"
