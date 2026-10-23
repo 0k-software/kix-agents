@@ -42,7 +42,7 @@ name without `origin/`.
 
 Print a progress line when each step ends, and a ❓ line before each question,
 as `kix:preflight`'s _Progress_ says: `kix:ship` (with its preflight) prints
-1–15, then step 2a is 16/17 and 2b is 17/17.
+1–16, then step 2a is 17/18 and 2b is 18/18.
 
 ## 1. Ship
 
@@ -52,7 +52,7 @@ bookkeeping of step 2 (marking the shipped task done on the user's yes), the
 archive, and a next bead the user picks to "Start here" in `kix:next-up` (2b):
 a new task on a fresh branch, not more work on the shipped one.
 
-Run the `kix:ship` skill. It runs `kix:preflight` (rebase, the six checks,
+Run the `kix:ship` skill. It runs `kix:preflight` (rebase, the seven checks,
 findings, fixes and deferrals), asks the user to confirm, and pushes. If it
 stops — a **changed** or **open** verdict, a "Not yet", a failed push — report
 why and stop: the session is not ready to archive.
@@ -92,7 +92,7 @@ Also look for what is still open under the task:
   `Gates/`.
 
 When there is any, do not offer to mark the task done: print
-`⚠️ 16/17 Mark task done — <task> has <n> item(s) left`, list each — when it
+`⚠️ 17/18 Mark task done — <task> has <n> item(s) left`, list each — when it
 applies (as the task says it) and what to do, or the blocking issue's id — and
 stop there: skip 2b, do not offer to archive. End on that ⚠️ block, and say to
 run `/kix:close` again once the items are done — the rerun ships nothing new
