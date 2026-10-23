@@ -148,12 +148,13 @@ kix-agents ships a Claude Code marketplace + plugin — no application code:
   slash command. A skill folder may also bundle scripts/assets it needs at
   runtime (e.g. `claude-code/skills/setup/setup.sh` and
   `claude-code/skills/setup/assets/`), referenced via
-  `${CLAUDE_PLUGIN_ROOT}/skills/<name>/…`.
+  `${CLAUDE_PLUGIN_ROOT}/skills/<name>/…`. `preflight/` bundles
+  `claude-code/skills/preflight/checks/`, one instruction file per check.
 - `claude-code/bin/` — executables Claude Code puts on the Bash tool's PATH
   while the plugin is enabled (`project-code`, which `kix:title` calls bare;
   `preflight-checks`, which `kix:preflight` calls for its deterministic
   checkpoints — a table row per fact and per checkpoint, `--format tsv` for
-  scripts).
+  scripts; it also keeps the per-session markers for each check, and findings).
 - `claude-code/hooks/hooks.json` — plugin hooks, active in every session with
   the plugin enabled: `title-first-prompt.sh` (SessionStart, asks for
   `kix:title` after the first message) and `allow-remote-control-off.sh`

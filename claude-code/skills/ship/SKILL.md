@@ -30,13 +30,12 @@ name without `origin/`.
 ## Steps
 
 Print a progress line when each step ends, and a ❓ line before each question,
-as `kix:preflight`'s _Progress_ says: the preflight steps are 1–11, and steps
-2–5 below are 12–15 of 15 (of 17 when `kix:close` called ship).
+as `kix:preflight`'s _Progress_ says: the preflight steps are 1–12, and steps
+2–5 below are 13–16 of 16 (of 18 when `kix:close` called ship).
 
-1. **Preflight.** Run the `kix:preflight` skill, every time — even when HEAD
-   already carries a check mark (preflight skips its git-only checks then, but
-   still rebases and reruns the ones that read the session or bd). Its verdict
-   decides:
+1. **Preflight.** Run the `kix:preflight` skill, every time — even when every
+   check is fresh (preflight skips them then, but still rebases and checks the
+   branch again). Its verdict decides:
 
    - **Changed** or **Open** → stop here. Preflight already told the user what
      to do; add nothing, ship nothing.
@@ -65,36 +64,32 @@ as `kix:preflight`'s _Progress_ says: the preflight steps are 1–11, and steps
    ```bash
    git status --porcelain
    git fetch origin
-   git fetch origin refs/notes/checks:refs/notes/checks 2>/dev/null || true
-   git merge-base --is-ancestor <base> HEAD && echo UP_TO_DATE
-   git notes --ref=checks show HEAD 2>/dev/null | head -1
+   preflight-checks --no-fetch --format tsv
    ```
 
-   A dirty tree, no `UP_TO_DATE`, or a first note line not starting with
-   `checked` → stop. After the ⚠️ block, say in the reply what changed since
-   the preflight (dirty tree / `<default>` moved / HEAD not checked) with the
-   branch diff from `<base>` as its link, then ask "Run `<command>` again?"
-   with the same three options as `kix:preflight`'s _Verdict_ **changed** rerun
-   question (reviewed · skip my review · not now); on "skip my review", the ⚠️
-   item names the branch range `<base>..HEAD`. `<command>` as _Verdict_ defines
-   it (`/kix:close` when close called ship). Never rebase or review here to fix
+   Stop unless `uncommitted-changes` is `pass`, `behind-default-branch` is
+   `pass`, `diff-review` is `fresh` or `skip`, and `findings-leftovers` is
+   `pass`. The stop message lists which of them failed. After the ⚠️ block, say
+   in the reply what changed since the preflight (uncommitted changes /
+   `<default>` moved / diff not reviewed / open findings) with the branch diff
+   from `<base>` as its link, then ask "Run `<command>` again?" with the same
+   three options as `kix:preflight`'s _Verdict_ **changed** rerun question
+   (reviewed · skip my review · not now); on "skip my review", the ⚠️ item
+   names the branch range `<base>..HEAD`. `<command>` as _Verdict_ defines it
+   (`/kix:close` when close called ship). Never rebase or review here to fix
    it.
 
-4. **Push the default branch, the branch and the notes.**
+4. **Push the default branch and the branch.**
 
    ```bash
    git push origin HEAD:<default>
    git push --force-with-lease origin HEAD
-   git push origin refs/notes/checks
    ```
 
    The push to `<default>` is a fast-forward. If it is rejected, `<default>`
-   moved: stop with the step 3 message. If the notes push is rejected, run
-   `git fetch origin refs/notes/checks:refs/notes/checks-remote`,
-   `git notes --ref=checks merge -s union refs/notes/checks-remote`, and push
-   again.
+   moved: stop with the step 3 message.
 
-   On `<default>` itself (no branch), push is just `git push` plus the notes.
+   On `<default>` itself (no branch), push is just `git push`.
 
 5. **Check.**
 
@@ -107,13 +102,12 @@ as `kix:preflight`'s _Progress_ says: the preflight steps are 1–11, and steps
 
 ## Common mistakes
 
-- Skipping preflight because HEAD already carries a `checked` mark.
+- Skipping preflight because every check is already fresh.
 - Going past a **changed** or **open** verdict.
 - Rebasing, merging the default branch, or reviewing from ship itself instead
   of through preflight.
 - Pushing without the "Ship" answer.
-- Shipping a HEAD whose first note line does not start with `checked`. Old
-  `reviewed` notes in `refs/notes/review` no longer count.
+- Shipping with a stale `diff-review` or open findings.
 - Hardcoding `main` instead of the detected default branch.
 - Restarting the progress count at ship's own steps instead of going on from
   preflight's.

@@ -39,6 +39,6 @@ If the conversation was summarized earlier, say so: findings before the summary
 are only as good as the summary.
 
 This check's progress line tallies each of the six kinds, e.g.
-`✅ 3/15 Conversation — asks 0 · unanswered 0/0 · deferred 0 · promised 0 · inferred 1`;
+`✅ 4/16 Conversation leftovers — asks 0 · unanswered 0/0 · deferred 0 · promised 0 · inferred 1`;
 `unanswered x/y` is questions the user left unanswered / questions you left
 unanswered.

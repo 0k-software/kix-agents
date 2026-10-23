@@ -113,10 +113,11 @@ carry it to the next run.
 ## Progress
 
 The user wants to see where a run is while it runs. When each step ends, print
-one progress line (none when it starts; the only other lines are the ❓ line
-before a question and the ⏳ line when a Fixes job starts, both below),
-numbered across the whole run the user started (the `<command>` of _Verdict_),
-not per skill. Each check of step 2 is a step of its own:
+one progress line (none when it starts; the only other lines are the 🛫 line
+from `preflight-checks start`, the ❓ line before a question and the ⏳ line
+when a Fixes job starts, below), numbered across the whole run the user started
+(the `<command>` of _Verdict_), not per skill. Each check of step 2 is a step
+of its own:
 
 | Step                                        | `/kix:preflight` | `/kix:ship` | `/kix:close` |
 | ------------------------------------------- | ---------------- | ----------- | ------------ |
@@ -254,7 +255,8 @@ preflight-checks --no-fetch --format tsv
 
 `start` prints `🛫 preflight check started here · <time>`: print that line as
 the step's first output, as it is. It is what a check with an `unknown` row
-looks for in your context later, to know where this run began.
+looks for in your context later: the 🛫 line whose time matches the row's
+`since <run>` — an earlier run's line, not the one this run just printed.
 
 Then take each markable row in the order of the _Progress_ table (2a–2g:
 `diff-review`, `acceptance-criteria`, `conversation-leftovers`,
@@ -272,10 +274,13 @@ Then take each markable row in the order of the _Progress_ table (2a–2g:
   `${CLAUDE_PLUGIN_ROOT}/skills/preflight/checks/<name>.md` (in a kix-agents
   checkout, `claude-code/skills/preflight/checks/<name>.md`), and run it over
   the row's delta: `stale` reviews only what the detail names, `never` the
-  whole branch and session, `unknown` everything since the 🛫 line (the file
-  says how). First resolve its moot open findings, as the file's _Moot
-  findings_ says. Then mark it right away, before the next check, with its new
-  findings on stdin:
+  whole branch and session, `unknown` everything since the 🛫 line whose time
+  matches the row's `since <run>` — an earlier run's line, not the one this run
+  just printed (the file says how); a `stale` row whose detail includes
+  `conversation unknown since <run>` reviews its conversation part the same
+  way. First resolve its moot open findings, as the file's _Moot findings_
+  says. Then mark it right away, before the next check, with its new findings
+  on stdin:
 
   ```bash
   preflight-checks mark <name> <<'JSON'
@@ -289,8 +294,9 @@ Then take each markable row in the order of the _Progress_ table (2a–2g:
   problem then the fix "apply all" will run, fenced so it stands out in one
   line of plain text (line breaks get eaten): `… |—| SUGGESTED FIX: <fix> |—|`,
   and `failure_scenario` what is lost or goes wrong if the branch lands now. No
-  new finding → `[]`. Print the check's ✅ line after `mark`, with its count of
-  new findings (`conversation-leftovers` tallies by kind, as its file says).
+  new finding → `[]`. Print the check's ✅ line after `mark` (⏭️ when its check
+  file says to skip), with its count of new findings (`conversation-leftovers`
+  tallies by kind, as its file says).
 
 Marking each check right after it runs means everything later in the run — the
 Decide answers, a Fixes commit, the rerun answer — stales the checks that read
@@ -504,13 +510,13 @@ Each job follows these rules, and ends by closing its finding in the store with
   and the next run reports it again.
 
 After the queue, call ReportFindings again with step 3's list, each finding's
-`outcome` read from `preflight-checks findings`: a finding it still returns is
-open and gets no `outcome`; one it no longer returns was resolved — `fixed` for
-a `fixed`, `skipped` for a `deferred` or `discarded` (after-ship ones
-included). A discarded finding's `summary` ends with
-`|—| DISCARDED: <reason> |—|`. Reprint the chat list with each finding's result
-— fixed (with its commit), deferred (arrival link or task id), discarded —
-<reason>, or still open.
+`outcome` read from the `resolve` each job ran, and what is still open from
+`preflight-checks findings`: a finding it still returns is open and gets no
+`outcome`; one it no longer returns was resolved — `fixed` for a `fixed`,
+`skipped` for a `deferred` or `discarded` (after-ship ones included). A
+discarded finding's `summary` ends with `|—| DISCARDED: <reason> |—|`. Reprint
+the chat list with each finding's result — fixed (with its commit), deferred
+(arrival link or task id), discarded — <reason>, or still open.
 
 ## 6. Verdict
 

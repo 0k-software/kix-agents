@@ -9,31 +9,43 @@ The format is based on
 
 ### Added
 
+- Preflight checks `acceptance-criteria` (the branch's bead criteria against
+  the diff) and `findings-leftovers` (open findings block shipping), and
+  `preflight-checks start|mark|resolve|findings`: per-session check markers and
+  findings kept under `<git-common-dir>/kix/checks/<session>/`.
 - `/kix:close`, `/kix:ship`, `/kix:preflight`, `/kix:title` and `/kix:next-up`
   — the session lifecycle skills, moved unchanged from kelvinst's dotfiles.
-  `kix:preflight` rebases, runs six checks (code review, conversation,
-  checklists, tracker, look ahead, after ship) and turns every finding into a
-  fix, a deferred task or a reasoned dismissal; `kix:ship` fast-forwards the
-  default branch to a checked branch; `kix:close` ships, marks the task done
-  and archives the session; `kix:title` names the session
+  `kix:preflight` rebases, runs seven checks (diff review, acceptance criteria,
+  conversation leftovers, open checkboxes, related tracker items, unraised
+  follow-ups, post-landing steps) and turns every finding into a fix, a
+  deferred task or a reasoned dismissal; `kix:ship` fast-forwards the default
+  branch to a checked branch; `kix:close` ships, marks the task done and
+  archives the session; `kix:title` names the session
   `<emoji> <code>-<id> │ <description>`; `kix:next-up` walks a repo's beads
   fixes with the user and hands off what to work on next.
 - `project-code` on the Bash PATH (plugin `bin/`): the repo's 3-letter code for
   session titles, saved in `.claude/settings.json` as `env.PROJECT_CODE`.
 - `preflight-checks` on the Bash PATH: every deterministic checkpoint of the
-  branch in one call — dirty tree, unlanded commits, rebase needed, the
-  `notes.rewriteRef` guard, check-mark freshness and unchecked `- [ ]` items in
-  touched Markdown — plus the facts `kix:preflight` reads (default branch, this
-  session's newest checked commit, diff shortstat, touched Markdown), one table
-  row each (`--format tsv` for scripts). No LLM; the fetch is cached for a
-  later Stop hook. `kix:preflight` now reads it instead of running about six
-  git commands itself.
+  branch in one call — uncommitted changes, unlanded commits, behind the
+  default branch, open checkboxes (unchecked `- [ ]` items in touched Markdown)
+  and the freshness of each check's marker — plus the facts `kix:preflight`
+  reads (default branch, this session's newest checked commit, diff shortstat,
+  touched Markdown), one table row each (`--format tsv` for scripts). No LLM;
+  the fetch is cached for a later Stop hook. `kix:preflight` now reads it
+  instead of running about six git commands itself.
 - Plugin hooks: a SessionStart hook that asks for `kix:title` after the first
   message, and a PreToolUse hook that lets `kix:close` turn Remote Control off
   without a prompt.
 
 ### Changed
 
+- `kix:preflight` runs its checks from a check library
+  (`claude-code/skills/preflight/checks/`, one instruction file per check) with
+  a marker per check, so a rerun reviews only what changed since each marker.
+  `kix:ship` gates on those markers instead of a check note on HEAD.
+- `preflight-checks` rows renamed: `dirty-tree` → `uncommitted-changes`,
+  `unlanded` → `unlanded-commits`, `rebase` → `behind-default-branch`,
+  `before-shipping` → `open-checkboxes`.
 - `kix:next-up` walks instead of briefing: it gathers silently, prints a short
   fix list, asks each tracker fix in its own question (or "Apply all"), runs
   the approved commands itself after the last answer, then names the next five
@@ -57,12 +69,18 @@ The format is based on
   ranking as before. It asks when an urgent bead competes with that pick, and
   #1's line says which rule picked it.
 - `kix:preflight` skips the rebase and the force-push when the branch already
-  sits on the default branch (the `rebase` row of `preflight-checks` reads
-  `pass`), so the pre-commit hook no longer reruns on every commit for nothing.
-  A dirty tree is still committed first.
+  sits on the default branch (the `behind-default-branch` row of
+  `preflight-checks` reads `pass`), so the pre-commit hook no longer reruns on
+  every commit for nothing. A dirty tree is still committed first.
 - `kix:close` step 2a no longer lists a no-tracker source of leftover items:
   with no tracker there is no task to mark done, so the bullet could never
   apply.
+
+### Removed
+
+- The `refs/notes/checks` check marks (and the push and fetch of them) and the
+  `notes-guard` row of `preflight-checks`: checks keep their markers in the git
+  common dir instead.
 
 ## [0.4.1] — 2026-10-02
 
