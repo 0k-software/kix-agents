@@ -23,24 +23,21 @@ for scripts.
 
 Facts (status "fact"):
   default    the default branch's remote ref (origin/main), or "-"
-  from       newest commit after it whose check mark this session wrote, or "-"
-  shortstat  git diff --shortstat from <from> (else the merge base) to HEAD
+  from       "-" (the commit a review marker covers; not recorded yet)
+  shortstat  git diff --shortstat from the merge base to HEAD
   markdown   Markdown files the branch or the dirty tree touches, ", "-joined
   fetch      fresh | fetched | failed | skipped
 
 Checkpoints (status pass | finding | stale | skip):
-  dirty-tree       uncommitted changes
-  unlanded         commits in HEAD that are not on the default branch
-  rebase           the default branch is not an ancestor of HEAD
-  notes-guard      notes.rewriteRef would carry check marks across a rebase
-  marker           HEAD's check mark was written by this session on a clean
-                   tree (pass), or not (stale)
-  before-shipping  unchecked "- [ ]" lines in touched Markdown, as file:line
+  uncommitted-changes    uncommitted changes
+  unlanded-commits       commits in HEAD that are not on the default branch
+  behind-default-branch  the default branch is not an ancestor of HEAD
+  open-checkboxes        unchecked "- [ ]" lines in touched Markdown, as
+                         file:line
 
-  --no-fetch    never fetch; the default fetches origin (and refs/notes/checks)
-                only when the last fetch is older than KIX_FETCH_TTL minutes
-                (default 5)
-  --session ID  the session whose check marks count (default
+  --no-fetch    never fetch; the default fetches origin only when the last
+                fetch is older than KIX_FETCH_TTL minutes (default 5)
+  --session ID  the session whose store is read (default
                 $CLAUDE_CODE_SESSION_ID)
 
 Exit 1 outside a git work tree, 0 otherwise — findings are output, not errors.
@@ -132,7 +129,6 @@ do_fetch() {
   GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-$(git config core.sshCommand || echo ssh)} -o BatchMode=yes"
   export GIT_SSH_COMMAND
   if git fetch -q origin 2>/dev/null; then
-    git fetch -q origin refs/notes/checks:refs/notes/checks 2>/dev/null || true
     echo fetched
   else
     echo failed
@@ -155,23 +151,6 @@ default_ref() {
   done
 }
 
-# A mark is a refs/notes/checks note with a line "checked <session>"; any line,
-# since a union merge of notes stacks two sessions' lines on one commit.
-marked_by_session() {
-  [ -n "$session" ] &&
-    git notes --ref=checks show "$1" 2>/dev/null | grep -qxF "checked $session"
-}
-
-# One git call whatever the branch length: each commit prints a "commit <sha>"
-# line, then its note's lines, newest first.
-newest_marked() {
-  [ -n "$base" ] && [ -n "$session" ] || return 0
-  git log --notes=checks --format='commit %H%n%N' "$base..HEAD" 2>/dev/null |
-    awk -v want="checked $session" '
-      /^commit [0-9a-f]+$/ { c = $2; next }
-      $0 == want { print c; exit }'
-}
-
 # Committed (vs the merge base) and uncommitted, untracked included. quotePath
 # off: git otherwise prints a non-ASCII path quoted and octal-escaped
 # ("A\303\247\303\243o.md"), which names no file.
@@ -187,75 +166,43 @@ join() { paste -sd, - | sed 's/,/, /g'; }
 
 # --- checkpoints ---------------------------------------------------------
 
-cp_dirty_tree() {
+cp_uncommitted_changes() {
   local n
   n=$(git status --porcelain | wc -l | tr -d ' ')
   if [ "$n" = 0 ]; then
-    emit dirty-tree pass "clean"
+    emit uncommitted-changes pass "clean"
   else
-    emit dirty-tree finding "$n uncommitted path(s)"
+    emit uncommitted-changes finding "$n uncommitted path(s)"
   fi
 }
 
-cp_unlanded() {
+cp_unlanded_commits() {
   local n
   [ -n "$base" ] || {
-    emit unlanded skip "no default branch"
+    emit unlanded-commits skip "no default branch"
     return
   }
   n=$(git rev-list --count "$base..HEAD")
   if [ "$n" = 0 ]; then
-    emit unlanded pass "all on $base"
+    emit unlanded-commits pass "all on $base"
   else
-    emit unlanded finding "$n commit(s) not on $base"
+    emit unlanded-commits finding "$n commit(s) not on $base"
   fi
 }
 
 # Same test as kxa-2b1: when the base is an ancestor of HEAD, there is nothing
 # to rebase onto.
-cp_rebase() {
+cp_behind_default_branch() {
   local n
   [ -n "$base" ] || {
-    emit rebase skip "no default branch"
+    emit behind-default-branch skip "no default branch"
     return
   }
   if git merge-base --is-ancestor "$base" HEAD; then
-    emit rebase pass "already on $base"
+    emit behind-default-branch pass "already on $base"
   else
     n=$(git rev-list --count "HEAD..$base")
-    emit rebase finding "$base has $n commit(s) not in HEAD"
-  fi
-}
-
-# notes.rewriteRef set to refs/notes/checks, or a glob matching it, makes check
-# marks follow rebased commits and fake the checks.
-cp_notes_guard() {
-  local line scope value hits=()
-  while IFS= read -r line; do
-    scope=${line%%$'\t'*}
-    value=${line#*$'\t'}
-    # Unquoted on the right: the configured value is a glob pattern.
-    # shellcheck disable=SC2053
-    [[ refs/notes/checks == $value ]] && hits+=("$scope $value")
-  done < <(git config --show-scope --get-all notes.rewriteRef 2>/dev/null)
-  if [ ${#hits[@]} = 0 ]; then
-    emit notes-guard pass "check marks stay behind on rebase"
-  else
-    emit notes-guard finding "notes.rewriteRef: $(printf '%s\n' "${hits[@]}" | join)"
-  fi
-}
-
-# kix:preflight's Already checked test: a clean tree whose HEAD this session
-# marked is exactly what its last run checked.
-cp_marker() {
-  if [ -z "$session" ]; then
-    emit marker stale "no session id"
-  elif [ -n "$(git status --porcelain)" ]; then
-    emit marker stale "dirty tree"
-  elif marked_by_session HEAD; then
-    emit marker pass "HEAD $(git rev-parse --short HEAD) already checked"
-  else
-    emit marker stale "HEAD $(git rev-parse --short HEAD) not checked by this session"
+    emit behind-default-branch finding "$base has $n commit(s) not in HEAD"
   fi
 }
 
@@ -278,15 +225,15 @@ unchecked_items() {
   ' "$1"
 }
 
-cp_before_shipping() {
+cp_open_checkboxes() {
   local items
   items=$(printf '%s\n' "$markdown" | while IFS= read -r f; do
     [ -n "$f" ] && [ -f "$f" ] && unchecked_items "$f"
   done)
   if [ -z "$items" ]; then
-    emit before-shipping pass "no unchecked items"
+    emit open-checkboxes pass "no unchecked items"
   else
-    emit before-shipping finding "$(printf '%s\n' "$items" | join)"
+    emit open-checkboxes finding "$(printf '%s\n' "$items" | join)"
   fi
 }
 
@@ -294,29 +241,25 @@ cp_before_shipping() {
 
 fetched=$(do_fetch)
 base=$(default_ref)
-from=$(newest_marked)
 markdown=$(touched_markdown)
 
-if [ -n "$from" ]; then
-  stat=$(git diff --shortstat "$from..HEAD" | sed 's/^ *//')
-elif [ -n "$base" ]; then
+if [ -n "$base" ]; then
   stat=$(git diff --shortstat "$base...HEAD" | sed 's/^ *//')
 else
   stat=""
 fi
 
 emit default fact "${base:--}"
-emit from fact "${from:--}"
+# Always "-" until the session store records review markers (kxa-102).
+emit from fact "-"
 emit shortstat fact "${stat:-no changes}"
 emit markdown fact "$(printf '%s\n' "$markdown" | sed '/^$/d' | join)"
 emit fetch fact "$fetched"
 
-cp_dirty_tree
-cp_unlanded
-cp_rebase
-cp_notes_guard
-cp_marker
-cp_before_shipping
+cp_uncommitted_changes
+cp_unlanded_commits
+cp_behind_default_branch
+cp_open_checkboxes
 
 case $format in
 tsv) printf '%s' "$rows" ;;

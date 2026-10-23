@@ -70,20 +70,18 @@ check "from" "$(detail from)" "-"
 check "shortstat" "$(detail shortstat)" "no changes"
 check "markdown" "$(detail markdown)" ""
 check "fetch" "$(detail fetch)" "skipped"
-for c in dirty-tree unlanded rebase notes-guard before-shipping; do
+for c in uncommitted-changes unlanded-commits behind-default-branch open-checkboxes; do
   check "$c" "$(status "$c")" "pass"
 done
-check "marker" "$(status marker)" "stale"
-check "line count" "$(printf '%s\n' "$out" | wc -l | tr -d ' ')" "11"
+check "line count" "$(printf '%s\n' "$out" | wc -l | tr -d ' ')" "9"
 teardown
 
 echo "dirty tree"
 setup
 echo x >a.txt
 run
-check "dirty-tree" "$(status dirty-tree)" "finding"
-check "dirty-tree detail" "$(detail dirty-tree)" "1 uncommitted path(s)"
-check "marker" "$(detail marker)" "dirty tree"
+check "uncommitted-changes" "$(status uncommitted-changes)" "finding"
+check "uncommitted-changes detail" "$(detail uncommitted-changes)" "1 uncommitted path(s)"
 teardown
 
 echo "unlanded commits, still on origin/main"
@@ -91,9 +89,9 @@ setup
 echo x >a.txt && commit one
 echo y >b.txt && commit two
 run
-check "unlanded" "$(status unlanded)" "finding"
-check "unlanded detail" "$(detail unlanded)" "2 commit(s) not on origin/main"
-check "rebase" "$(status rebase)" "pass"
+check "unlanded-commits" "$(status unlanded-commits)" "finding"
+check "unlanded-commits detail" "$(detail unlanded-commits)" "2 commit(s) not on origin/main"
+check "behind-default-branch" "$(status behind-default-branch)" "pass"
 check "shortstat" "$(detail shortstat)" "2 files changed, 2 insertions(+)"
 teardown
 
@@ -104,63 +102,20 @@ advance_origin 1
 advance_origin 2
 git_q fetch -q origin
 run
-check "rebase" "$(status rebase)" "finding"
-check "rebase detail" "$(detail rebase)" "origin/main has 2 commit(s) not in HEAD"
+check "behind-default-branch" "$(status behind-default-branch)" "finding"
+check "behind-default-branch detail" "$(detail behind-default-branch)" "origin/main has 2 commit(s) not in HEAD"
 check "shortstat ignores upstream" "$(detail shortstat)" "1 file changed, 1 insertion(+)"
 teardown
 
-echo "notes.rewriteRef guard"
-setup
-git config notes.rewriteRef refs/notes/commits
-run
-check "unrelated ref" "$(status notes-guard)" "pass"
-git config --add notes.rewriteRef 'refs/notes/*'
-run
-check "glob" "$(status notes-guard)" "finding"
-check "glob detail" "$(detail notes-guard)" "notes.rewriteRef: local refs/notes/*"
-git config --unset-all notes.rewriteRef
-git config notes.rewriteRef refs/notes/checks
-run
-check "exact" "$(detail notes-guard)" "notes.rewriteRef: local refs/notes/checks"
-teardown
-
-echo "check marks"
-setup
-echo x >a.txt && commit one
-marked=$(git rev-parse HEAD)
-git_q notes --ref=checks add -m "checked s1" HEAD
-run
-check "this session's mark" "$(status marker)" "pass"
-check "from is HEAD" "$(detail from)" "$marked"
-check "shortstat from the mark" "$(detail shortstat)" "no changes"
-echo y >b.txt && commit two
-run
-check "new commit is unchecked" "$(status marker)" "stale"
-check "from stays on the marked commit" "$(detail from)" "$marked"
-check "shortstat from the mark" "$(detail shortstat)" "1 file changed, 1 insertion(+)"
-git_q notes --ref=checks add -m "checked s2" HEAD
-run
-check "another session's mark" "$(status marker)" "stale"
-git_q notes --ref=checks append -m "checked s1" HEAD
-run
-check "stacked union lines" "$(status marker)" "pass"
-git_q notes --ref=checks add -f -m "checked s10" HEAD
-run
-check "no prefix match" "$(status marker)" "stale"
-out=$("$BIN" --format tsv --no-fetch --session "")
-check "no session id" "$(detail marker)" "no session id"
-check "no session: from" "$(detail from)" "-"
-teardown
-
-echo "before-shipping items in touched Markdown"
+echo "open-checkboxes items in touched Markdown"
 setup
 printf '# Plan\n\n- [x] done\n- [ ] later\n  - [ ] nested\n' >plan.md
 commit plan
 printf -- '- [ ] draft\n' >draft.md
 run
 check "markdown" "$(detail markdown)" "draft.md, plan.md"
-check "before-shipping" "$(status before-shipping)" "finding"
-check "items" "$(detail before-shipping)" "draft.md:1, plan.md:4, plan.md:5"
+check "open-checkboxes" "$(status open-checkboxes)" "finding"
+check "items" "$(detail open-checkboxes)" "draft.md:1, plan.md:4, plan.md:5"
 teardown
 
 echo "non-ASCII Markdown paths are read, not skipped"
@@ -171,7 +126,7 @@ commit nota
 printf -- '- [ ] rascunho\n' >"Rascunho é.md"
 run
 check "markdown" "$(detail markdown)" "Notas/Ação.md, Rascunho é.md"
-check "items" "$(detail before-shipping)" "Notas/Ação.md:1, Rascunho é.md:1"
+check "items" "$(detail open-checkboxes)" "Notas/Ação.md:1, Rascunho é.md:1"
 teardown
 
 echo "items inside fenced code blocks are examples, not work"
@@ -180,7 +135,7 @@ setup
 # shellcheck disable=SC2016
 printf '# Skill\n\n```markdown\n- [ ] template\n```\n\n  ~~~\n  - [ ] indented\n  ~~~\n\n- [ ] real\n' >skill.md
 run
-check "items" "$(detail before-shipping)" "skill.md:11"
+check "items" "$(detail open-checkboxes)" "skill.md:11"
 teardown
 
 echo "a fence closes only on its own kind and length"
@@ -189,7 +144,7 @@ setup
 # shellcheck disable=SC2016
 printf '```\n~~~\n- [ ] a\n```\n- [ ] b\n````md\n```\n- [ ] c\n```\n````\n- [ ] d\n' >mixed.md
 run
-check "items" "$(detail before-shipping)" "mixed.md:5, mixed.md:11"
+check "items" "$(detail open-checkboxes)" "mixed.md:5, mixed.md:11"
 teardown
 
 echo "untouched Markdown is not listed"
@@ -201,7 +156,7 @@ git_q fetch -q origin
 echo x >a.txt && commit code
 run
 check "markdown" "$(detail markdown)" ""
-check "before-shipping" "$(status before-shipping)" "pass"
+check "open-checkboxes" "$(status open-checkboxes)" "pass"
 teardown
 
 echo "no origin"
@@ -210,9 +165,17 @@ git_q remote remove origin
 run
 check "exit status" "$?" "0"
 check "default" "$(detail default)" "-"
-check "unlanded" "$(status unlanded)" "skip"
-check "rebase" "$(status rebase)" "skip"
+check "unlanded-commits" "$(status unlanded-commits)" "skip"
+check "behind-default-branch" "$(status behind-default-branch)" "skip"
 check "fetch" "$("$BIN" --format tsv --session s1 | awk -F'\t' '$1 == "fetch" { print $3 }')" "skipped"
+teardown
+
+echo "fetch never touches refs/notes/checks"
+setup
+git_q -C "$work/seed" notes --ref=checks add -m "checked s1" HEAD
+git_q -C "$work/seed" push -q origin refs/notes/checks
+out=$(KIX_FETCH_TTL=0 "$BIN" --format tsv --session s1)
+check "no notes ref" "$(git show-ref refs/notes/checks | wc -l | tr -d ' ')" "0"
 teardown
 
 echo "cached fetch"
@@ -220,7 +183,7 @@ setup
 advance_origin 1
 out=$(KIX_FETCH_TTL=0 "$BIN" --format tsv --session s1)
 check "stale cache fetches" "$(detail fetch)" "fetched"
-check "fetched commit seen" "$(status rebase)" "finding"
+check "fetched commit seen" "$(status behind-default-branch)" "finding"
 out=$(KIX_FETCH_TTL=60 "$BIN" --format tsv --session s1)
 check "fresh cache skips" "$(detail fetch)" "fresh"
 teardown
@@ -250,10 +213,10 @@ printf -- '- [ ] a\n' >todo.md
 out=$("$BIN" --format pretty --no-fetch --session s1)
 check "header" "$(printf '%s\n' "$out" | sed -n 1p | tr -s ' ')" "| name | status | detail |"
 check "rule" "$(printf '%s\n' "$out" | sed -n 2p | tr -d ' |-')" ""
-check "rows" "$(printf '%s\n' "$out" | wc -l | tr -d ' ')" "13"
+check "rows" "$(printf '%s\n' "$out" | wc -l | tr -d ' ')" "11"
 check "every line one width" "$(printf '%s\n' "$out" | awk '{ print length }' | sort -u | wc -l | tr -d ' ')" "1"
 check "row" "$(printf '%s\n' "$out" | grep '^| default ' | tr -s ' ')" "| default | fact | origin/main |"
-check "finding row" "$(printf '%s\n' "$out" | grep '^| before-shipping ' | tr -s ' ')" "| before-shipping | finding | todo.md:1 |"
+check "finding row" "$(printf '%s\n' "$out" | grep '^| open-checkboxes ' | tr -s ' ')" "| open-checkboxes | finding | todo.md:1 |"
 check "pretty is the default" "$("$BIN" --no-fetch --session s1)" "$out"
 check "--format=pretty" "$("$BIN" --format=pretty --no-fetch --session s1)" "$out"
 check "tsv has no header" "$("$BIN" --format tsv --no-fetch | grep -c '^name')" "0"
