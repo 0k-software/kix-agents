@@ -94,7 +94,9 @@ the check files:
   touched since the check's marker HEAD (first run: since the merge base) plus
   the dirty tree; the model judges each one (pending work left behind, or done
   and not ticked), as today's check c.
-- `acceptance-criteria` (new): reads the branch bead's design and acceptance
+- `acceptance-criteria` (new): the script never reports `skip` for it; the
+  model skips through its check file when the branch has no bead or the bead
+  has no design or acceptance. Reads the branch bead's design and acceptance
   criteria and checks the diff and the session deliver each item. A finding is
   an item not done or done in part.
 - `related-tracker-items`, `unraised-follow-ups`, `post-landing-steps`: today's
@@ -195,7 +197,12 @@ themselves; only what the answers say is.
 **With the transcript** (`~/.claude/projects/*/<session-id>.jsonl`, honoring
 `CLAUDE_CONFIG_DIR`): a turn start is an entry with `type: "user"`, no
 `isMeta: true`, whose content is a string or an array that does not start with
-a `tool_result` (checked against a real transcript on 2026-10-22). The script:
+a `tool_result` (checked against a real transcript on 2026-10-22), or an entry
+`type: "attachment"` whose `attachment.type` is `queued_command` (a message
+typed while the model works, or an automated turn such as a task notification
+or side-session event: real transcripts record these only as attachments, never
+as `user` entries; any `origin` counts). Other attachment types never start a
+turn. The script:
 
 - at `mark`, records the uuid + timestamp of the latest transcript entry;
 - at status time, reports `stale` when, after that entry (uuid not found: after
@@ -229,10 +236,14 @@ ship included.
   is only for a check with no marker and nothing to look at (`diff-review` with
   no marker: no commits since the merge base and a clean tree). Each row has a
   detail saying the delta start (`since b9db0ab`, `since 2026-10-22 11:56`,
-  `3 bd updates`) and the open findings count. `findings-leftovers` lists open
-  finding ids. The `from` fact becomes `diff-review`'s marker HEAD (when still
-  an ancestor of HEAD), else `-`; `shortstat` keeps reading from it.
-  `open-checkboxes`' detail is its `file:line` list.
+  `3 bd updates`). Rows carry no per-row open-findings count:
+  `findings-leftovers` lists open finding ids, and
+  `preflight-checks findings <check>` gives a check's own. An unreadable `bd`
+  (non-zero exit or non-JSON) stales the row (`bd unreadable`,
+  `<id> unreadable` for the bead check) rather than passing it. The `from` fact
+  becomes `diff-review`'s marker HEAD (when still an ancestor of HEAD), else
+  `-`; `shortstat` keeps reading from it. `open-checkboxes`' detail is its
+  `file:line` list.
 - **`preflight-checks start`** — appends a run-start line and prints the 🛫
   line with that time. Every `mark` until the next `start` records it as `run`.
 - **`preflight-checks mark <check> [--bead <id>]`** — reads a JSON array of the

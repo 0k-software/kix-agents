@@ -414,6 +414,77 @@ tx_turn u1 $T1 "hello"
 check "marker without turn" "$(row conversation-leftovers)" "unknown/since $run"
 teardown
 
+tx_queued() {
+  jq -nc --arg u "$1" --arg t "$2" --arg k "$3" \
+    '{type: "attachment", uuid: $u, timestamp: $t, attachment: {type: "queued_command", prompt: "typed while busy", origin: {kind: $k}}}' >>"$tx"
+}
+tx_attach() {
+  jq -nc --arg u "$1" --arg t "$2" --arg k "$3" \
+    '{type: "attachment", uuid: $u, timestamp: $t, attachment: {type: $k}}' >>"$tx"
+}
+
+echo "conversation: queued_command attachments stale, other attachments do not"
+setup
+tx_init
+tx_turn u1 $T1 "hello"
+echo '[]' | "$BIN" mark conversation-leftovers >/dev/null
+tx_attach a1 $T2 hook_additional_context
+check "other attachment" "$(row conversation-leftovers | cut -d/ -f1)" "fresh"
+tx_queued q1 $T3 human
+check "queued human" "$(row conversation-leftovers)" "stale/conversation since $T3"
+teardown
+setup
+tx_init
+tx_turn u1 $T1 "hello"
+echo '[]' | "$BIN" mark conversation-leftovers >/dev/null
+tx_queued q1 $T2 task-notification
+check "queued automated" "$(row conversation-leftovers)" "stale/conversation since $T2"
+teardown
+
+echo "resolve does not freshen"
+setup
+echo '[{"category":"x","summary":"a"}]' | "$BIN" mark diff-review >/dev/null
+commit "work"
+check "stale before" "$(row diff-review | cut -d/ -f1)" "stale"
+"$BIN" resolve diff-review-1 fixed
+check "still stale" "$(row diff-review | cut -d/ -f1)" "stale"
+teardown
+
+echo "findings-leftovers across checks"
+setup
+echo '[{"category":"x","summary":"a"}]' | "$BIN" mark diff-review >/dev/null
+echo '[{"category":"x","summary":"b"}]' | "$BIN" mark conversation-leftovers >/dev/null
+check "both" "$(row findings-leftovers)" "finding/conversation-leftovers-1, diff-review-1"
+"$BIN" resolve diff-review-1 fixed
+check "one left" "$(row findings-leftovers)" "finding/conversation-leftovers-1"
+teardown
+
+echo "finding id without a numeric suffix fails closed"
+setup
+echo '[]' | "$BIN" mark diff-review >/dev/null
+jq -nc --arg b "$(git branch --show-current)" '{id: "diff-review-x", check: "diff-review", outcome: "open", at: "2026-10-22T11:00:00Z", branch: $b, summary: "odd"}' >>"$store/findings.jsonl"
+check "findings succeeds" "$("$BIN" findings | jq -c '[.[].id]')" '["diff-review-x"]'
+check "listed" "$(row findings-leftovers | cut -d/ -f1)" "finding"
+teardown
+
+echo "unreadable bd fails closed"
+setup
+stub_bd
+tx_init
+tx_turn u1 $T1 "hello"
+echo '[{"id":"kxa-1","updated_at":"T1"}]' >"$work/bd-show.json"
+echo '[]' | "$BIN" mark related-tracker-items >/dev/null
+echo '[]' | "$BIN" mark acceptance-criteria --bead kxa-1 >/dev/null
+rm "$work/bd-list.json"
+check "list exits 1" "$(row related-tracker-items | grep -c 'stale/.*bd unreadable')" "1"
+echo 'not json' >"$work/bd-list.json"
+check "list non-JSON" "$(row related-tracker-items | grep -c 'stale/.*bd unreadable')" "1"
+echo '[]' >"$work/bd-list.json"
+check "list ok again" "$(row related-tracker-items | cut -d/ -f1)" "fresh"
+rm "$work/bd-show.json"
+check "show fails" "$(row acceptance-criteria)" "stale/kxa-1 unreadable"
+teardown
+
 echo "stray lines in the store are skipped"
 setup
 echo '[{"category":"x","summary":"a"}]' | "$BIN" mark diff-review >/dev/null

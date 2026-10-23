@@ -20,6 +20,9 @@ git_q() { git -c user.name=t -c user.email=t@t "$@" >/dev/null 2>&1; }
 # into the clone.
 setup() {
   work=$(mktemp -d)
+  # Never read the real ~/.claude, whatever session runs this suite.
+  export CLAUDE_CONFIG_DIR="$work/claude-config"
+  export CLAUDE_CODE_SESSION_ID=s1
   git_q init -q --bare -b main "$work/origin.git"
   git_q clone -q "$work/origin.git" "$work/seed"
   git_q -C "$work/seed" commit -q --allow-empty -m init

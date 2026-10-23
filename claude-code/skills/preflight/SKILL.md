@@ -559,6 +559,9 @@ preflight-checks --no-fetch --format tsv
 - **Clear** — `findings-leftovers` reads `pass`, `diff-review` reads `fresh` or
   `skip`, and step 5 committed nothing and edited no tracker item. Say so. When
   preflight was run on its own, stop here — it never ships.
+- **Anything else** — neither changed, open nor clear (e.g. `diff-review` is
+  not fresh, no finding is open and nothing was committed): treat it as
+  **changed**: say so and ask the rerun question (below).
 
 **Rerun.** A link can't run a slash command, but an answer can. After a
 **changed** or **open** verdict's ⚠️ block, print a ❓ line (e.g.

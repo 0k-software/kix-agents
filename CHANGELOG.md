@@ -29,10 +29,11 @@ The format is based on
   branch in one call — uncommitted changes, unlanded commits, behind the
   default branch, open checkboxes (unchecked `- [ ]` items in touched Markdown)
   and the freshness of each check's marker — plus the facts `kix:preflight`
-  reads (default branch, this session's newest checked commit, diff shortstat,
-  touched Markdown), one table row each (`--format tsv` for scripts). No LLM;
-  the fetch is cached for a later Stop hook. `kix:preflight` now reads it
-  instead of running about six git commands itself.
+  reads (default branch, `diff-review`'s marker HEAD (when an ancestor of
+  HEAD), diff shortstat, touched Markdown), one table row each (`--format tsv`
+  for scripts). No LLM; the fetch is cached for a later Stop hook.
+  `kix:preflight` now reads it instead of running about six git commands
+  itself.
 - Plugin hooks: a SessionStart hook that asks for `kix:title` after the first
   message, and a PreToolUse hook that lets `kix:close` turn Remote Control off
   without a prompt.

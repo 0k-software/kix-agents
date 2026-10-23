@@ -300,10 +300,11 @@ conversation_since() {
     | (first(range(0; length) as $i | select($e[$i].uuid == $uuid) | $i) // null) as $at
     | (if $at != null then $e[$at + 1:] else [$e[] | select((.timestamp | type) == "string" and .timestamp > $ts)] end)
     | first(.[]
-        | select(.type == "user" and (.timestamp | type) == "string")
+        | select((.type == "user" or .type == "attachment") and (.timestamp | type) == "string")
         | (.message.content?) as $c
         | select(
-            (.isMeta != true and (($c | type) == "string" or (($c | type) == "array" and ($c[0]?.type? != "tool_result"))))
+            (.type == "attachment" and .attachment.type? == "queued_command")
+            or (.type == "user" and .isMeta != true and (($c | type) == "string" or (($c | type) == "array" and ($c[0]?.type? != "tool_result"))))
             or (($c | type) == "array" and $c[0]?.type? == "tool_result" and ($c[0].tool_use_id | IN($ask[]))))
         | .timestamp) // empty'
 }
@@ -421,7 +422,7 @@ sub_resolve() {
 open_findings() {
   merged_findings | jq -c --arg c "${1-}" '
     map(select(.outcome == "open" and ($c == "" or .check == $c)))
-    | sort_by([.check, (.id | capture("-(?<n>[0-9]+)$").n | tonumber)])'
+    | sort_by([.check, (.id | ((capture("-(?<n>[0-9]+)$").n | tonumber)? // 0))])'
 }
 
 # --- checkpoints ---------------------------------------------------------
@@ -531,14 +532,21 @@ marker_status() {
   fi
   b=$(printf '%s' "$m" | jq -r '.bd // empty')
   if [ -n "$b" ] && beads_repo; then
-    n=$(bd list --all --updated-after "$b" --json 2>/dev/null | jq 'length' 2>/dev/null)
-    [ "${n:-0}" -gt 0 ] && reasons+=("$n bd update(s) since $b")
+    if n=$(bd list --all --updated-after "$b" --json 2>/dev/null) && n=$(printf '%s' "$n" | jq 'length' 2>/dev/null) && [ -n "$n" ]; then
+      [ "$n" -gt 0 ] && reasons+=("$n bd update(s) since $b")
+    else
+      reasons+=("bd unreadable")
+    fi
   fi
   id=$(printf '%s' "$m" | jq -r '.bead.id // empty')
   if [ -n "$id" ] && command -v bd >/dev/null 2>&1; then
     upd=$(printf '%s' "$m" | jq -r '.bead.updated // empty')
     now_upd=$(bead_updated "$id")
-    [ "$now_upd" != "$upd" ] && reasons+=("$id updated")
+    if [ -z "$now_upd" ]; then
+      reasons+=("$id unreadable")
+    elif [ "$now_upd" != "$upd" ]; then
+      reasons+=("$id updated")
+    fi
   fi
   if is_conversation_check "$check"; then
     tx=$(transcript_path)
