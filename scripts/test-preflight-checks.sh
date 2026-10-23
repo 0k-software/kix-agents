@@ -70,10 +70,11 @@ check "from" "$(detail from)" "-"
 check "shortstat" "$(detail shortstat)" "no changes"
 check "markdown" "$(detail markdown)" ""
 check "fetch" "$(detail fetch)" "skipped"
-for c in uncommitted-changes unlanded-commits behind-default-branch open-checkboxes; do
+for c in uncommitted-changes unlanded-commits behind-default-branch open-checkboxes findings-leftovers; do
   check "$c" "$(status "$c")" "pass"
 done
-check "line count" "$(printf '%s\n' "$out" | wc -l | tr -d ' ')" "9"
+check "findings-leftovers detail" "$(detail findings-leftovers)" "none open"
+check "line count" "$(printf '%s\n' "$out" | wc -l | tr -d ' ')" "10"
 teardown
 
 echo "dirty tree"
@@ -213,7 +214,7 @@ printf -- '- [ ] a\n' >todo.md
 out=$("$BIN" --format pretty --no-fetch --session s1)
 check "header" "$(printf '%s\n' "$out" | sed -n 1p | tr -s ' ')" "| name | status | detail |"
 check "rule" "$(printf '%s\n' "$out" | sed -n 2p | tr -d ' |-')" ""
-check "rows" "$(printf '%s\n' "$out" | wc -l | tr -d ' ')" "11"
+check "rows" "$(printf '%s\n' "$out" | wc -l | tr -d ' ')" "12"
 check "every line one width" "$(printf '%s\n' "$out" | awk '{ print length }' | sort -u | wc -l | tr -d ' ')" "1"
 check "row" "$(printf '%s\n' "$out" | grep '^| default ' | tr -s ' ')" "| default | fact | origin/main |"
 check "finding row" "$(printf '%s\n' "$out" | grep '^| open-checkboxes ' | tr -s ' ')" "| open-checkboxes | finding | todo.md:1 |"

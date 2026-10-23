@@ -10,6 +10,10 @@ set -uo pipefail
 usage() {
   cat <<'EOF'
 Usage: preflight-checks [--format pretty|tsv] [--no-fetch] [--session ID]
+       preflight-checks start [--session ID]
+       preflight-checks mark <check> [--bead ID] [--session ID]   (JSON on stdin)
+       preflight-checks resolve <id> fixed|deferred <ref>|discarded <reason...>
+       preflight-checks findings [<check>]
 
 Prints one row per fact, then one per checkpoint. --format pretty (the
 default) prints them as an aligned Markdown table:
@@ -34,11 +38,21 @@ Checkpoints (status pass | finding | stale | skip):
   behind-default-branch  the default branch is not an ancestor of HEAD
   open-checkboxes        unchecked "- [ ]" lines in touched Markdown, as
                          file:line
+  findings-leftovers     findings recorded with `mark` and still open
+
+Subcommands (the session store, kxa-102; JSON lines under
+<git common dir>/kix/checks/<session>/, append-only, read per branch):
+  start     record a run anchor and print it
+  mark      record that <check> ran; stdin is a JSON array of new findings
+            (category, summary, optional file, line, short_summary,
+            failure_scenario, ref); prints their new ids
+  resolve   close a finding: fixed, deferred <ref> or discarded <reason...>
+  findings  print the open findings of this branch as one JSON array
 
   --no-fetch    never fetch; the default fetches origin only when the last
                 fetch is older than KIX_FETCH_TTL minutes (default 5)
-  --session ID  the session whose store is read (default
-                $CLAUDE_CODE_SESSION_ID)
+  --session ID  the session whose store is used (default
+                $CLAUDE_CODE_SESSION_ID, else "unknown")
 
 Exit 1 outside a git work tree, 0 otherwise — findings are output, not errors.
 EOF
@@ -48,6 +62,15 @@ fetch=1
 # The default lives here so it can become configurable later.
 format=pretty
 session=${CLAUDE_CODE_SESSION_ID-}
+bead=""
+sub=""
+pos=()
+case ${1-} in
+start | mark | resolve | findings)
+  sub=$1
+  shift
+  ;;
+esac
 while [ $# -gt 0 ]; do
   case $1 in
   --no-fetch) fetch=0 ;;
@@ -60,8 +83,19 @@ while [ $# -gt 0 ]; do
     session=${2-}
     shift
     ;;
+  --bead)
+    bead=${2-}
+    shift
+    ;;
   -h | --help) usage && exit 0 ;;
-  *) usage >&2 && exit 1 ;;
+  -*) usage >&2 && exit 1 ;;
+  *)
+    [ -n "$sub" ] || {
+      usage >&2
+      exit 1
+    }
+    pos+=("$1")
+    ;;
   esac
   shift
 done
@@ -73,6 +107,11 @@ pretty | tsv) ;;
   exit 1
   ;;
 esac
+
+command -v jq >/dev/null 2>&1 || {
+  echo "preflight-checks: jq is required" >&2
+  exit 1
+}
 
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 || {
   echo "preflight-checks: not inside a git work tree" >&2
@@ -164,6 +203,126 @@ touched_markdown() {
 
 join() { paste -sd, - | sed 's/,/, /g'; }
 
+# --- session store (kxa-102) ----------------------------------------------
+# Two append-only JSON-lines files per session, in the git common dir so every
+# worktree of the repo shares them. Lines carry their branch and every read
+# filters to the current one. Nothing is rewritten: the last line per key wins
+# and a finding's later lines merge over its earlier ones.
+
+now() { date -u +%Y-%m-%dT%H:%M:%SZ; }
+
+cur_branch() {
+  local b
+  b=$(git branch --show-current)
+  echo "${b:-HEAD}"
+}
+
+# Absolute; created on the first write, so a read never leaves a directory.
+store_dir() {
+  echo "$(git rev-parse --path-format=absolute --git-common-dir)/kix/checks/${session:-unknown}"
+}
+
+# Unparseable lines (a write cut short) are skipped, never an error.
+store_lines() {
+  local f
+  f="$(store_dir)/$1"
+  [ -f "$f" ] || return 0
+  jq -cR 'fromjson? // empty' "$f"
+}
+
+# One line per finding, merged from all its lines, on this branch.
+merged_findings() {
+  store_lines findings.jsonl | jq -sc --arg b "$(cur_branch)" '
+    map(select(.branch == $b)) | group_by(.id) | map(add)'
+}
+
+# Extra marker fields as a JSON object. Per-check snapshots (head, clean, ...)
+# join here, so the writer below stays the only place a marker line is built.
+marker_snapshot() { echo '{}'; }
+
+# marker_line CHECK AT RUN IDS_JSON
+marker_line() {
+  jq -nc --arg check "$1" --arg at "$2" --arg run "$3" --arg branch "$(cur_branch)" \
+    --argjson ids "$4" --argjson extra "$(marker_snapshot "$1")" \
+    '{check: $check, at: $at, run: $run, branch: $branch, findings: $ids} + $extra'
+}
+
+# The latest run anchor on this branch, else empty.
+latest_run() {
+  store_lines markers.jsonl | jq -rs --arg b "$(cur_branch)" '
+    map(select(.branch == $b and has("run") and (has("check") | not))) | last | .run // empty'
+}
+
+markable="open-checkboxes diff-review acceptance-criteria conversation-leftovers related-tracker-items unraised-follow-ups post-landing-steps"
+
+die() {
+  echo "preflight-checks: $*" >&2
+  exit 1
+}
+
+sub_start() {
+  local t dir
+  t=$(now)
+  dir=$(store_dir)
+  mkdir -p "$dir"
+  jq -nc --arg run "$t" --arg branch "$(cur_branch)" '{run: $run, branch: $branch}' >>"$dir/markers.jsonl"
+  echo "🛫 preflight check started here · $t"
+}
+
+sub_mark() {
+  local check=${pos[0]-} input t run dir n all new ids
+  case " $markable " in
+  *" $check "*) ;;
+  *) die "cannot mark '$check'; one of: $markable" ;;
+  esac
+  input=$(cat)
+  printf '%s' "$input" | jq -e 'type == "array" and all(.[]; type == "object")' >/dev/null 2>&1 ||
+    die "stdin must be a JSON array of finding objects"
+  t=$(now)
+  run=$(latest_run)
+  : "${run:=$t}"
+  dir=$(store_dir)
+  # Ids count over every branch, so two branches never hand out the same id.
+  n=$(store_lines findings.jsonl | jq -rs --arg p "$check-" '
+    map(.id // empty | select(startswith($p))) | unique | length')
+  new=$(printf '%s' "$input" | jq -c --arg check "$check" --arg at "$t" --arg b "$(cur_branch)" --argjson n "$n" '
+    to_entries[] | .key as $i | .value as $f |
+    {id: "\($check)-\($n + $i + 1)", check: $check, outcome: "open", at: $at, branch: $b} +
+    ($f | del(.id, .check, .outcome, .at, .branch))')
+  ids=$(printf '%s' "$new" | jq -sc 'map(.id)')
+  mkdir -p "$dir"
+  [ -z "$new" ] || printf '%s\n' "$new" >>"$dir/findings.jsonl"
+  marker_line "$check" "$t" "$run" "$ids" >>"$dir/markers.jsonl"
+  printf '%s' "$ids" | jq -r '.[]'
+}
+
+sub_resolve() {
+  local id=${pos[0]-} outcome=${pos[1]-} rest dir
+  rest="${pos[*]:2}"
+  merged_findings | jq -e --arg id "$id" 'any(.[]; .id == $id)' >/dev/null ||
+    die "unknown finding '$id'"
+  dir=$(store_dir)
+  case $outcome in
+  fixed) rest="" ;;
+  deferred) [ -n "$rest" ] || die "deferred needs a ref" ;;
+  discarded) [ -n "$rest" ] || die "discarded needs a reason" ;;
+  *) die "outcome must be fixed, deferred or discarded: '$outcome'" ;;
+  esac
+  jq -nc --arg id "$id" --arg outcome "$outcome" --arg at "$(now)" --arg b "$(cur_branch)" \
+    --arg rest "$rest" '
+    {id: $id, outcome: $outcome, at: $at, branch: $b} +
+    (if $outcome == "deferred" then {ref: $rest}
+     elif $outcome == "discarded" then {reason: $rest} else {} end)' >>"$dir/findings.jsonl"
+}
+
+# Open findings of this branch, ordered by check then number (so -10 follows
+# -9), optionally of one check.
+open_findings() {
+  merged_findings | jq -c --arg c "${1-}" '
+    map(select(.outcome == "open" and ($c == "" or .check == $c)))
+    | sort_by([.check, (.id | capture("-(?<n>[0-9]+)$").n | tonumber)])'
+}
+
 # --- checkpoints ---------------------------------------------------------
 
 cp_uncommitted_changes() {
@@ -237,7 +396,24 @@ cp_open_checkboxes() {
   fi
 }
 
+cp_findings_leftovers() {
+  local ids
+  ids=$(open_findings | jq -r '.[].id' | join)
+  if [ -z "$ids" ]; then
+    emit findings-leftovers pass "none open"
+  else
+    emit findings-leftovers finding "$ids"
+  fi
+}
+
 # --- run -----------------------------------------------------------------
+
+case $sub in
+start) sub_start; exit $? ;;
+mark) sub_mark; exit $? ;;
+resolve) sub_resolve; exit $? ;;
+findings) open_findings "${pos[0]-}"; exit $? ;;
+esac
 
 fetched=$(do_fetch)
 base=$(default_ref)
@@ -260,6 +436,7 @@ cp_uncommitted_changes
 cp_unlanded_commits
 cp_behind_default_branch
 cp_open_checkboxes
+cp_findings_leftovers
 
 case $format in
 tsv) printf '%s' "$rows" ;;
