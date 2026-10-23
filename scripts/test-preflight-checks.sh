@@ -70,11 +70,12 @@ check "from" "$(detail from)" "-"
 check "shortstat" "$(detail shortstat)" "no changes"
 check "markdown" "$(detail markdown)" ""
 check "fetch" "$(detail fetch)" "skipped"
-for c in uncommitted-changes unlanded-commits behind-default-branch open-checkboxes findings-leftovers; do
+for c in uncommitted-changes unlanded-commits behind-default-branch findings-leftovers; do
   check "$c" "$(status "$c")" "pass"
 done
 check "findings-leftovers detail" "$(detail findings-leftovers)" "none open"
-check "line count" "$(printf '%s\n' "$out" | wc -l | tr -d ' ')" "10"
+check "open-checkboxes" "$(status open-checkboxes)" "skip"
+check "line count" "$(printf '%s\n' "$out" | wc -l | tr -d ' ')" "16"
 teardown
 
 echo "dirty tree"
@@ -115,8 +116,8 @@ commit plan
 printf -- '- [ ] draft\n' >draft.md
 run
 check "markdown" "$(detail markdown)" "draft.md, plan.md"
-check "open-checkboxes" "$(status open-checkboxes)" "finding"
-check "items" "$(detail open-checkboxes)" "draft.md:1, plan.md:4, plan.md:5"
+check "open-checkboxes" "$(status open-checkboxes)" "never"
+check "items" "$(detail open-checkboxes)" "no marker — draft.md:1, plan.md:4, plan.md:5"
 teardown
 
 echo "non-ASCII Markdown paths are read, not skipped"
@@ -127,7 +128,7 @@ commit nota
 printf -- '- [ ] rascunho\n' >"Rascunho é.md"
 run
 check "markdown" "$(detail markdown)" "Notas/Ação.md, Rascunho é.md"
-check "items" "$(detail open-checkboxes)" "Notas/Ação.md:1, Rascunho é.md:1"
+check "items" "$(detail open-checkboxes)" "no marker — Notas/Ação.md:1, Rascunho é.md:1"
 teardown
 
 echo "items inside fenced code blocks are examples, not work"
@@ -136,7 +137,7 @@ setup
 # shellcheck disable=SC2016
 printf '# Skill\n\n```markdown\n- [ ] template\n```\n\n  ~~~\n  - [ ] indented\n  ~~~\n\n- [ ] real\n' >skill.md
 run
-check "items" "$(detail open-checkboxes)" "skill.md:11"
+check "items" "$(detail open-checkboxes)" "no marker — skill.md:11"
 teardown
 
 echo "a fence closes only on its own kind and length"
@@ -145,7 +146,7 @@ setup
 # shellcheck disable=SC2016
 printf '```\n~~~\n- [ ] a\n```\n- [ ] b\n````md\n```\n- [ ] c\n```\n````\n- [ ] d\n' >mixed.md
 run
-check "items" "$(detail open-checkboxes)" "mixed.md:5, mixed.md:11"
+check "items" "$(detail open-checkboxes)" "no marker — mixed.md:5, mixed.md:11"
 teardown
 
 echo "untouched Markdown is not listed"
@@ -157,7 +158,7 @@ git_q fetch -q origin
 echo x >a.txt && commit code
 run
 check "markdown" "$(detail markdown)" ""
-check "open-checkboxes" "$(status open-checkboxes)" "pass"
+check "open-checkboxes" "$(status open-checkboxes)" "skip"
 teardown
 
 echo "no origin"
@@ -214,10 +215,10 @@ printf -- '- [ ] a\n' >todo.md
 out=$("$BIN" --format pretty --no-fetch --session s1)
 check "header" "$(printf '%s\n' "$out" | sed -n 1p | tr -s ' ')" "| name | status | detail |"
 check "rule" "$(printf '%s\n' "$out" | sed -n 2p | tr -d ' |-')" ""
-check "rows" "$(printf '%s\n' "$out" | wc -l | tr -d ' ')" "12"
+check "rows" "$(printf '%s\n' "$out" | wc -l | tr -d ' ')" "18"
 check "every line one width" "$(printf '%s\n' "$out" | awk '{ print length }' | sort -u | wc -l | tr -d ' ')" "1"
 check "row" "$(printf '%s\n' "$out" | grep '^| default ' | tr -s ' ')" "| default | fact | origin/main |"
-check "finding row" "$(printf '%s\n' "$out" | grep '^| open-checkboxes ' | tr -s ' ')" "| open-checkboxes | finding | todo.md:1 |"
+check "finding row" "$(printf '%s\n' "$out" | grep '^| open-checkboxes ' | tr -s ' ')" "| open-checkboxes | never | no marker — todo.md:1 |"
 check "pretty is the default" "$("$BIN" --no-fetch --session s1)" "$out"
 check "--format=pretty" "$("$BIN" --format=pretty --no-fetch --session s1)" "$out"
 check "tsv has no header" "$("$BIN" --format tsv --no-fetch | grep -c '^name')" "0"
