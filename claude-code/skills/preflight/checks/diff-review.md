@@ -19,4 +19,4 @@ start. When the delta settled one of them — fixed by hand, or the user said
 Leave the rest open. `mark` takes only the new findings.
 
 Run the `code-review` skill at level `medium` on the range above. Keep its
-findings for the combined report.
+findings for `mark`, and from there for preflight's report.

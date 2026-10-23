@@ -17,6 +17,12 @@ you start. When the delta settled one of them — fixed by hand, or the user sai
 `preflight-checks resolve <id> discarded "obsolete: <why>"`. No other outcome.
 Leave the rest open. `mark` takes only the new findings.
 
+Mark the check with `preflight-checks mark acceptance-criteria --bead <id>`,
+where `<id>` is the branch's bead, so the script records it and a later update
+to the bead makes the check stale. Find it the way preflight finds the current
+work: an id in the branch name, the issue claimed or worked on in this session,
+or one the conversation names.
+
 No bead, or a bead with neither a design nor acceptance criteria → print
 `⏭️ <n>/<total> Acceptance criteria — no design or acceptance on the bead` and
 `mark` with `[]` and no `--bead`.

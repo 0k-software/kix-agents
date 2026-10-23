@@ -2,7 +2,7 @@
 
 **Reads.** The session's conversation.
 
-**Delta.** the conversation since the `conversation since <ts>` in the row's
+**Delta.** The conversation since the `conversation since <ts>` in the row's
 detail: the turns, automated events and AskUserQuestion answers after that
 time. When the row's status is `unknown` (no transcript to read), find the line
 `🛫 preflight check started here · <run>` in your context and review everything
@@ -21,7 +21,8 @@ Preflight's own process questions (Decide, Verdict, rerun) are not leftovers;
 only what the answers say is. Questions about findings are
 `findings-leftovers`' job, so nothing is reported twice.
 
-Read the session and list:
+Read the session — the whole of it on a first run or an `unknown` row with no
+🛫 line, else only the delta — and list:
 
 - things the user asked for that were not done, or were done only in part;
 - questions you asked that the user never answered — an AskUserQuestion the
