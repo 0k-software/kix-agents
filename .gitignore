@@ -10,3 +10,6 @@
 
 # Worktrees created by Agent isolation runs
 .claude/worktrees/
+
+# Superpowers subagent-driven-development scratch (ledger, briefs, reviews)
+.superpowers/
