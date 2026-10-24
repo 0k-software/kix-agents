@@ -586,9 +586,9 @@ preflight-checks --no-fetch --format tsv
   **changed**: say so and ask the rerun question (below).
 
 **Rerun.** A link can't run a slash command, but an answer can. After a
-**changed** or **open** verdict's ⚠️ block, print a ❓ line (e.g.
-`❓ 12/16 Verdict — rerun /kix:ship?`), write what is being asked and each
-option in the reply, as _Asking questions_ says, and ask with AskUserQuestion.
+**changed** or **open** verdict's ⚠️ block, write what is being asked and each
+option in the reply, then follow _Asking questions_: a command, the ❓ line
+(e.g. `❓ 12/16 Verdict — rerun /kix:ship?`), then the AskUserQuestion card.
 The only link is the compare link the verdict already printed in the reply —
 the step 5 commits for **changed**, the branch diff for **open** — never a
 second link with a different range, and never inside the question. The question
