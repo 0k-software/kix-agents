@@ -107,7 +107,7 @@ Each line has its test in the owning task below.
   `cp_behind_default_branch`, `cp_open_checkboxes`. Rows `notes-guard` and
   `marker` are gone. Fact `from` is always `-` until Task 3.
 
-- [ ] **Step 1: Update the tests to the new names**
+- [x] **Step 1: Update the tests to the new names**
 
   In `scripts/test-preflight-checks.sh`: rename every `dirty-tree`, `unlanded`,
   `rebase`, `before-shipping` row lookup to the new names; delete the
@@ -128,19 +128,19 @@ Each line has its test in the owning task below.
   (Push a `refs/notes/checks` note to origin from `$work/seed` first so the
   case would fail on today's fetch.)
 
-- [ ] **Step 2: Run, expect failures** —
+- [x] **Step 2: Run, expect failures** —
       `bash scripts/test-preflight-checks.sh` → FAIL on the renamed rows.
 
-- [ ] **Step 3: Implement** — rename the functions and row names; delete
+- [x] **Step 3: Implement** — rename the functions and row names; delete
       `cp_notes_guard`, `cp_marker`, `marked_by_session`, `newest_marked`, the
       notes fetch line in `do_fetch`; `from` emits `-` (Task 3 fills it);
       `shortstat` reads from the merge base. Update the usage text to the new
       names and drop `--session`'s "check marks" wording (it now picks the
       store).
 
-- [ ] **Step 4: Run** `make test` → `all passed` for every suite.
+- [x] **Step 4: Run** `make test` → `all passed` for every suite.
 
-- [ ] **Step 5: Commit** —
+- [x] **Step 5: Commit** —
       `refactor(kxa-102): name preflight-checks rows by what they check, drop git notes`
 
 ---
@@ -185,7 +185,7 @@ Each line has its test in the owning task below.
   - Helper `store_dir` (absolute path, created on first write), `now` (UTC
     time), `cur_branch`.
 
-- [ ] **Step 1: Write failing tests** in `scripts/test-preflight-store.sh`, one
+- [x] **Step 1: Write failing tests** in `scripts/test-preflight-store.sh`, one
       `echo` case each:
   - "start prints the anchor line": output matches
     `^🛫 preflight check started here · [0-9-]{10}T[0-9:]{8}Z$`; the last
@@ -219,18 +219,18 @@ Each line has its test in the owning task below.
   - "jq missing": run with a `PATH` holding only git and coreutils symlinks →
     exit `1`, stderr `preflight-checks: jq is required`.
 
-- [ ] **Step 2: Run** `bash scripts/test-preflight-store.sh` → FAIL
+- [x] **Step 2: Run** `bash scripts/test-preflight-store.sh` → FAIL
       (subcommands unknown).
 
-- [ ] **Step 3: Implement** — dispatch on the first argument
+- [x] **Step 3: Implement** — dispatch on the first argument
       (`start|mark|resolve|findings`, else today's report); options may follow
       the subcommand. Merge findings with `jq -s 'group_by(.id) | map(add)'`
       over lines read with `jq -cR 'fromjson? // empty'`, then filter `branch`
       and `outcome`.
 
-- [ ] **Step 4: Run** `make test` → all suites pass.
+- [x] **Step 4: Run** `make test` → all suites pass.
 
-- [ ] **Step 5: Commit** —
+- [x] **Step 5: Commit** —
       `feat(kxa-102): store check markers and findings per session`
 
 ---
@@ -282,7 +282,7 @@ Each line has its test in the owning task below.
   - Fact `from` = `diff-review`'s marker head on this branch when an ancestor
     of HEAD, else `-`; `shortstat` from it when set (as before Task 1).
 
-- [ ] **Step 1: Write failing tests** in `scripts/test-preflight-store.sh`
+- [x] **Step 1: Write failing tests** in `scripts/test-preflight-store.sh`
       (stub `bd`: a script first on `PATH` that answers `list … --json` with
       the contents of `$work/bd-list.json` and `show <id> --json` with
       `$work/bd-show.json`; `mkdir .beads` to make the repo Beads):
@@ -309,15 +309,15 @@ Each line has its test in the owning task below.
     `18`, the `open-checkboxes` finding row becomes
     `| open-checkboxes | never | no marker — todo.md:1 |`.
 
-- [ ] **Step 2: Run** both suites → FAIL.
+- [x] **Step 2: Run** both suites → FAIL.
 
-- [ ] **Step 3: Implement** `marker_status <check>` (prints status and detail,
+- [x] **Step 3: Implement** `marker_status <check>` (prints status and detail,
       tab-separated) and the per-check field table as one `case` on the check
       name; `cp_open_checkboxes` becomes its status row.
 
-- [ ] **Step 4: Run** `make test` → all pass.
+- [x] **Step 4: Run** `make test` → all pass.
 
-- [ ] **Step 5: Commit** —
+- [x] **Step 5: Commit** —
       `feat(kxa-102): report each check fresh or stale from its marker`
 
 ---
@@ -352,7 +352,7 @@ Each line has its test in the owning task below.
     stale, status `unknown` / `since <marker run>`; otherwise `stale` with the
     reasons plus `conversation unknown since <marker run>`.
 
-- [ ] **Step 1: Write failing tests** — helper `tx_turn <uuid> <ts> <text>`,
+- [x] **Step 1: Write failing tests** — helper `tx_turn <uuid> <ts> <text>`,
       `tx_ask <uuid> <ts> <tool id>` (assistant tool_use named
       `AskUserQuestion`), `tx_result <uuid> <ts> <tool id>`,
       `tx_bash <uuid>     <ts> <tool id>` append lines to
@@ -372,17 +372,17 @@ Each line has its test in the owning task below.
     `since <run>`; with a new commit too, `related-tracker-items` → `stale` /
     `new commits since <short>, conversation unknown since <run>`.
 
-- [ ] **Step 2: Run** → FAIL.
+- [x] **Step 2: Run** → FAIL.
 
-- [ ] **Step 3: Implement** with one `jq -cR 'fromjson? // empty'` pass that
+- [x] **Step 3: Implement** with one `jq -cR 'fromjson? // empty'` pass that
       collects the AskUserQuestion tool ids, then finds the first qualifying
       entry after the marker.
 
-- [ ] **Step 4: Run** `make test` → all pass. Also run the default call once in
+- [x] **Step 4: Run** `make test` → all pass. Also run the default call once in
       this session (`preflight-checks --no-fetch`) and confirm the transcript
       is found (rows read `never`, not `unknown`).
 
-- [ ] **Step 5: Commit** —
+- [x] **Step 5: Commit** —
       `feat(kxa-102): stale conversation checks on new turns and question answers`
 
 ---
@@ -419,10 +419,10 @@ Each line has its test in the owning task below.
   in part, is a finding (category `acceptance`); no bead or neither field →
   `⏭️` and `mark` with `[]` and no `--bead`.
 
-- [ ] **Step 1: Create the seven files**, moving text, not rewriting it.
-- [ ] **Step 2: Verify** `make check` passes and
+- [x] **Step 1: Create the seven files**, moving text, not rewriting it.
+- [x] **Step 2: Verify** `make check` passes and
       `grep -c '' claude-code/skills/preflight/checks/*.md` lists 7 files.
-- [ ] **Step 3: Commit** —
+- [x] **Step 3: Commit** —
       `feat(kxa-102): one instruction file per preflight check`
 
 (No deletion from SKILL.md here: Task 6 swaps the text for pointers, so the
@@ -442,17 +442,17 @@ skill stays whole between commits.)
 
 Changes, section by section:
 
-- [ ] **Step 1: Deterministic checkpoints** — row table lists the 16 rows with
+- [x] **Step 1: Deterministic checkpoints** — row table lists the 16 rows with
       the new names and statuses (`fresh · stale · never · unknown · skip` for
       markable rows; `findings-leftovers` pass · finding). Keep "It runs twice"
       (step 1 with fetch, step 2 with `--no-fetch`).
-- [ ] **Step 2: Check marks → Markers** — replace the section: the store, that
+- [x] **Step 2: Check marks → Markers** — replace the section: the store, that
       only the script writes it, `start`/`mark`/`resolve`/`findings` one line
       each, and that a marker records only that the check ran.
-- [ ] **Step 3: Step 1 Rebase** — drop "and the check marks" from the fetch
+- [x] **Step 3: Step 1 Rebase** — drop "and the check marks" from the fetch
       sentence, the **Notes guard** paragraph and the "leaves its old check
       marks behind" paragraph; rename `dirty-tree`/`rebase` rows.
-- [ ] **Step 4: Step 2 Collect findings** — new body: `preflight-checks start`
+- [x] **Step 4: Step 2 Collect findings** — new body: `preflight-checks start`
       (print its 🛫 line as the step's first output), then
       `preflight-checks --no-fetch --format tsv`. For each markable row in
       table order: `fresh` → `⏭️ <n>/<total> <Check> — no changes since …`;
@@ -462,34 +462,34 @@ Changes, section by section:
       (`--bead` for `acceptance-criteria`) and resolve the moot ones. Remove
       the "Already checked" text and table, the "Skips" table and every 2a–2f
       body (now pointers to the files). Keep "No check goes to an agent".
-- [ ] **Step 5: Report** — the list is `preflight-checks findings` (all open on
+- [x] **Step 5: Report** — the list is `preflight-checks findings` (all open on
       this branch) — fresh checks' carried findings included; ReportFindings
       ids follow the finding ids; categories as in the check files.
-- [ ] **Step 6: Decide / Run the queue** — each decision runs
+- [x] **Step 6: Decide / Run the queue** — each decision runs
       `preflight-checks resolve`: applied fix → `fixed` after its commit;
       task/arrival → `deferred <id or note>`; note in the task →
       `deferred <bead id>`; discard → `discarded <reason>`; "Leave for later" →
       nothing. Replace "ReportFindings again with outcome" by "after the queue,
       call ReportFindings with `outcome` from `findings`".
-- [ ] **Step 7: Verdict** — **Open** = `findings-leftovers` row `finding`;
+- [x] **Step 7: Verdict** — **Open** = `findings-leftovers` row `finding`;
       **Clear** = `findings-leftovers` `pass`, `diff-review` `fresh` or `skip`,
       and step 5 committed nothing and edited no tracker item. Remove the
       "first note line starts with `checked`" test.
-- [ ] **Step 8: Progress** — add `Acceptance criteria (2b)` after code review
+- [x] **Step 8: Progress** — add `Acceptance criteria (2b)` after code review
       (renamed `Diff review (2a)`), renumber: preflight `/12`, ship `/16`,
       close `/18`, every later row +1, and every example line's total. Rename
       the step names to the check names' plain form (Conversation leftovers,
       Open checkboxes, Related tracker items, Unraised follow-ups, Post-landing
       steps).
-- [ ] **Step 9: Common mistakes** — drop the four notes/check-mark bullets and
+- [x] **Step 9: Common mistakes** — drop the four notes/check-mark bullets and
       the _Already checked_ one; add: "Writing a marker or finding line by hand
       instead of through `preflight-checks`", "Running a check whose row is
       `fresh`", "Reviewing a stale check's whole history instead of its delta".
-- [ ] **Step 10: Verify** — `make check`;
+- [x] **Step 10: Verify** — `make check`;
       `grep -n 'notes\|check mark\|marker`\|dirty-tree\|before-shipping\|Already
       checked' claude-code/skills/preflight/SKILL.md` shows no stale reference
       (the word "notes" may remain for bd/quest notes).
-- [ ] **Step 11: Commit** —
+- [x] **Step 11: Commit** —
       `feat(kxa-102): preflight runs through the check library`
 
 ---
@@ -502,40 +502,42 @@ Changes, section by section:
   progress totals 16/18)
 - Modify: `CHANGELOG.md`, `CLAUDE.md`
 
-- [ ] **Step 1: Ship** — step 1: "even when every check is fresh (preflight
+- [x] **Step 1: Ship** — step 1: "even when every check is fresh (preflight
       skips them then…)"; step 3 Gate block becomes `git status --porcelain`,
       `git fetch origin`, `preflight-checks --no-fetch --format tsv`; stop
       unless `uncommitted-changes` pass, `behind-default-branch` pass,
       `diff-review` `fresh` or `skip`, `findings-leftovers` pass (the stop
       message lists which failed); step 4 drops the notes push and its retry
       paragraph. Progress `12–15` → `13–16` of `16` (`18` from close).
-- [ ] **Step 2: CHANGELOG** `[Unreleased]` — `### Changed`: preflight checks
+- [x] **Step 2: CHANGELOG** `[Unreleased]` — `### Changed`: preflight checks
       run from a check library with per-check markers; rows renamed (list old →
       new); `### Added`: `acceptance-criteria` and `findings-leftovers` checks,
       `preflight-checks start|mark|resolve|findings`; `### Removed`:
       `refs/notes/checks` check marks and the `notes-guard` row. Also fix the
       earlier `preflight-checks` entry's row list.
-- [ ] **Step 3: CLAUDE.md** Architecture `bin/` bullet: `preflight-checks` also
+- [x] **Step 3: CLAUDE.md** Architecture `bin/` bullet: `preflight-checks` also
       keeps per-session check markers and findings; add
       `claude-code/skills/preflight/checks/` to the skill-folder sentence.
-- [ ] **Step 4: Verify** — `make check && make test`;
+- [x] **Step 4: Verify** — `make check && make test`;
       `grep -rn 'notes/checks\|check mark' claude-code CLAUDE.md` → nothing.
-- [ ] **Step 5: Commit** —
+- [x] **Step 5: Commit** —
       `feat(kxa-102): ship gates on the check library, notes gone`
 
 ---
 
 ### Task 8: After-landing note and end-to-end run
 
-- [ ] **Step 1:** Append to kxa-102's notes (bd memory
+- [x] **Step 1:** Append to kxa-102's notes (bd memory
       `after-ship-convention`):
       `After this lands on main: delete the old check marks — locally git update-ref -d refs/notes/checks (and refs/notes/checks-remote) in every kix repo clone, and on origin git push origin :refs/notes/checks for kix-agents, dotfiles and Stingdom (each remote delete only after kelvin's explicit yes); /reload-plugins.`
-- [ ] **Step 2: Live run** — in this session, run `/kix:preflight` from the
-      worktree's plugin copy (read the worktree's SKILL.md, call
-      `claude-code/bin/preflight-checks` by path). Expect: every markable row
-      runs once and is marked; a second run right after prints `⏭️` for every
-      commit-only check and `stale` / `conversation since …` only for the
-      conversation checks (the first run's Decide answers), which review just
-      that delta. Report what happened; fix anything off as its own commit.
-- [ ] **Step 3:** `make check && make test`, `git status` clean, then offer
+- [-] **Step 2: Live run** — in this session, run `/kix:preflight` from the
+  worktree's plugin copy (read the worktree's SKILL.md, call
+  `claude-code/bin/preflight-checks` by path). Expect: every markable row runs
+  once and is marked; a second run right after prints `⏭️` for every
+  commit-only check and `stale` / `conversation since …` only for the
+  conversation checks (the first run's Decide answers), which review just that
+  delta. Report what happened; fix anything off as its own commit. → plumbing
+  checked live (start/mark/status); the full run waits for landing (kxa-102
+  note).
+- [x] **Step 3:** `make check && make test`, `git status` clean, then offer
       `/kix:ship`.
