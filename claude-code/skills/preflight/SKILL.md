@@ -319,7 +319,6 @@ later. Make **one** ReportFindings call with all of them, `diff-review` first.
 It replaces any call the code-review skill made. Per finding, straight from its
 JSON:
 
-- `id`: the finding's id (`diff-review-1`) — step 5 names it in `resolve`;
 - `file` / `line`: where it lives — the code, the file with the checklist, or
   the file the conversation item is about; none when the finding has none;
 - `category`: as the check file gives it — for `diff-review`, the category the
@@ -327,7 +326,10 @@ JSON:
   `related`, `idea`, `next-step` or `pitfall` for `unraised-follow-ups`;
   `after-ship` for `post-landing-steps`;
 - `summary`: the problem, then the fix, fenced
-  (`… |—| SUGGESTED FIX: <fix> |—|`, as step 2 wrote it);
+  (`… |—| SUGGESTED FIX: <fix> |—|`, as step 2 wrote it), then the finding's id
+  as metadata at the very end: `… |—| [id: diff-review-1]`. ReportFindings has
+  no id field and rejects unknown ones, so the id rides in the summary; step 5
+  names it in `resolve`;
 - `failure_scenario`: what is lost or goes wrong if the branch lands now.
 
 Then print the same list in chat, complete: the ReportFindings card renders
@@ -335,7 +337,7 @@ poorly on mobile (Remote Control), so the chat list must stand on its own —
 nothing only the card shows. Per finding:
 
 ```
-N/T. `<file>:<line>` — <problem>
+N/T. `<file>:<line>` — <problem> [id: <id>]
    Fix: <suggested fix>
    If left: <failure scenario>
 ```
