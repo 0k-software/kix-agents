@@ -320,7 +320,9 @@ It replaces any call the code-review skill made. Per finding, straight from its
 JSON:
 
 - `file` / `line`: where it lives — the code, the file with the checklist, or
-  the file the conversation item is about; none when the finding has none;
+  the file the conversation item is about. ReportFindings requires `file`, so a
+  finding stored without one still gets one here: the branch's spec or plan,
+  else the touched file closest to the item. `line` only when it points at one;
 - `category`: as the check file gives it — for `diff-review`, the category the
   code review gave; `acceptance`, `conversation`, `checklist`, `tracker`;
   `related`, `idea`, `next-step` or `pitfall` for `unraised-follow-ups`;
