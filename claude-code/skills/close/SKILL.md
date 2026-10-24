@@ -18,6 +18,9 @@ after the ship.
 replies, AskUserQuestion questions and option labels, and every commit you
 write.
 
+**Questions.** Every AskUserQuestion follows `kix:preflight`'s _Asking
+questions_ order: the text, then a command, then the ❓ line, then the card.
+
 ## Repo type
 
 Detect it from the repository root (`git rev-parse --show-toplevel`), the same

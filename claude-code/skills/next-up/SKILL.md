@@ -31,6 +31,11 @@ next-up list, the hand-off prompt. Never a bare id.
 **Links** (a PR, a compare view) go in the reply text, never inside an
 AskUserQuestion: a link in a question card cannot be opened on mobile.
 
+**Questions.** The text a question needs (a fix block, the options) goes in the
+reply, then a command of its own, then the AskUserQuestion: the app summarizes
+the text right before a question card, and on mobile the user gets that summary
+instead (`kix:preflight`'s _Asking questions_). next-up prints no ❓ line.
+
 **No progress lines.** No emoji, no ❓/✅ step lines — the fix headings carry
 the count.
 

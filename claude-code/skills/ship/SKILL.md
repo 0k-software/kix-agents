@@ -17,6 +17,9 @@ runs `kix:preflight` for both.
 
 **Language.** Reply in the language the user is speaking.
 
+**Questions.** Every AskUserQuestion follows `kix:preflight`'s _Asking
+questions_ order: the text, then a command, then the ❓ line, then the card.
+
 **Default branch.** Never assume `main`:
 
 ```bash
