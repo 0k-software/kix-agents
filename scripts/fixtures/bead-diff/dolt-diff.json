@@ -1,0 +1,311 @@
+{
+  "tables": [
+    {
+      "name": "comments",
+      "schema_diff": [],
+      "data_diff": [
+        {
+          "from_row": {},
+          "to_row": {
+            "author": "kelvinst",
+            "created_at": "2026-10-25 07:51:30",
+            "id": "01a1720b-0f40-7b2f-8ee8-41d240903e5d",
+            "issue_id": "t-qlg",
+            "text": "Looks good\nsecond line of comment"
+          }
+        }
+      ]
+    },
+    {
+      "name": "dependencies",
+      "schema_diff": [],
+      "data_diff": [
+        {
+          "from_row": {},
+          "to_row": {
+            "created_at": "2026-10-25 04:51:28",
+            "created_by": "kelvinst",
+            "depends_on_issue_id": "t-58f",
+            "id": "c6726b08-9b3a-55bb-9791-7ccbbdc50994",
+            "issue_id": "t-qlg",
+            "metadata": {},
+            "thread_id": "",
+            "type": "blocks"
+          }
+        }
+      ]
+    },
+    {
+      "name": "events",
+      "schema_diff": [],
+      "data_diff": [
+        {
+          "from_row": {
+            "actor": "kelvinst",
+            "created_at": "2026-10-25 04:51:23",
+            "event_type": "created",
+            "id": "01a1720a-f84d-772f-b49e-e8eddb1c38c2",
+            "issue_id": "t-ln4",
+            "new_value": "",
+            "old_value": ""
+          },
+          "to_row": {}
+        },
+        {
+          "from_row": {},
+          "to_row": {
+            "actor": "kelvinst",
+            "comment": "Added label: old-label",
+            "created_at": "2026-10-25 04:51:24",
+            "event_type": "label_added",
+            "id": "01a1720a-fba8-70d6-b371-976e9bcc56d2",
+            "issue_id": "t-qlg"
+          }
+        },
+        {
+          "from_row": {},
+          "to_row": {
+            "actor": "kelvinst",
+            "created_at": "2026-10-25 04:51:26",
+            "event_type": "created",
+            "id": "01a1720b-01c1-762e-b960-1cc5c924ace6",
+            "issue_id": "t-1pa",
+            "new_value": "",
+            "old_value": ""
+          }
+        },
+        {
+          "from_row": {},
+          "to_row": {
+            "actor": "kelvinst",
+            "created_at": "2026-10-25 04:51:27",
+            "event_type": "status_changed",
+            "id": "01a1720b-07aa-703a-8b14-db5faa95e4f1",
+            "issue_id": "t-qlg",
+            "new_value": "{\"notes\":\"line one\\nline 2 changed\\nline three\\nline four\",\"priority\":0,\"status\":\"in_progress\"}",
+            "old_value": "{\"id\":\"t-qlg\",\"title\":\"Modified one\",\"notes\":\"line one\\nline two\\nline three\",\"status\":\"open\",\"priority\":2,\"issue_type\":\"task\",\"owner\":\"kelvin.stinghen@me.com\",\"created_at\":\"2026-10-25T07:51:23Z\",\"created_by\":\"kelvinst\",\"updated_at\":\"2026-10-25T07:51:23Z\",\"labels\":[\"old-label\"]}"
+          }
+        },
+        {
+          "from_row": {},
+          "to_row": {
+            "actor": "kelvinst",
+            "comment": "Removed label: old-label",
+            "created_at": "2026-10-25 04:51:29",
+            "event_type": "label_removed",
+            "id": "01a1720b-0c78-735b-88fc-f4ebd9de12a1",
+            "issue_id": "t-qlg"
+          }
+        }
+      ]
+    },
+    {
+      "name": "issues",
+      "schema_diff": [],
+      "data_diff": [
+        {
+          "from_row": {},
+          "to_row": {
+            "acceptance_criteria": "",
+            "actor": "",
+            "agent_state": "",
+            "await_id": "",
+            "await_type": "",
+            "close_reason": "",
+            "closed_by_session": "",
+            "compaction_level": 0,
+            "content_hash": "c5fdb244693ee8d4993f0a417021e6a463b5b313fe0cac54982f1f83bd382b36",
+            "created_at": "2026-10-25 07:51:26",
+            "created_by": "kelvinst",
+            "description": "First para\nsecond line",
+            "design": "",
+            "ephemeral": 0,
+            "event_kind": "",
+            "hook_bead": "",
+            "id": "t-1pa",
+            "is_blocked": 0,
+            "is_template": 0,
+            "issue_type": "feature",
+            "metadata": {},
+            "mol_type": "",
+            "no_history": 0,
+            "notes": "",
+            "owner": "kelvin.stinghen@me.com",
+            "payload": "",
+            "pinned": 0,
+            "priority": 1,
+            "rig": "",
+            "role_bead": "",
+            "role_type": "",
+            "sender": "",
+            "source_repo": "",
+            "source_system": "",
+            "spec_id": "",
+            "status": "open",
+            "target": "",
+            "timeout_ns": 0,
+            "title": "Created one",
+            "updated_at": "2026-10-25 07:51:26",
+            "waiters": "",
+            "wisp_type": "",
+            "work_type": ""
+          }
+        },
+        {
+          "from_row": {
+            "acceptance_criteria": "",
+            "actor": "",
+            "agent_state": "",
+            "await_id": "",
+            "await_type": "",
+            "close_reason": "",
+            "closed_by_session": "",
+            "compaction_level": 0,
+            "content_hash": "8c2b7d9c59dfa4e4369a15ccc366e0fbd75b603bb2bcb69db792a700cd437dfa",
+            "created_at": "2026-10-25 07:51:24",
+            "created_by": "kelvinst",
+            "description": "goes away",
+            "design": "",
+            "ephemeral": 0,
+            "event_kind": "",
+            "hook_bead": "",
+            "id": "t-ln4",
+            "is_blocked": 0,
+            "is_template": 0,
+            "issue_type": "bug",
+            "metadata": {},
+            "mol_type": "",
+            "no_history": 0,
+            "notes": "",
+            "owner": "kelvin.stinghen@me.com",
+            "payload": "",
+            "pinned": 0,
+            "priority": 2,
+            "rig": "",
+            "role_bead": "",
+            "role_type": "",
+            "sender": "",
+            "source_repo": "",
+            "source_system": "",
+            "spec_id": "",
+            "status": "open",
+            "target": "",
+            "timeout_ns": 0,
+            "title": "Deleted one",
+            "updated_at": "2026-10-25 07:51:24",
+            "waiters": "",
+            "wisp_type": "",
+            "work_type": ""
+          },
+          "to_row": {}
+        },
+        {
+          "from_row": {
+            "acceptance_criteria": "",
+            "actor": "",
+            "agent_state": "",
+            "await_id": "",
+            "await_type": "",
+            "close_reason": "",
+            "closed_by_session": "",
+            "compaction_level": 0,
+            "content_hash": "7d175d0f8671e5ed3a7ab94c5597abda75ec43b73facf9e73df0502f1e08740f",
+            "created_at": "2026-10-25 07:51:23",
+            "created_by": "kelvinst",
+            "description": "",
+            "design": "",
+            "ephemeral": 0,
+            "event_kind": "",
+            "hook_bead": "",
+            "id": "t-qlg",
+            "is_blocked": 0,
+            "is_template": 0,
+            "issue_type": "task",
+            "metadata": {},
+            "mol_type": "",
+            "no_history": 0,
+            "notes": "line one\nline two\nline three",
+            "owner": "kelvin.stinghen@me.com",
+            "payload": "",
+            "pinned": 0,
+            "priority": 2,
+            "rig": "",
+            "role_bead": "",
+            "role_type": "",
+            "sender": "",
+            "source_repo": "",
+            "source_system": "",
+            "spec_id": "",
+            "status": "open",
+            "target": "",
+            "timeout_ns": 0,
+            "title": "Modified one",
+            "updated_at": "2026-10-25 07:51:23",
+            "waiters": "",
+            "wisp_type": "",
+            "work_type": ""
+          },
+          "to_row": {
+            "acceptance_criteria": "",
+            "actor": "",
+            "agent_state": "",
+            "await_id": "",
+            "await_type": "",
+            "close_reason": "",
+            "closed_by_session": "",
+            "compaction_level": 0,
+            "content_hash": "7d175d0f8671e5ed3a7ab94c5597abda75ec43b73facf9e73df0502f1e08740f",
+            "created_at": "2026-10-25 07:51:23",
+            "created_by": "kelvinst",
+            "description": "",
+            "design": "",
+            "ephemeral": 0,
+            "event_kind": "",
+            "hook_bead": "",
+            "id": "t-qlg",
+            "is_blocked": 1,
+            "is_template": 0,
+            "issue_type": "task",
+            "metadata": {},
+            "mol_type": "",
+            "no_history": 0,
+            "notes": "line one\nline 2 changed\nline three\nline four",
+            "owner": "kelvin.stinghen@me.com",
+            "payload": "",
+            "pinned": 0,
+            "priority": 0,
+            "rig": "",
+            "role_bead": "",
+            "role_type": "",
+            "sender": "",
+            "source_repo": "",
+            "source_system": "",
+            "spec_id": "",
+            "started_at": "2026-10-25 07:51:28",
+            "status": "in_progress",
+            "target": "",
+            "timeout_ns": 0,
+            "title": "Modified one",
+            "updated_at": "2026-10-25 07:51:28",
+            "waiters": "",
+            "wisp_type": "",
+            "work_type": ""
+          }
+        }
+      ]
+    },
+    {
+      "name": "labels",
+      "schema_diff": [],
+      "data_diff": [
+        {
+          "from_row": {
+            "issue_id": "t-qlg",
+            "label": "old-label"
+          },
+          "to_row": {}
+        }
+      ]
+    }
+  ]
+}

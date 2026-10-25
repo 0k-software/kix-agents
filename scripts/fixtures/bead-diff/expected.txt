@@ -1,0 +1,31 @@
+@@ t-1pa · Created one · created @@
++title: Created one
++status: open
++priority: 1
++issue_type: feature
++description:
++  First para
++  second line
+
+@@ t-ln4 · Deleted one · deleted @@
+-title: Deleted one
+-status: open
+-priority: 2
+-issue_type: bug
+-description:
+-  goes away
+
+@@ t-qlg · Modified one · modified @@
+-status: open
++status: in_progress
+-priority: 2
++priority: 0
+ notes:
+   line one
+-  line two
++  line 2 changed
+   line three
++  line four
++dep: blocks t-58f
+-label: old-label
++comment (kelvinst): Looks good …

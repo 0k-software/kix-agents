@@ -115,6 +115,31 @@ else
 fi
 teardown
 
+FX="$ROOT/scripts/fixtures/bead-diff"
+
+echo "renderer matches the fixture"
+setup
+check "render" "$("$BIN" diff --dolt-json "$FX/dolt-diff.json")" "$(cat "$FX/expected.txt")"
+teardown
+
+# One modified issue whose notes go from $1 to $2, as dolt diff -r json.
+notes_diff() {
+  jq -n --arg a "$1" --arg b "$2" '{tables: [{name: "issues", data_diff: [
+    {from_row: {id: "t-x", title: "T", notes: $a}, to_row: {id: "t-x", title: "T", notes: $b}}]}]}' >"$work/n.json"
+}
+
+echo "text without a trailing newline"
+setup
+notes_diff $'a\nb' $'a\nb\nc'
+check "only the new line" "$("$BIN" diff --dolt-json "$work/n.json")" "$(printf '%s\n' '@@ t-x · T · modified @@' ' notes:' '   a' '   b' '+  c')"
+teardown
+
+echo "empty diff renders nothing"
+setup
+echo '{"tables": [{"name": "events", "data_diff": [{"from_row": {}, "to_row": {"id": "e"}}]}]}' >"$work/e.json"
+check "nothing" "$("$BIN" diff --dolt-json "$work/e.json")" ""
+teardown
+
 if [ "$failures" -gt 0 ]; then
   echo "$failures failure(s)"
   exit 1

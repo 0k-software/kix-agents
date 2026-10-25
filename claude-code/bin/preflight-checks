@@ -73,10 +73,11 @@ fetch=1
 format=pretty
 session=${CLAUDE_CODE_SESSION_ID-}
 bead=""
+dolt_json=""
 sub=""
 pos=()
 case ${1-} in
-start | mark | resolve | findings | bd-mark)
+start | mark | resolve | findings | bd-mark | diff)
   sub=$1
   shift
   ;;
@@ -101,6 +102,10 @@ while [ $# -gt 0 ]; do
     ;;
   --bead)
     bead=${2-}
+    shift
+    ;;
+  --dolt-json)
+    dolt_json=${2-}
     shift
     ;;
   -h | --help) usage && exit 0 ;;
@@ -685,6 +690,98 @@ sub_bd_mark() {
   [ "$kind" = start ] || echo "👀 beads reviewed up to $(short_sha "$h") · $t"
 }
 
+# --- bead diff (kxa-a9i) --------------------------------------------------
+
+bead_scalar_fields="title status priority issue_type assignee close_reason"
+bead_text_fields="description design acceptance_criteria notes"
+
+# A value's lines, nothing for an empty one, always newline-terminated so a
+# line diff never prints "\ No newline".
+text_lines() { [ -z "$1" ] || printf '%s\n' "$1"; }
+
+# Field $2 of row JSON $1 as text, empty when unset.
+row_field() { printf '%s' "$1" | jq -r --arg f "$2" '.[$f] // "" | tostring'; }
+
+# `dolt diff -r json` of the beads DB on stdin, as one git-style block per
+# changed issue: its fields, then its deps, labels and comments. Every other
+# table (events, config, ...) is bookkeeping and left out.
+render_bead_diff() {
+  local json ids id row kind from to title f old new first=1
+  json=$(cat)
+  ids=$(printf '%s' "$json" | jq -r '
+    [.tables[]? | .name as $t | select($t | IN("issues", "dependencies", "labels", "comments"))
+      | .data_diff[]? | (.from_row, .to_row) | select(. != null and . != {})
+      | if $t == "issues" then .id else .issue_id end] | unique | .[]')
+  for id in $ids; do
+    row=$(printf '%s' "$json" | jq -c --arg id "$id" '
+      first(.tables[]? | select(.name == "issues") | .data_diff[]?
+        | select((.from_row.id // .to_row.id) == $id)) // null')
+    from=$(printf '%s' "$row" | jq -c '.from_row // {}')
+    to=$(printf '%s' "$row" | jq -c '.to_row // {}')
+    if [ "$row" = null ]; then
+      kind=modified
+    elif [ "$from" = "{}" ]; then
+      kind=created
+    elif [ "$to" = "{}" ]; then
+      kind=deleted
+    else
+      kind=modified
+    fi
+    title=$(row_field "$to" title)
+    [ -n "$title" ] || title=$(row_field "$from" title)
+    [ -n "$title" ] || [ "$row" != null ] ||
+      title=$(bd show "$id" --json 2>/dev/null | jq -r 'if type == "array" then .[0] else . end | .title // empty' 2>/dev/null)
+    [ "$first" = 1 ] || echo
+    first=0
+    echo "@@ $id · $title · $kind @@"
+    if [ "$row" != null ]; then
+      for f in $bead_scalar_fields; do
+        old=$(row_field "$from" "$f")
+        new=$(row_field "$to" "$f")
+        [ "$old" != "$new" ] || continue
+        [ -z "$old" ] || echo "-$f: $old"
+        [ -z "$new" ] || echo "+$f: $new"
+      done
+      for f in $bead_text_fields; do
+        old=$(row_field "$from" "$f")
+        new=$(row_field "$to" "$f")
+        [ "$old" != "$new" ] || continue
+        case $kind in
+        created) echo "+$f:" && text_lines "$new" | sed 's/^/+  /' ;;
+        deleted) echo "-$f:" && text_lines "$old" | sed 's/^/-  /' ;;
+        *)
+          echo " $f:"
+          diff -U2 <(text_lines "$old") <(text_lines "$new") | awk '
+            NR <= 2 { next }
+            /^@@/ { if (h++) print "   …"; next }
+            /^\\/ { next }
+            { print substr($0, 1, 1) "  " substr($0, 2) }'
+          ;;
+        esac
+      done
+    fi
+    printf '%s' "$json" | jq -r --arg id "$id" '
+      def edge($t):
+        if $t == "dependencies" then "dep: \(.type) \(.depends_on_issue_id // .depends_on_external // "?")"
+        elif $t == "labels" then "label: \(.label)"
+        else "comment (\(.author)): " + ((.text // "") | split("\n") | .[0] + (if length > 1 then " …" else "" end))
+        end;
+      . as $all | ("dependencies", "labels", "comments") as $t
+      | $all.tables[]? | select(.name == $t) | .data_diff[]?
+      | select((.from_row.issue_id // .to_row.issue_id) == $id)
+      | (if (.from_row // {}) != {} then "-" + (.from_row | edge($t)) else empty end),
+        (if (.to_row // {}) != {} then "+" + (.to_row | edge($t)) else empty end)'
+  done
+}
+
+sub_diff() {
+  if [ -n "$dolt_json" ]; then
+    render_bead_diff <"$dolt_json"
+    return
+  fi
+  die "diff without --dolt-json is not built yet"
+}
+
 # --- run -----------------------------------------------------------------
 
 case $sub in
@@ -693,6 +790,7 @@ mark) sub_mark; exit $? ;;
 resolve) sub_resolve; exit $? ;;
 findings) open_findings "${pos[0]-}"; exit $? ;;
 bd-mark) sub_bd_mark; exit $? ;;
+diff) sub_diff; exit $? ;;
 esac
 
 fetched=$(do_fetch)
