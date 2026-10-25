@@ -28,4 +28,6 @@
 +  line four
 +dep: blocks t-58f
 -label: old-label
-+comment (kelvinst): Looks good …
++comment (kelvinst):
++  Looks good
++  second line of comment

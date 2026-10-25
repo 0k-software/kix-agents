@@ -709,6 +709,9 @@ sub_bd_mark() {
 
 bead_scalar_fields="title status priority issue_type assignee close_reason"
 bead_text_fields="description design acceptance_criteria notes"
+# Columns bd rewrites on its own (timestamps, hashes, derived flags): never
+# named as "other fields changed".
+bead_noise_fields="updated_at content_hash is_blocked started_at closed_at"
 
 # A value's lines, nothing for an empty one, always newline-terminated so a
 # line diff never prints "\ No newline".
@@ -740,18 +743,23 @@ bead_dolt_diff() {
 }
 
 # Ids of the other sessions whose transcript changed after ISO time $1: any
-# session of this repo's main checkout or of one of its worktrees, by Claude
-# Code's project-dir naming (every "/" and "." of the path becomes "-").
+# session of this repo's main checkout or of one of its worktrees, wherever
+# they live, by Claude Code's project-dir naming (every character of the path
+# but a letter or digit becomes "-").
 other_sessions_since() {
-  local enc ref d f
-  enc=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)" | sed 's/[\/.]/-/g')
+  local ref d f
   ref=$(mktemp)
   touch -d "$1" "$ref" 2>/dev/null || {
     rm -f "$ref"
     return 0
   }
-  for d in "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/projects/$enc" \
-    "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/projects/$enc--claude-worktrees-"*; do
+  # Each worktree path as git lists it and with symlinks resolved (/var vs
+  # /private/var on macOS): either may be the one Claude Code saw.
+  git worktree list --porcelain | sed -n 's/^worktree //p' | while read -r d; do
+    echo "$d"
+    (cd "$d" 2>/dev/null && pwd -P)
+  done | sort -u | while read -r d; do
+    d="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/projects/$(printf '%s' "$d" | sed 's/[^A-Za-z0-9]/-/g')"
     [ -d "$d" ] || continue
     find "$d" -maxdepth 1 -name '*.jsonl' -newer "$ref" 2>/dev/null
   done | while read -r f; do
@@ -815,19 +823,36 @@ render_bead_diff() {
           ;;
         esac
       done
+      [ "$kind" != modified ] || jq -nr --argjson a "$from" --argjson b "$to" \
+        --arg shown "$bead_scalar_fields $bead_text_fields $bead_noise_fields" '
+        [($a + $b | keys[]) as $k | select($a[$k] != $b[$k]) | $k] - ($shown | split(" "))
+        | select(length > 0) | " other fields changed: " + join(", ")'
     fi
     printf '%s' "$json" | jq -r --arg id "$id" '
       def edge($t):
-        if $t == "dependencies" then "dep: \(.type) \(.depends_on_issue_id // .depends_on_external // "?")"
-        elif $t == "labels" then "label: \(.label)"
-        else "comment (\(.author)): " + ((.text // "") | split("\n") | .[0] + (if length > 1 then " …" else "" end))
+        if $t == "dependencies" then ["dep: \(.type) \(.depends_on_issue_id // .depends_on_external // "?")"]
+        elif $t == "labels" then ["label: \(.label)"]
+        else (.author // "?") as $a | ((.text // "") | split("\n")) as $l
+          | if ($l | length) <= 1 then ["comment (\($a)): \($l[0] // "")"]
+            else ["comment (\($a)):"] + ($l | map("  " + .)) end
         end;
       . as $all | ("dependencies", "labels", "comments") as $t
       | $all.tables[]? | select(.name == $t) | .data_diff[]?
       | select((.from_row.issue_id // .to_row.issue_id) == $id)
-      | (if (.from_row // {}) != {} then "-" + (.from_row | edge($t)) else empty end),
-        (if (.to_row // {}) != {} then "+" + (.to_row | edge($t)) else empty end)'
+      | (if (.from_row // {}) != {} then "-" + (.from_row | edge($t))[] else empty end),
+        (if (.to_row // {}) != {} then "+" + (.to_row | edge($t))[] else empty end)'
   done
+}
+
+# $2 in a fenced block of language $1, the fence one backtick longer than the
+# longest backtick run inside, so a fence in a bead's text or a diffed Markdown
+# file can't close it.
+fenced() {
+  local n f
+  n=$(printf '%s' "$2" | grep -oE '`+' | awk '{ if (length > m) m = length } END { print m + 0 }')
+  [ "$n" -ge 3 ] || n=2
+  f=$(printf '%*s' $((n + 1)) '' | tr ' ' '`')
+  printf '%s%s\n%s\n%s\n' "$f" "$1" "$2" "$f"
 }
 
 # The code part of `diff`: commits $1^..HEAD inline up to 80 lines, else
@@ -842,9 +867,10 @@ code_diff() {
   d=$(git diff --no-ext-diff "$base" HEAD)
   n=$(printf '%s\n' "$d" | wc -l | tr -d ' ')
   if [ "$n" -le 80 ]; then
-    printf '```diff\n%s\n```\n' "$d"
+    fenced diff "$d"
   else
-    printf '```text\n%s\n```\n\n' "$(git diff --stat "$base" HEAD)"
+    fenced text "$(git diff --stat "$base" HEAD)"
+    echo
     echo "Too long to show inline ($n lines)."
   fi
 }
@@ -877,7 +903,7 @@ bead_diff() {
     if [ -z "$out" ]; then
       echo "No bead changes."
     else
-      printf '```diff\n%s\n```\n' "$out"
+      fenced diff "$out"
     fi
   fi
   others=$(other_sessions_since "$at" | wc -l | tr -d ' ')
@@ -902,7 +928,11 @@ sub_diff() {
 cp_unreviewed_bead_changes() {
   local db w c at ids n
   if ! db=$(bead_db_dir); then
-    emit unreviewed-bead-changes skip "no beads"
+    if beads_repo; then
+      emit unreviewed-bead-changes skip "beads DB not readable (no dolt CLI, or not embedded mode)"
+    else
+      emit unreviewed-bead-changes skip "no beads"
+    fi
     return
   fi
   w=$(bead_window)

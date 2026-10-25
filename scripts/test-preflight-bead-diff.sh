@@ -170,11 +170,11 @@ if have_beads && setup_beads; then
   check "update" "$(row unreviewed-bead-changes)" "finding/1 bead(s) changed since $h: $A"
   "$BIN" bd-mark review >/dev/null
   h=$(hshort .commit)
-  bd --sandbox dep add "$A" "$B" -q
-  check "dep" "$(row unreviewed-bead-changes)" "finding/1 bead(s) changed since $h: $A"
+  bd --sandbox dep add "$B" "$A" -q
+  check "dep" "$(row unreviewed-bead-changes)" "finding/1 bead(s) changed since $h: $B"
   "$BIN" diff >"$work/d.txt"
   check "diff heading" "$(grep -c "^## Beads (since your last review $h · " "$work/d.txt")" "1"
-  check "diff dep line" "$(grep -cxF "+dep: blocks $B" "$work/d.txt")" "1"
+  check "diff dep line" "$(grep -cxF "+dep: blocks $A" "$work/d.txt")" "1"
 else
   skip "row pass/finding"
 fi
@@ -208,7 +208,7 @@ echo "diff: other sessions warn"
 setup
 if have_beads && setup_beads; then
   "$BIN" bd-mark review >/dev/null
-  enc=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)" | sed 's/[\/.]/-/g')
+  enc=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)" | sed 's/[^A-Za-z0-9]/-/g')
   mkdir -p "$CLAUDE_CONFIG_DIR/projects/$enc"
   sleep 1
   touch "$CLAUDE_CONFIG_DIR/projects/$enc/s1.jsonl"
@@ -217,6 +217,72 @@ if have_beads && setup_beads; then
   check "warning" "$("$BIN" diff | grep -c '^⚠️ Other sessions also touched this repo since .* (1) — some bead changes may be theirs\.$')" "1"
 else
   skip "other sessions"
+fi
+teardown
+
+echo "row: beads but no readable DB → skip that says so, not no beads"
+setup
+mkdir -p .beads "$work/stubs"
+printf '#!/bin/sh\nexit 0\n' >"$work/stubs/bd" && chmod +x "$work/stubs/bd"
+for t in bash env jq git awk sed tr cut paste wc grep sort date dirname basename find mktemp touch cat head tail diff; do
+  p=$(command -v "$t") && ln -sf "$p" "$work/stubs/$t"
+done
+check "skip detail" "$(PATH="$work/stubs" row unreviewed-bead-changes)" "skip/beads DB not readable (no dolt CLI, or not embedded mode)"
+teardown
+
+# One modified issue, its from/to rows given as JSON objects.
+issue_diff() {
+  jq -n --argjson a "$1" --argjson b "$2" '{tables: [{name: "issues", data_diff: [{from_row: $a, to_row: $b}]}]}' >"$work/i.json"
+}
+
+echo "fences outlast the content's own"
+setup
+issue_diff '{"id":"t-x","title":"T","notes":"```\nmake test\n```"}' '{"id":"t-x","title":"T","notes":"```\nmake test\n```\nmore"}'
+if have_beads && setup_beads; then
+  "$BIN" bd-mark review >/dev/null
+  bd --sandbox update "$A" --notes $'```\nmake test\n```' -q
+  "$BIN" diff >"$work/d.txt"
+  check "bead fence is longer" "$(grep -cx '````diff' "$work/d.txt")" "1"
+else
+  skip "bead fence"
+fi
+teardown
+
+echo "code fence outlasts a diffed Markdown fence"
+setup
+printf '```\ncode\n```\n' >fenced.md && git_q add -A && git_q commit -q -m fenced
+"$BIN" diff --from HEAD >"$work/d.txt"
+check "code fence is longer" "$(grep -cx '````diff' "$work/d.txt")" "1"
+teardown
+
+echo "comments in full"
+setup
+jq -n '{tables: [{name: "comments", data_diff: [
+  {from_row: {}, to_row: {issue_id: "t-x", author: "k", text: "one\ntwo"}},
+  {from_row: {issue_id: "t-x", author: "k", text: "same\nold"}, to_row: {issue_id: "t-x", author: "k", text: "same\nnew"}},
+  {from_row: {}, to_row: {issue_id: "t-x", text: "solo"}}]}]}' >"$work/c.json"
+check "full comments" "$("$BIN" diff --dolt-json "$work/c.json" | tail -n +2)" "$(printf '%s\n' '+comment (k):' '+  one' '+  two' '-comment (k):' '-  same' '-  old' '+comment (k):' '+  same' '+  new' '+comment (?): solo')"
+teardown
+
+echo "other changed fields are named"
+setup
+issue_diff '{"id":"t-x","title":"T","external_ref":"","due_at":null,"updated_at":"1","content_hash":"a"}' '{"id":"t-x","title":"T","external_ref":"gh-1","due_at":"2026-11-01","updated_at":"2","content_hash":"b"}'
+check "other fields" "$("$BIN" diff --dolt-json "$work/i.json")" "$(printf '%s\n' '@@ t-x · T · modified @@' ' other fields changed: due_at, external_ref')"
+teardown
+
+echo "other sessions: worktree outside .claude, path with _"
+setup
+if have_beads && setup_beads; then
+  git_q add -A && git_q commit -q -m beads
+  git_q worktree add -q "$work/wt_x" -b wtx
+  "$BIN" bd-mark review >/dev/null
+  enc=$(cd "$work/wt_x" && pwd -P | sed 's/[^A-Za-z0-9]/-/g')
+  mkdir -p "$CLAUDE_CONFIG_DIR/projects/$enc"
+  sleep 1
+  touch "$CLAUDE_CONFIG_DIR/projects/$enc/s3.jsonl"
+  check "warning" "$("$BIN" diff | grep -c '^⚠️ Other sessions also touched this repo since .* (1)')" "1"
+else
+  skip "worktree sessions"
 fi
 teardown
 

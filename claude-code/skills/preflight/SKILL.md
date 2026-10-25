@@ -581,22 +581,25 @@ preflight-checks --no-fetch --format tsv
 - **Changed** — step 5 committed anything (fixes, arrivals, checklist edits),
   or `unreviewed-bead-changes` reads `finding` or `stale`: a bead changed that
   the user has not reviewed — by a Fix job, by the session's own work or by
-  hand; a bd edit commits nothing, but the user has not seen it either. The
-  rebase and step 1's commit of a dirty tree do not count: step 2 checked them.
-  Show the diff of the step 5 commits (above) and name the changed beads from
-  the row's detail in the reply, then say: "There were changes. Review them
-  yourself — skim the diff — and if they look like what you expect, rerun."
-  Then ask the rerun question (below). Those commits and items are not checked
-  yet; the next run checks them.
+  hand; a bd edit commits nothing, but the user has not seen it either — or a
+  Fix job edited a tracker item (`bd update`, `bd dep add`), which still counts
+  when the row reads `skip` because it can't read the beads DB. The rebase and
+  step 1's commit of a dirty tree do not count: step 2 checked them. Show the
+  diff of the step 5 commits (above) and name the changed beads from the row's
+  detail (else the items the Fix jobs edited) in the reply, then say: "There
+  were changes. Review them yourself — skim the diff — and if they look like
+  what you expect, rerun." Then ask the rerun question (below). Those commits
+  and items are not checked yet; the next run checks them.
 - **Open** — the `findings-leftovers` row reads `finding`: its detail lists the
   ids still open (left for later, or never decided). List what is still open,
   show the branch diff (above), then ask the rerun question (below) for when
   the user is ready to decide them.
 - **Clear** — `findings-leftovers` reads `pass`, `diff-review` reads `fresh` or
   `skip`, `unreviewed-bead-changes` reads `pass` or `skip`, and step 5
-  committed nothing. Run `preflight-checks bd-mark review` — a clear run counts
-  as the user's review of the beads — and say so. When preflight was run on its
-  own, stop here — it never ships.
+  committed nothing and edited no tracker item. Run
+  `preflight-checks bd-mark review` — a clear run counts as the user's review
+  of the beads — and say so. When preflight was run on its own, stop here — it
+  never ships.
 - **Anything else** — neither changed, open nor clear (e.g. `diff-review` is
   not fresh, no finding is open and nothing was committed): treat it as
   **changed**: say so and ask the rerun question (below).
