@@ -99,7 +99,8 @@ make setup     # point core.hooksPath at .beads/hooks/ (beads + Prettier gate)
 make autofix   # prettier --write .
 make check     # prettier --check .  (the formatting gate)
 make test      # scripts/test-*.sh — rebase hook recorder, project-code,
-               # preflight-checks, title hook,
+               # preflight-checks, bead diff + session mark hook,
+               # title hook,
                # each run under a sentinel GIT_DIR by scripts/test-git-env.sh
 make all       # autofix && check
 make bump PART=patch|minor|major   # bump claude-code/.claude-plugin/plugin.json
@@ -154,11 +155,15 @@ kix-agents ships a Claude Code marketplace + plugin — no application code:
   while the plugin is enabled (`project-code`, which `kix:title` calls bare;
   `preflight-checks`, which `kix:preflight` calls for its deterministic
   checkpoints — a table row per fact and per checkpoint, `--format tsv` for
-  scripts; it also keeps each check's per-session markers and findings).
+  scripts; it also keeps each check's per-session markers and findings, the
+  bead review marks (`bd-mark`), and prints `diff` — the commits and the
+  `dolt diff` of the beads DB since the last review, git-style).
 - `claude-code/hooks/hooks.json` — plugin hooks, active in every session with
   the plugin enabled: `title-first-prompt.sh` (SessionStart, asks for
-  `kix:title` after the first message) and `allow-remote-control-off.sh`
-  (PreToolUse, lets `kix:close` turn Remote Control off without a prompt).
+  `kix:title` after the first message), `bead-session-mark.sh` (SessionStart,
+  records the beads DB's start mark for `preflight-checks diff`) and
+  `allow-remote-control-off.sh` (PreToolUse, lets `kix:close` turn Remote
+  Control off without a prompt).
 - `claude-code/templates/*.md` — orphaned body templates from removed creation
   skills; not consumed by anything today
 - `docs/kix/<bd-id>/spec.md` — long-form specs for non-trivial epics tracked in
@@ -204,7 +209,8 @@ kix-agents ships a Claude Code marketplace + plugin — no application code:
   → `make check`), then `make test` **only when**
   `claude-code/skills/rebase/time-hook.sh`, `claude-code/bin/project-code`,
   `claude-code/bin/preflight-checks`,
-  `claude-code/hooks/title-first-prompt.sh`, a `scripts/test-*.sh` or the
+  `claude-code/hooks/title-first-prompt.sh`,
+  `claude-code/hooks/bead-session-mark.sh`, a `scripts/test-*.sh` or the
   `Makefile` is staged. The condition matters: the suite runs real rebases, and
   this hook runs once per commit during a rebase, so gating every commit on it
   would slow every rebase in this repo. CI runs `make test` unconditionally,

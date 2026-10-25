@@ -9,6 +9,14 @@ The format is based on
 
 ### Added
 
+- `kix:preflight`'s **changed** rerun question offers "Show me what changed":
+  `preflight-checks diff` prints this run's commits and every bead change since
+  the user's last review — fields, deps, labels and comments, git-style, read
+  from the beads DB's `dolt diff` — with a warning when other sessions of the
+  repo ran in that window. Any unreviewed bead change, not only a Fix job's,
+  now makes the verdict **changed** (the new `unreviewed-bead-changes` row). A
+  SessionStart hook records the session's start mark; `bd-mark review` moves it
+  on "I reviewed" and on a clear verdict.
 - Preflight checks `acceptance-criteria` (the branch's bead criteria against
   the diff) and `findings-leftovers` (open findings block shipping), and
   `preflight-checks start|mark|resolve|findings`: per-session check markers and
@@ -39,6 +47,9 @@ The format is based on
   without a prompt.
 
 ### Changed
+
+- `kix:preflight`'s compare link is a labeled Markdown link with a literal `^`
+  instead of a bare URL with `%5E`.
 
 - Every question in `kix:preflight`, `kix:ship`, `kix:close` and `kix:next-up`
   goes out as text, then a command, then the ❓ line, then the card
