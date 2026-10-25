@@ -220,6 +220,30 @@ else
 fi
 teardown
 
+HOOK="$ROOT/claude-code/hooks/bead-session-mark.sh"
+
+echo "hook writes the start mark"
+setup
+if have_beads && setup_beads; then
+  out=$(jq -nc --arg cwd "$work/repo" '{session_id: "s9", cwd: $cwd}' |
+    (cd / && CLAUDE_PLUGIN_ROOT="$ROOT/claude-code" bash "$HOOK"))
+  check "silent" "$out" ""
+  check "start line" "$(jq -rs 'map(select(.kind == "start")) | length' "$work/repo/.git/kix/checks/s9/bd.jsonl" 2>/dev/null)" "1"
+else
+  skip "hook start mark"
+fi
+teardown
+
+echo "hook is silent and exits 0 on bad input"
+setup
+out=$(echo 'not json' | CLAUDE_PLUGIN_ROOT="$ROOT/claude-code" bash "$HOOK" 2>&1)
+check "garbage: exit 0" "$?" "0"
+check "garbage: silent" "$out" ""
+out=$(jq -nc '{session_id: "s9", cwd: "/"}' | CLAUDE_PLUGIN_ROOT="$ROOT/claude-code" bash "$HOOK" 2>&1)
+check "outside git: exit 0" "$?" "0"
+check "outside git: silent" "$out" ""
+teardown
+
 if [ "$failures" -gt 0 ]; then
   echo "$failures failure(s)"
   exit 1
