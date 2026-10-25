@@ -75,12 +75,12 @@ as `kix:preflight`'s _Progress_ says: the preflight steps are 1–12, and steps
    `pass`. The stop message lists which of them failed. After the ⚠️ block, say
    in the reply what changed since the preflight (uncommitted changes /
    `<default>` moved / diff not reviewed / open findings) with the branch diff
-   from `<base>` as its link, then ask "Run `<command>` again?" with the same
-   three options as `kix:preflight`'s _Verdict_ **changed** rerun question
-   (reviewed · skip my review · not now); on "skip my review", the ⚠️ item
-   names the branch range `<base>..HEAD`. `<command>` as _Verdict_ defines it
-   (`/kix:close` when close called ship). Never rebase or review here to fix
-   it.
+   from `<base>` as its link, then ask "Run `<command>` again?" with
+   `kix:preflight`'s _Verdict_ **changed** rerun options except "Show me what
+   changed" — this stop applied nothing for the user to review (reviewed · skip
+   my review · not now); on "skip my review", the ⚠️ item names the branch
+   range `<base>..HEAD`. `<command>` as _Verdict_ defines it (`/kix:close` when
+   close called ship). Never rebase or review here to fix it.
 
 4. **Push the default branch and the branch.**
 
