@@ -140,6 +140,86 @@ echo '{"tables": [{"name": "events", "data_diff": [{"from_row": {}, "to_row": {"
 check "nothing" "$("$BIN" diff --dolt-json "$work/e.json")" ""
 teardown
 
+row() { "$BIN" --format tsv --no-fetch | awk -F'\t' -v n="$1" '$1 == n { print $2 "/" $3 }'; }
+hshort() { jq -r "$1" "$store/bd.jsonl" | tail -n1 | cut -c1-7; }
+
+echo "row: no beads → skip"
+setup
+check "skip" "$(row unreviewed-bead-changes)" "skip/no beads"
+"$BIN" diff >"$work/d.txt"
+check "diff exit 0" "$?" "0"
+check "no Beads section" "$(grep -c '^## Beads' "$work/d.txt")" "0"
+teardown
+
+echo "row: no mark → unknown"
+setup
+if have_beads && setup_beads; then
+  check "unknown" "$(row unreviewed-bead-changes)" "unknown/no bead mark"
+else
+  skip "no mark"
+fi
+teardown
+
+echo "row: pass after review, finding after a bd update or a dep"
+setup
+if have_beads && setup_beads; then
+  "$BIN" bd-mark review >/dev/null
+  h=$(hshort .commit)
+  check "pass" "$(row unreviewed-bead-changes)" "pass/no bead changes since $h"
+  bd --sandbox update "$A" --notes x -q
+  check "update" "$(row unreviewed-bead-changes)" "finding/1 bead(s) changed since $h: $A"
+  "$BIN" bd-mark review >/dev/null
+  h=$(hshort .commit)
+  bd --sandbox dep add "$A" "$B" -q
+  check "dep" "$(row unreviewed-bead-changes)" "finding/1 bead(s) changed since $h: $A"
+  "$BIN" diff >"$work/d.txt"
+  check "diff heading" "$(grep -c "^## Beads (since your last review $h · " "$work/d.txt")" "1"
+  check "diff dep line" "$(grep -cxF "+dep: blocks $B" "$work/d.txt")" "1"
+else
+  skip "row pass/finding"
+fi
+teardown
+
+echo "row: a mark dolt no longer knows → stale"
+setup
+if have_beads && setup_beads; then
+  mkdir -p "$store"
+  echo '{"kind":"review","commit":"00000000000000000000000000000000","at":"2000-01-01T00:00:00Z"}' >"$store/bd.jsonl"
+  check "stale" "$(row unreviewed-bead-changes | cut -d: -f1)" "stale/mark 0000000 not in beads history"
+else
+  skip "stale mark"
+fi
+teardown
+
+echo "diff: code part inline, then as a stat"
+setup
+seq 1 5 >small.txt && git_q add -A && git_q commit -q -m small
+first=$(git rev-parse HEAD)
+"$BIN" diff --from "$first" >"$work/d.txt"
+check "code heading" "$(grep -c "^## Code ($(echo "$first" | cut -c1-7)^..$(echo "$first" | cut -c1-7))$" "$work/d.txt")" "1"
+check "inline diff block" "$(grep -cx '```diff' "$work/d.txt")" "1"
+seq 1 200 >big.txt && git_q add -A && git_q commit -q -m big
+"$BIN" diff --from "$first" >"$work/d.txt"
+check "too long" "$(grep -c '^Too long to show inline (' "$work/d.txt")" "1"
+check "stat block" "$(grep -cx '```text' "$work/d.txt")" "1"
+teardown
+
+echo "diff: other sessions warn"
+setup
+if have_beads && setup_beads; then
+  "$BIN" bd-mark review >/dev/null
+  enc=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)" | sed 's/[\/.]/-/g')
+  mkdir -p "$CLAUDE_CONFIG_DIR/projects/$enc"
+  sleep 1
+  touch "$CLAUDE_CONFIG_DIR/projects/$enc/s1.jsonl"
+  check "own session: no warning" "$("$BIN" diff | grep -c '^⚠️ Other sessions')" "0"
+  touch "$CLAUDE_CONFIG_DIR/projects/$enc/s2.jsonl"
+  check "warning" "$("$BIN" diff | grep -c '^⚠️ Other sessions also touched this repo since .* (1) — some bead changes may be theirs\.$')" "1"
+else
+  skip "other sessions"
+fi
+teardown
+
 if [ "$failures" -gt 0 ]; then
   echo "$failures failure(s)"
   exit 1

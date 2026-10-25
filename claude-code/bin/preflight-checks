@@ -43,6 +43,11 @@ Checkpoints (status pass | finding | fresh | stale | unknown | never | skip):
                          there is nothing to check. open-checkboxes adds the
                          unchecked "- [ ]" lines as file:line.
   findings-leftovers     findings recorded with `mark` and still open
+  unreviewed-bead-changes
+                         beads changed since the latest bd-mark review, else
+                         the session's start mark: pass, finding with their
+                         ids, stale when dolt no longer knows the mark,
+                         unknown with no mark, skip without a beads DB
 
 Subcommands (the session store, kxa-102; JSON lines under
 <git common dir>/kix/checks/<session>/, append-only, read per branch):
@@ -56,6 +61,11 @@ Subcommands (the session store, kxa-102; JSON lines under
             record the beads DB's dolt commit in bd.jsonl (kxa-a9i): start
             once per session (the SessionStart hook), review each time the
             user has seen the bead changes; a no-op without a beads DB
+  diff [--from SHA]
+            what changed, for the user to review: with --from, the commits
+            SHA^..HEAD (inline up to 80 lines, else their stat); then every
+            bead change since the bd-mark window as a git-style diff, with a
+            warning when other sessions of the repo ran in that window
 
   --bead ID     with mark acceptance-criteria: the bead whose updates stale it
 
@@ -74,6 +84,7 @@ format=pretty
 session=${CLAUDE_CODE_SESSION_ID-}
 bead=""
 dolt_json=""
+diff_from=""
 sub=""
 pos=()
 case ${1-} in
@@ -106,6 +117,10 @@ while [ $# -gt 0 ]; do
     ;;
   --dolt-json)
     dolt_json=${2-}
+    shift
+    ;;
+  --from)
+    diff_from=${2-}
     shift
     ;;
   -h | --help) usage && exit 0 ;;
@@ -702,16 +717,57 @@ text_lines() { [ -z "$1" ] || printf '%s\n' "$1"; }
 # Field $2 of row JSON $1 as text, empty when unset.
 row_field() { printf '%s' "$1" | jq -r --arg f "$2" '.[$f] // "" | tostring'; }
 
+# The ids of the issues a `dolt diff -r json` on stdin touches, one per line,
+# sorted: issue rows and their deps, labels and comments.
+bead_changed_ids() {
+  jq -r '
+    [.tables[]? | .name as $t | select($t | IN("issues", "dependencies", "labels", "comments"))
+      | .data_diff[]? | (.from_row, .to_row) | select(. != null and . != {})
+      | if $t == "issues" then .id else .issue_id end] | unique | .[]'
+}
+
+# `dolt diff -r json` of DB $1 from commit $2 to the working set, which holds
+# bd writes not dolt-committed yet. Fails when dolt does not know the commit.
+bead_dolt_diff() {
+  local out
+  out=$(cd "$1" && dolt diff -r json "$2" 2>/dev/null) || return 1
+  # No changes print nothing at all.
+  if [ -z "$out" ]; then
+    echo '{"tables": []}'
+  else
+    printf '%s' "$out"
+  fi
+}
+
+# Ids of the other sessions whose transcript changed after ISO time $1: any
+# session of this repo's main checkout or of one of its worktrees, by Claude
+# Code's project-dir naming (every "/" and "." of the path becomes "-").
+other_sessions_since() {
+  local enc ref d f
+  enc=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)" | sed 's/[\/.]/-/g')
+  ref=$(mktemp)
+  touch -d "$1" "$ref" 2>/dev/null || {
+    rm -f "$ref"
+    return 0
+  }
+  for d in "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/projects/$enc" \
+    "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/projects/$enc--claude-worktrees-"*; do
+    [ -d "$d" ] || continue
+    find "$d" -maxdepth 1 -name '*.jsonl' -newer "$ref" 2>/dev/null
+  done | while read -r f; do
+    f=$(basename "$f" .jsonl)
+    [ "$f" = "${session:-}" ] || echo "$f"
+  done | sort -u
+  rm -f "$ref"
+}
+
 # `dolt diff -r json` of the beads DB on stdin, as one git-style block per
 # changed issue: its fields, then its deps, labels and comments. Every other
 # table (events, config, ...) is bookkeeping and left out.
 render_bead_diff() {
   local json ids id row kind from to title f old new first=1
   json=$(cat)
-  ids=$(printf '%s' "$json" | jq -r '
-    [.tables[]? | .name as $t | select($t | IN("issues", "dependencies", "labels", "comments"))
-      | .data_diff[]? | (.from_row, .to_row) | select(. != null and . != {})
-      | if $t == "issues" then .id else .issue_id end] | unique | .[]')
+  ids=$(printf '%s' "$json" | bead_changed_ids)
   for id in $ids; do
     row=$(printf '%s' "$json" | jq -c --arg id "$id" '
       first(.tables[]? | select(.name == "issues") | .data_diff[]?
@@ -774,12 +830,100 @@ render_bead_diff() {
   done
 }
 
+# The code part of `diff`: commits $1^..HEAD inline up to 80 lines, else
+# their stat.
+code_diff() {
+  local base d n
+  git rev-parse -q --verify "$1^{commit}" >/dev/null || die "--from: not a commit: '$1'"
+  # A root commit has no parent: diff from the empty tree.
+  base=$(git rev-parse -q --verify "$1^" 2>/dev/null) || base=$(git hash-object -t tree /dev/null)
+  echo "## Code ($(short_sha "$(git rev-parse "$1")")^..$(git rev-parse --short=7 HEAD))"
+  echo
+  d=$(git diff --no-ext-diff "$base" HEAD)
+  n=$(printf '%s\n' "$d" | wc -l | tr -d ' ')
+  if [ "$n" -le 80 ]; then
+    printf '```diff\n%s\n```\n' "$d"
+  else
+    printf '```text\n%s\n```\n\n' "$(git diff --stat "$base" HEAD)"
+    echo "Too long to show inline ($n lines)."
+  fi
+}
+
+# The bead part of `diff`: every bead change since the window's start, and a
+# warning when other sessions of this repo ran in the window. Nothing without
+# a beads DB.
+bead_diff() {
+  local db w c at since out others
+  db=$(bead_db_dir) || return 0
+  w=$(bead_window)
+  if [ -z "$w" ]; then
+    echo "## Beads"
+    echo
+    echo "No bead mark for this session — can't tell what changed."
+    return 0
+  fi
+  c=$(printf '%s' "$w" | jq -r .commit)
+  at=$(printf '%s' "$w" | jq -r .at)
+  case $(printf '%s' "$w" | jq -r .kind) in
+  review) since="your last review" ;;
+  *) since="session start" ;;
+  esac
+  echo "## Beads (since $since $(short_sha "$c") · $at)"
+  echo
+  if ! out=$(bead_dolt_diff "$db" "$c"); then
+    echo "Mark $(short_sha "$c") is not in beads history any more."
+  else
+    out=$(printf '%s' "$out" | render_bead_diff)
+    if [ -z "$out" ]; then
+      echo "No bead changes."
+    else
+      printf '```diff\n%s\n```\n' "$out"
+    fi
+  fi
+  others=$(other_sessions_since "$at" | wc -l | tr -d ' ')
+  [ "$others" -eq 0 ] || {
+    echo
+    echo "⚠️ Other sessions also touched this repo since $at ($others) — some bead changes may be theirs."
+  }
+}
+
 sub_diff() {
   if [ -n "$dolt_json" ]; then
     render_bead_diff <"$dolt_json"
     return
   fi
-  die "diff without --dolt-json is not built yet"
+  if [ -n "$diff_from" ]; then
+    code_diff "$diff_from"
+    echo
+  fi
+  bead_diff
+}
+
+cp_unreviewed_bead_changes() {
+  local db w c at ids n
+  if ! db=$(bead_db_dir); then
+    emit unreviewed-bead-changes skip "no beads"
+    return
+  fi
+  w=$(bead_window)
+  if [ -z "$w" ]; then
+    emit unreviewed-bead-changes unknown "no bead mark"
+    return
+  fi
+  c=$(printf '%s' "$w" | jq -r .commit)
+  at=$(printf '%s' "$w" | jq -r .at)
+  if ids=$(bead_dolt_diff "$db" "$c"); then
+    ids=$(printf '%s' "$ids" | bead_changed_ids | join)
+    if [ -z "$ids" ]; then
+      emit unreviewed-bead-changes pass "no bead changes since $(short_sha "$c")"
+    else
+      n=$(printf '%s\n' "$ids" | tr ',' '\n' | wc -l | tr -d ' ')
+      emit unreviewed-bead-changes finding "$n bead(s) changed since $(short_sha "$c"): $ids"
+    fi
+  else
+    ids=$(bd list --all --updated-after "$at" --json 2>/dev/null | jq -r '.[]?.id' 2>/dev/null | join)
+    emit unreviewed-bead-changes stale "mark $(short_sha "$c") not in beads history: ${ids:-none updated since $at}"
+  fi
 }
 
 # --- run -----------------------------------------------------------------
@@ -827,6 +971,7 @@ cp_related_tracker_items
 cp_unraised_follow_ups
 cp_post_landing_steps
 cp_findings_leftovers
+cp_unreviewed_bead_changes
 
 case $format in
 tsv) printf '%s' "$rows" ;;
