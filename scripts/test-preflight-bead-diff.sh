@@ -255,6 +255,22 @@ printf '```\ncode\n```\n' >fenced.md && git_q add -A && git_q commit -q -m fence
 check "code fence is longer" "$(grep -cx '````diff' "$work/d.txt")" "1"
 teardown
 
+echo "long text stored out of row still renders as text"
+setup
+if have_beads && setup_beads; then
+  long=$(seq -f 'long line %g of a description dolt keeps outside the row' 1 400)
+  "$BIN" bd-mark review >/dev/null
+  bd --sandbox update "$A" --description "$long" -q
+  C=$(bd --sandbox create --title C --type task --description "$long" --silent)
+  "$BIN" diff >"$work/d.txt"
+  check "no raw blob" "$(grep -c '"Buf"' "$work/d.txt")" "0"
+  check "modified text line" "$(grep -cxF '+  long line 400 of a description dolt keeps outside the row' "$work/d.txt")" "2"
+  check "created block" "$(grep -cxF "@@ $C · C · created @@" "$work/d.txt")" "1"
+else
+  skip "long text"
+fi
+teardown
+
 echo "comments in full"
 setup
 jq -n '{tables: [{name: "comments", data_diff: [

@@ -729,17 +729,26 @@ bead_changed_ids() {
       | if $t == "issues" then .id else .issue_id end] | unique | .[]'
 }
 
-# `dolt diff -r json` of DB $1 from commit $2 to the working set, which holds
-# bd writes not dolt-committed yet. Fails when dolt does not know the commit.
+# The changes in DB $1 from commit $2 to the working set (which holds bd
+# writes not dolt-committed yet), shaped like `dolt diff -r json`:
+# {tables: [{name, data_diff: [{from_row, to_row}]}]}. Read through SQL's
+# dolt_diff(), not `dolt diff -r json`: the CLI prints a long text column
+# stored out of row as a raw {"Buf", "Addr"} blob, SQL as its text. Fails when
+# dolt does not know the commit.
 bead_dolt_diff() {
-  local out
-  out=$(cd "$1" && dolt diff -r json "$2" 2>/dev/null) || return 1
-  # No changes print nothing at all.
-  if [ -z "$out" ]; then
-    echo '{"tables": []}'
-  else
-    printf '%s' "$out"
-  fi
+  local t out tables=""
+  for t in issues dependencies labels comments; do
+    out=$(cd "$1" && dolt sql -r json -q "select * from dolt_diff('$2', 'WORKING', '$t')" 2>/dev/null) || return 1
+    # No changed row prints nothing at all.
+    [ -n "$out" ] || out='{}'
+    tables+=$(printf '%s' "$out" | jq -c --arg t "$t" '
+      def side($p): with_entries(select(.key | startswith($p)) | .key |= ltrimstr($p))
+        | del(.commit, .commit_date);
+      {name: $t, data_diff: [.rows[]? | {
+        from_row: (if .diff_type == "added" then {} else side("from_") end),
+        to_row: (if .diff_type == "removed" then {} else side("to_") end)}]}')
+  done
+  printf '%s' "$tables" | jq -sc '{tables: .}'
 }
 
 # Ids of the other sessions whose transcript changed after ISO time $1: any
@@ -769,9 +778,9 @@ other_sessions_since() {
   rm -f "$ref"
 }
 
-# `dolt diff -r json` of the beads DB on stdin, as one git-style block per
-# changed issue: its fields, then its deps, labels and comments. Every other
-# table (events, config, ...) is bookkeeping and left out.
+# A `dolt diff -r json`-shaped diff of the beads DB on stdin, as one git-style
+# block per changed issue: its fields, then its deps, labels and comments.
+# Every other table (events, config, ...) is bookkeeping and left out.
 render_bead_diff() {
   local json ids id row kind from to title f old new first=1
   json=$(cat)
