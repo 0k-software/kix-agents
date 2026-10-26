@@ -48,8 +48,9 @@ The format is based on
 
 ### Changed
 
-- `kix:preflight`'s Decide no longer asks "Apply all suggested fixes" first: it
-  always walks the findings one by one, starting with finding 1's question.
+- `kix:preflight`'s Decide and `kix:next-up`'s Step 3 no longer ask "Apply all"
+  first: they always walk the findings (fixes) one by one, starting with the
+  first one's question.
 
 - `kix:preflight`'s compare link is a labeled Markdown link with a literal `^`
   instead of a bare URL with `%5E`.
