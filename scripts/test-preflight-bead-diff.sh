@@ -180,6 +180,25 @@ else
 fi
 teardown
 
+echo "row: one dolt call, labels and comments counted"
+setup
+if have_beads && setup_beads; then
+  "$BIN" bd-mark review >/dev/null
+  h=$(hshort .commit)
+  bd --sandbox label add "$A" foo -q
+  bd --sandbox comments add "$B" "hi" -q >/dev/null
+  mkdir -p "$work/wrap"
+  printf '#!/bin/sh\necho x >>"%s/dolt-calls"\nexec "%s" "$@"\n' "$work" "$(command -v dolt)" >"$work/wrap/dolt"
+  chmod +x "$work/wrap/dolt"
+  got=$(PATH="$work/wrap:$PATH" row unreviewed-bead-changes)
+  ids=$(printf '%s\n' "$A" "$B" | sort | paste -sd, - | sed 's/,/, /g')
+  check "label and comment" "$got" "finding/2 bead(s) changed since $h: $ids"
+  check "one dolt call" "$(wc -l <"$work/dolt-calls" | tr -d ' ')" "1"
+else
+  skip "row dolt calls"
+fi
+teardown
+
 echo "row: a mark dolt no longer knows → stale"
 setup
 if have_beads && setup_beads; then

@@ -751,6 +751,21 @@ bead_dolt_diff() {
   printf '%s' "$tables" | jq -sc '{tables: .}'
 }
 
+# The ids of the issues changed in DB $1 since commit $2, one per line,
+# sorted — what bead_dolt_diff | bead_changed_ids gives, in one dolt call
+# instead of four: the row runs on every preflight-checks call. Fails when
+# dolt does not know the commit.
+bead_changed_ids_since() {
+  local q="" t col out
+  for t in issues dependencies labels comments; do
+    col=issue_id
+    [ "$t" = issues ] && col=id
+    q+="${q:+ union }select coalesce(to_$col, from_$col) as id from dolt_diff('$2', 'WORKING', '$t')"
+  done
+  out=$(cd "$1" && dolt sql -r csv -q "$q" 2>/dev/null) || return 1
+  printf '%s\n' "$out" | tail -n +2 | sed '/^$/d' | sort -u
+}
+
 # Ids of the other sessions whose transcript changed after ISO time $1: any
 # session of this repo's main checkout or of one of its worktrees, wherever
 # they live, by Claude Code's project-dir naming (every character of the path
@@ -951,8 +966,8 @@ cp_unreviewed_bead_changes() {
   fi
   c=$(printf '%s' "$w" | jq -r .commit)
   at=$(printf '%s' "$w" | jq -r .at)
-  if ids=$(bead_dolt_diff "$db" "$c"); then
-    ids=$(printf '%s' "$ids" | bead_changed_ids | join)
+  if ids=$(bead_changed_ids_since "$db" "$c"); then
+    ids=$(printf '%s' "$ids" | join)
     if [ -z "$ids" ]; then
       emit unreviewed-bead-changes pass "no bead changes since $(short_sha "$c")"
     else
