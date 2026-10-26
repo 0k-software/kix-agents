@@ -320,10 +320,10 @@ Then take each markable row in the order of the _Progress_ table (2a–2g:
   `acceptance-criteria` also passes `--bead <id>` (its file says when not).
   Each finding carries the fields step 3 reports — `file` and `line` only when
   it points at one: `category` as the check file gives it, `summary` the
-  problem then the fix "apply all" will run, fenced so it stands out in one
-  line of plain text (line breaks get eaten): `… |—| SUGGESTED FIX: <fix> |—|`,
-  and `failure_scenario` what is lost or goes wrong if the branch lands now. No
-  new finding → `[]`. Print the check's ✅ line after `mark` (⏭️ when its check
+  problem then the fix step 5 will run, fenced so it stands out in one line of
+  plain text (line breaks get eaten): `… |—| SUGGESTED FIX: <fix> |—|`, and
+  `failure_scenario` what is lost or goes wrong if the branch lands now. No new
+  finding → `[]`. Print the check's ✅ line after `mark` (⏭️ when its check
   file says to skip), with its count of new findings (`conversation-leftovers`
   tallies by kind, as its file says).
 
@@ -380,71 +380,68 @@ Zero findings → go to step 6 (Verdict).
 
 ## 4. Decide
 
-First AskUserQuestion, a single question: "Apply all suggested fixes"
-(Recommended) · "Go one by one".
+Walk **every** finding from the report — every check's, `diff-review` and
+`post-landing-steps` alike, and those carried from earlier runs — one
+AskUserQuestion per finding, one question per call. There is no "apply all"
+question first: the first question is finding 1's. Ask **all** of them first,
+back to back: an answer only records the decision, nothing runs yet. No fix,
+commit, task or `bd update` happens between two questions — step 5 starts only
+after the last finding (and its discard reason) is answered, so the user
+answers in one sitting and walks away while the queue runs. Before each
+question, print the finding in the reply as a short block the user can read and
+scroll back to — the card collapses to the chosen label once answered — then
+run a command and print the ❓ line, as _Asking questions_ says. Print it as
+Markdown, not in a code block, with exactly this shape — a bold heading, then
+one labelled bullet per line, never a prose paragraph:
 
-- **Apply all:** queue every suggested fix (step 5). No more questions.
-- **One by one:** walk **every** finding from the report — every check's,
-  `diff-review` and `post-landing-steps` alike, and those carried from earlier
-  runs — one AskUserQuestion per finding, one question per call. Ask **all** of
-  them first, back to back: an answer only records the decision, nothing runs
-  yet. No fix, commit, task or `bd update` happens between two questions — step
-  5 starts only after the last finding (and its discard reason) is answered, so
-  the user answers in one sitting and walks away while the queue runs. Before
-  each question, print the finding in the reply as a short block the user can
-  read and scroll back to — the card collapses to the chosen label once
-  answered — then run a command and print the ❓ line, as _Asking questions_
-  says. Print it as Markdown, not in a code block, with exactly this shape — a
-  bold heading, then one labelled bullet per line, never a prose paragraph:
+```
+**Finding 6/9 — `<file>:<line>`**
+- **Problem:** <what goes wrong and when — one line>
+- **If left:** <the failure scenario — what breaks, for whom>
+- **Fix (recommended):** <the fix> — <why this one over the others>
+- **Alt — <other fix>:** <what it does, its trade-off>   (one per extra fix)
+- **Note:** <only what is specific to deferring, discarding or leaving this
+  finding, e.g. an existing task that already covers it — omit otherwise>
+```
 
-  ```
-  **Finding 6/9 — `<file>:<line>`**
-  - **Problem:** <what goes wrong and when — one line>
-  - **If left:** <the failure scenario — what breaks, for whom>
-  - **Fix (recommended):** <the fix> — <why this one over the others>
-  - **Alt — <other fix>:** <what it does, its trade-off>   (one per extra fix)
-  - **Note:** <only what is specific to deferring, discarding or leaving this
-    finding, e.g. an existing task that already covers it — omit otherwise>
-  ```
+**Problem**, **If left** and **Fix** are always there, even under caveman ultra
+— caveman shortens each bullet to fragments, it never drops a bullet or merges
+them into a paragraph.
 
-  **Problem**, **If left** and **Fix** are always there, even under caveman
-  ultra — caveman shortens each bullet to fragments, it never drops a bullet or
-  merges them into a paragraph.
+The question is one short line pointing at that block — "Finding 6/9 — take the
+recommended fix?" — never the finding itself. Options, in this order, each with
+its description:
 
-  The question is one short line pointing at that block — "Finding 6/9 — take
-  the recommended fix?" — never the finding itself. Options, in this order,
-  each with its description:
-  - the suggested fix (Recommended);
-  - each other real fix, when there is more than one — list them, keep your
-    pick first;
-  - the defer option, by repo type:
-    - _(Kingdone)_ "Create arrival" — "Creates an arrival in your inbox (Gates)
-      to do this another time; releases the ship after a re-run.";
-    - _(Beads)_ "Create task" — "Creates a bd task to do this another time;
-      releases the ship after a re-run.";
-    - _(Neither)_ no defer option;
+- the suggested fix (Recommended);
+- each other real fix, when there is more than one — list them, keep your pick
+  first;
+- the defer option, by repo type:
+  - _(Kingdone)_ "Create arrival" — "Creates an arrival in your inbox (Gates)
+    to do this another time; releases the ship after a re-run.";
+  - _(Beads)_ "Create task" — "Creates a bd task to do this another time;
+    releases the ship after a re-run.";
+  - _(Neither)_ no defer option;
 
-    An after-ship finding gets no defer option: its suggested fix already
-    leaves it for later, in the task itself;
+  An after-ship finding gets no defer option: its suggested fix already leaves
+  it for later, in the task itself;
 
-  - "Discard" — "ATTENTION: DISMISSES THE FINDING FOR GOOD AND RELEASES THE
-    SHIP. It does not matter; ship anyway. Asks for the reason.";
-  - "Leave for later" — "Not now, no decision yet. Keeps the finding open,
-    which blocks the ship until a later preflight resolves it."
+- "Discard" — "ATTENTION: DISMISSES THE FINDING FOR GOOD AND RELEASES THE SHIP.
+  It does not matter; ship anyway. Asks for the reason.";
+- "Leave for later" — "Not now, no decision yet. Keeps the finding open, which
+  blocks the ship until a later preflight resolves it."
 
-  AskUserQuestion takes at most four options: when the fixes, the defer option,
-  "Discard" and "Leave for later" do not fit, drop the least likely extra fix
-  and mention it in the block above. "Other" is always there; follow whatever
-  the user types.
+AskUserQuestion takes at most four options: when the fixes, the defer option,
+"Discard" and "Leave for later" do not fit, drop the least likely extra fix and
+mention it in the block above. "Other" is always there; follow whatever the
+user types.
 
-  When the user picks "Discard", ask right away, in its own AskUserQuestion,
-  why — the reason is required. The question is short ("Why discard finding
-  6/9?"); the finding is already in the block above. Offer 2–3 likely reasons
-  for this specific finding as options (e.g. "Not a real problem", "Intended
-  behavior", "Not worth the cost"); "Other" takes free text. Only a discard
-  with a reason counts: a skipped or empty answer leaves the finding undecided
-  — ask again, or treat it as "Leave for later". Under "Apply all" nothing is
-  discarded, so no reason is needed.
+When the user picks "Discard", ask right away, in its own AskUserQuestion, why
+— the reason is required. The question is short ("Why discard finding 6/9?");
+the finding is already in the block above. Offer 2–3 likely reasons for this
+specific finding as options (e.g. "Not a real problem", "Intended behavior",
+"Not worth the cost"); "Other" takes free text. Only a discard with a reason
+counts: a skipped or empty answer leaves the finding undecided — ask again, or
+treat it as "Leave for later".
 
 ## 5. Run the queue
 
@@ -653,6 +650,8 @@ even when that run ships. On "Not now", stop — nothing runs after the answer.
   the whole finding stuffed into the question text instead.
 - A finding block written as a paragraph, or missing its **Problem**, **If
   left** or **Fix** bullet.
+- Asking "Apply all" or any other batch question before the first finding —
+  Decide always walks the findings one by one.
 - One-by-one that skips the `diff-review` findings, or the ones carried from an
   earlier run.
 - One-by-one that applies each fix right after its answer (ask, fix, ask, fix)
