@@ -90,7 +90,7 @@ Each has a test in the task that owns it (marked _(Review Focus)_).
     prints `👀 beads reviewed up to <short> · <at>`.
   - Both: exit 0 and write nothing when `bead_db_dir` or `bead_head` is empty.
 
-- [ ] **Step 1: Write the failing tests** in
+- [x] **Step 1: Write the failing tests** in
       `scripts/test-preflight-bead-diff.sh`, header and helpers copied from
       `scripts/test-preflight-store.sh` (same `unset GIT_*`, `setup`,
       `teardown`, `check`). `setup_beads` runs
@@ -107,15 +107,15 @@ Each has a test in the task that owns it (marked _(Review Focus)_).
     run `bd-mark review` from `../wt` → line written under the main repo's
     `.git/kix/checks/s1/bd.jsonl`, commit equals the one seen from the main
     checkout.
-- [ ] **Step 2: Run** `bash scripts/test-preflight-bead-diff.sh` — expected
+- [x] **Step 2: Run** `bash scripts/test-preflight-bead-diff.sh` — expected
       FAIL (`unknown subcommand bd-mark` / usage on stderr).
-- [ ] **Step 3: Implement** the functions and subcommand above. Usage text gets
+- [x] **Step 3: Implement** the functions and subcommand above. Usage text gets
       `bd-mark start|review` under _Subcommands_ with one line each. Register
       the suite nowhere — `scripts/test-git-env.sh` picks `test-*.sh` up by
       name.
-- [ ] **Step 4: Run** the suite and `make test` — PASS (bd/dolt cases print
+- [x] **Step 4: Run** the suite and `make test` — PASS (bd/dolt cases print
       skip lines where missing).
-- [ ] **Step 5: Commit** —
+- [x] **Step 5: Commit** —
       `feat(kxa-a9i): record bead review marks in the     preflight store`.
 
 ### Task 2: Bead diff renderer
@@ -170,23 +170,23 @@ Each has a test in the task that owns it (marked _(Review Focus)_).
   can't). Every other table (`events`, `config`, `metadata`,
   `schema_migrations`, …) is ignored.
 
-- [ ] **Step 1: Capture the fixture** — build the scratch DB in a temp dir with
+- [x] **Step 1: Capture the fixture** — build the scratch DB in a temp dir with
       the six edits above, run `dolt diff -r json <first commit>` in its
       `.beads/embeddeddolt/<db>`, save as `dolt-diff.json`; hand-write
       `expected.txt` in the shape above.
-- [ ] **Step 2: Write the failing test** "renderer matches the fixture":
+- [x] **Step 2: Write the failing test** "renderer matches the fixture":
       `PREFLIGHT_CHECKS_RENDER=1 "$BIN" diff --dolt-json fixtures/…/dolt-diff.json`
       — hidden test hook: `diff --dolt-json FILE` renders FILE instead of
       running dolt — output equals `expected.txt`. Plus "no trailing newline"
       _(Review Focus)_: a modified `notes` going from `a\nb` to `a\nb\nc` (one
       side without final newline) renders exactly ` a`, ` b`, `+c` under
       `notes:`.
-- [ ] **Step 3: Run** — FAIL.
-- [ ] **Step 4: Implement** `render_bead_diff` (jq groups rows by issue id;
+- [x] **Step 3: Run** — FAIL.
+- [x] **Step 4: Implement** `render_bead_diff` (jq groups rows by issue id;
       text fields go through `diff -U2` on two temp files) and the
       `--dolt-json` flag.
-- [ ] **Step 5: Run** suite — PASS; `make check` — PASS.
-- [ ] **Step 6: Commit** —
+- [x] **Step 5: Run** suite — PASS; `make check` — PASS.
+- [x] **Step 6: Commit** —
       `feat(kxa-a9i): render bead changes as a git-style     diff`.
 
 ### Task 3: `diff` subcommand and the `unreviewed-bead-changes` row
@@ -223,7 +223,7 @@ Each has a test in the task that owns it (marked _(Review Focus)_).
     from `bd list --all --updated-after <at>`); `unknown · no bead mark`;
     `skip · no beads`.
 
-- [ ] **Step 1: Write the failing tests:**
+- [x] **Step 1: Write the failing tests:**
   - "row pass after review": `bd-mark review` → row `pass/…`.
   - "row counts a bd update": `bd-mark review`,
     `bd --sandbox update <id> --notes x` → row
@@ -241,11 +241,11 @@ Each has a test in the task that owns it (marked _(Review Focus)_).
     touched now → warning names 1 session; only `s1.jsonl` → no warning.
   - In `test-preflight-checks.sh`, add `unreviewed-bead-changes` to the
     expected row names.
-- [ ] **Step 2: Run** both suites — FAIL.
-- [ ] **Step 3: Implement** `sub_diff`, `other_sessions_since`,
+- [x] **Step 2: Run** both suites — FAIL.
+- [x] **Step 3: Implement** `sub_diff`, `other_sessions_since`,
       `cp_unreviewed_bead_changes`; usage text documents `diff` and the row.
-- [ ] **Step 4: Run** `make test` — PASS.
-- [ ] **Step 5: Commit** —
+- [x] **Step 4: Run** `make test` — PASS.
+- [x] **Step 5: Commit** —
       `feat(kxa-a9i): preflight-checks diff and the     unreviewed-bead-changes row`.
 
 ### Task 4: SessionStart hook writes the start mark
@@ -267,17 +267,17 @@ Each has a test in the task that owns it (marked _(Review Focus)_).
   `"${CLAUDE_PLUGIN_ROOT}/bin/preflight-checks" bd-mark start --session <id>`
   in `.cwd` with stdout/stderr to `/dev/null`, exits 0 always.
 
-- [ ] **Step 1: Write the failing tests:** "hook writes the start mark" (pipe
+- [x] **Step 1: Write the failing tests:** "hook writes the start mark" (pipe
       `{"session_id":"s9","cwd":"<repo>"}` with
       `CLAUDE_PLUGIN_ROOT=<repo root>/claude-code` → `bd.jsonl` under
       `kix/checks/s9/` has one `start` line); "hook is silent and exits 0" on
       garbage stdin and outside a git repo (stdout empty, `$?` 0).
-- [ ] **Step 2: Run** — FAIL.
-- [ ] **Step 3: Implement** the hook (header comment in the style of
+- [x] **Step 2: Run** — FAIL.
+- [x] **Step 3: Implement** the hook (header comment in the style of
       `title-first-prompt.sh`: what it is for, which bead) and the `hooks.json`
       and pre-commit entries.
-- [ ] **Step 4: Run** `make test` — PASS.
-- [ ] **Step 5: Commit** —
+- [x] **Step 4: Run** `make test` — PASS.
+- [x] **Step 5: Commit** —
       `feat(kxa-a9i): mark the beads DB at session     start`.
 
 ### Task 5: Preflight Verdict — the rule, the option, the marks
@@ -320,12 +320,12 @@ Text decisions (the implementer writes the prose, in the skill's voice):
   writing it on 'skip my review'" and "Summarizing the `diff` output instead of
   printing it".
 
-- [ ] **Step 1: Edit** the sections above.
-- [ ] **Step 2: Check**
+- [x] **Step 1: Edit** the sections above.
+- [x] **Step 2: Check**
       `grep -n "unreviewed-bead-changes\|bd-mark review\|Show     me what changed" claude-code/skills/preflight/SKILL.md`
       shows the table row, Changed, Clear, the option and both mistakes;
       `make check` PASS.
-- [ ] **Step 3: Commit** —
+- [x] **Step 3: Commit** —
       `feat(kxa-a9i): preflight offers to show what     changed, beads included`.
 
 ### Task 6: Docs
@@ -339,7 +339,7 @@ Text decisions (the implementer writes the prose, in the skill's voice):
   bead diffs + verdict rule; _Changed_: compare link is labeled with a literal
   `^`)
 
-- [ ] **Step 1: Edit** both files.
-- [ ] **Step 2: Run** `make check` — PASS.
-- [ ] **Step 3: Commit** —
+- [x] **Step 1: Edit** both files.
+- [x] **Step 2: Run** `make check` — PASS.
+- [x] **Step 3: Commit** —
       `docs(kxa-a9i): document bead diffs and the     session-start mark`.
