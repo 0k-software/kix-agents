@@ -98,6 +98,8 @@ The format is based on
 - The `refs/notes/checks` check marks (and the push and fetch of them) and the
   `notes-guard` row of `preflight-checks`: checks keep their markers in the git
   common dir instead.
+- The caveman plugin from the repo dev setup: `.claude/settings.json` no longer
+  enables `caveman@caveman` or registers the `caveman` marketplace.
 
 ## [0.4.1] — 2026-10-02
 
