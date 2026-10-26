@@ -26,11 +26,13 @@ Output:
 - Code: this run's step-5 commits, git diff <first>^..HEAD in a diff block when
   ~80 lines or fewer, else --stat; plus a labeled Markdown link with a literal
   ^.
-- Beads: every issue changed in the window from dolt diff -r json <mark> HEAD
-  (bd diff --json omits deps/labels/comments — tested): created as + lines,
-  deleted as - lines, modified as only the changed fields (long text diffed
-  line by line), deps/labels/comments as +/- lines under their issue. Always in
-  full.
+- Beads: every issue changed in the window, read through dolt sql as
+  dolt_diff(<mark>, WORKING, <table>) for issues, dependencies, labels and
+  comments (bd diff --json omits deps/labels/comments — tested; dolt diff -r
+  json prints long text stored out of row as raw {"Buf", "Addr"} blobs — found
+  on the real tracker 2026-10-26): created as + lines, deleted as - lines,
+  modified as only the changed fields (long text diffed line by line),
+  deps/labels/comments as +/- lines under their issue. Always in full.
 - ⚠️ "other sessions also touched beads since your last review" when another
   session's transcript (~/.claude/projects/<encoded repo path>_/_.jsonl, not
   this one) changed in the window. bd records no session id on writes; tagging
