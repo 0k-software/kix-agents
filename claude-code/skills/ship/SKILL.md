@@ -71,10 +71,11 @@ as `kix:preflight`'s _Progress_ says: the preflight steps are 1–12, and steps
    ```
 
    Stop unless `uncommitted-changes` is `pass`, `behind-default-branch` is
-   `pass`, `diff-review` is `fresh` or `skip`, and `findings-leftovers` is
-   `pass`. The stop message lists which of them failed. After the ⚠️ block, say
-   in the reply what changed since the preflight (uncommitted changes /
-   `<default>` moved / diff not reviewed / open findings) with the branch diff
+   `pass`, `diff-review` is `fresh` or `skip`, `findings-leftovers` is `pass`,
+   and `unreviewed-bead-changes` is `pass` or `skip`. The stop message lists
+   which of them failed. After the ⚠️ block, say in the reply what changed
+   since the preflight (uncommitted changes / `<default>` moved / diff not
+   reviewed / open findings / bead changes not reviewed) with the branch diff
    from `<base>` as its link, then ask "Run `<command>` again?" with
    `kix:preflight`'s _Verdict_ **changed** rerun options except "Show me what
    changed" — this stop applied nothing for the user to review (reviewed · skip
