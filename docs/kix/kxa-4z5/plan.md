@@ -58,28 +58,28 @@ harness notes.
 
 ## Tasks
 
-- [ ] **1. One pass per call.** Transcript parsed once (one jq pass to a TSV
+- [x] **1. One pass per call.** Transcript parsed once (one jq pass to a TSV
       index of uuids and prompts), markers read once, `git status` once, bd
       read once (one `bd list --updated-after <earliest>` filtered per marker,
       one `bd show` per bead). Existing suites pass unchanged except the
       AskUserQuestion case. Measure on this session's transcript.
-- [ ] **2. Scoped staleness.** Triggers above; `resolve … fixed <commit>`;
+- [x] **2. Scoped staleness.** Triggers above; `resolve … fixed <commit>`;
       tests: a fix commit stales only `diff-review`; a Markdown edit without
       boxes leaves `open-checkboxes` fresh; bd updates leave everything but
       `related-tracker-items` fresh; a question answer stales nothing.
-- [ ] **3. `mark --batch`.** stdin
+- [x] **3. `mark --batch`.** stdin
       `{"<check>": [findings], …, "resolve":     [["<id>", "fixed"|"discarded", "<reason>"]]}`,
       `--bead` applies to `acceptance-criteria` and `post-landing-steps`;
       validates everything before writing; prints the branch's open findings
       (JSON). Tests: ids, one marker per check, junk rejected with nothing
       written.
-- [ ] **4. The brief.** `start [--bead ID] [--no-fetch] [--format …]` writes
+- [x] **4. The brief.** `start [--bead ID] [--no-fetch] [--format …]` writes
       the run anchor, prints the 🛫 line, the rows, then one section per
       `stale`/`never`/`unknown` check: its instructions (the check file) and
       data — range and shortstat, bead criteria, candidate findings, bd
       updates, prompt excerpts since the marker, its open findings. Auto-marks
       as above. Tests on sections present/absent and the auto-marks.
-- [ ] **5. Skills.** preflight SKILL.md: step 1 + 2 through `start`, judgement
+- [x] **5. Skills.** preflight SKILL.md: step 1 + 2 through `start`, judgement
       with parallel calls, one `mark --batch`, Report from its output; no
       Progress section; Fix jobs as one edit batch + one test-and-commit call,
       one push after the queue; Verdict reruns without asking after approved
@@ -88,4 +88,6 @@ harness notes.
       CHANGELOG.
 - [ ] **6. Bench.** `scripts/bench-preflight` (SDK host with auto-answer,
       PreToolUse guard, fixture builder, old vs new in parallel, JSONL logs,
-      no-change rerun case). Record results on the bead.
+      no-change rerun case). Record results on the bead. Built as
+      `scripts/bench-preflight.py`, fixture verified; the paid run waits for
+      kelvin's go-ahead.
