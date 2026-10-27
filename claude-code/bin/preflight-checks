@@ -61,11 +61,13 @@ Subcommands (the session store, kxa-102; JSON lines under
             record the beads DB's dolt commit in bd.jsonl (kxa-a9i): start
             once per session (the SessionStart hook), review each time the
             user has seen the bead changes; a no-op without a beads DB
-  diff [--from SHA]
+  diff [--from SHA] [--html FILE]
             what changed, for the user to review: with --from, the commits
             SHA^..HEAD (inline up to 80 lines, else their stat); then every
             bead change since the bd-mark window as a git-style diff, with a
-            warning when other sessions of the repo ran in that window
+            warning when other sessions of the repo ran in that window.
+            --html also writes it all to FILE as a page, the commits in full
+            and the changed words of each changed line highlighted
 
   --bead ID     with mark acceptance-criteria: the bead whose updates stale it
 
@@ -85,6 +87,7 @@ session=${CLAUDE_CODE_SESSION_ID-}
 bead=""
 dolt_json=""
 diff_from=""
+diff_html=""
 sub=""
 pos=()
 case ${1-} in
@@ -121,6 +124,10 @@ while [ $# -gt 0 ]; do
     ;;
   --from)
     diff_from=${2-}
+    shift
+    ;;
+  --html)
+    diff_html=${2-}
     shift
     ;;
   -h | --help) usage && exit 0 ;;
@@ -879,8 +886,9 @@ fenced() {
   printf '%s%s\n%s\n%s\n' "$f" "$1" "$2" "$f"
 }
 
-# The code part of `diff`: commits $1^..HEAD inline up to 80 lines, else
-# their stat.
+# The code part of `diff`: commits $1^..HEAD inline up to $code_inline_max
+# lines (no limit when negative), else their stat.
+code_inline_max=80
 code_diff() {
   local base d n
   git rev-parse -q --verify "$1^{commit}" >/dev/null || die "--from: not a commit: '$1'"
@@ -890,13 +898,163 @@ code_diff() {
   echo
   d=$(git diff --no-ext-diff "$base" HEAD)
   n=$(printf '%s\n' "$d" | wc -l | tr -d ' ')
-  if [ "$n" -le 80 ]; then
+  if [ "$code_inline_max" -lt 0 ] || [ "$n" -le "$code_inline_max" ]; then
     fenced diff "$d"
   else
     fenced text "$(git diff --stat "$base" HEAD)"
     echo
     echo "Too long to show inline ($n lines)."
   fi
+}
+
+# Text $1 HTML-escaped, in $esc. A variable, not a subshell: it runs once per
+# diff line. patsub_replacement (bash 5.2) would read the & in the
+# replacements as the match.
+shopt -u patsub_replacement 2>/dev/null || true
+esc_amp='&amp;' esc_lt='&lt;' esc_gt='&gt;'
+html_esc() {
+  esc=${1//&/$esc_amp}
+  esc=${esc//</$esc_lt}
+  esc=${esc//>/$esc_gt}
+}
+
+# One page line of class $1 (c context, d deleted, a added, h hunk, m file
+# header) holding HTML $2.
+html_line() { printf '<div class="l %s">%s</div>\n' "$1" "$2"; }
+
+# The changed words of line pair $1 (old) and $2 (new), both without their
+# sign, as HTML in $wd_old and $wd_new: git's word diff, each changed run in a
+# <span class=w>. Nothing marked when the two share no word — a pairing that
+# only lines up a removal with an unrelated addition.
+word_pair() {
+  local out l common=0
+  printf '%s\n' "$1" >"$wd_a"
+  printf '%s\n' "$2" >"$wd_b"
+  out=$(git diff --no-index --no-ext-diff --no-color --word-diff=porcelain "$wd_a" "$wd_b" | sed '1,/^@@/d')
+  wd_old="" wd_new=""
+  while IFS= read -r l; do
+    html_esc "${l:1}"
+    case $l in
+    ' '*)
+      wd_old+=$esc wd_new+=$esc
+      [ -z "${l// /}" ] || common=1
+      ;;
+    -*) wd_old+="<span class=w>$esc</span>" ;;
+    +*) wd_new+="<span class=w>$esc</span>" ;;
+    esac
+  done <<<"$out"
+  [ -n "$out" ] && [ "$common" = 1 ] && return
+  html_esc "$1" && wd_old=$esc
+  html_esc "$2" && wd_new=$esc
+}
+
+# The run of deleted lines then added lines held in dels/adds, the i-th
+# deletion paired with the i-th addition for word marks, as page lines.
+flush_run() {
+  local i n=${#dels[@]} m=${#adds[@]} olds=() news=()
+  for ((i = 0; i < n && i < m; i++)); do
+    word_pair "${dels[i]:1}" "${adds[i]:1}"
+    olds[i]=$wd_old
+    news[i]=$wd_new
+  done
+  for ((i = 0; i < n; i++)); do
+    if [ "$i" -lt "$m" ]; then
+      html_line d "-${olds[i]}"
+    else
+      html_esc "${dels[i]}" && html_line d "$esc"
+    fi
+  done
+  for ((i = 0; i < m; i++)); do
+    if [ "$i" -lt "$n" ]; then
+      html_line a "+${news[i]}"
+    else
+      html_esc "${adds[i]}" && html_line a "$esc"
+    fi
+  done
+  dels=() adds=()
+}
+
+# One line of a diff block. A git file header runs from "diff --git" to the
+# first hunk, so a deleted "-- x" line is never read as a "--- a/x" header.
+diff_line() {
+  if [ "$in_hdr" = 1 ] && [ "${1:0:2}" != @@ ]; then
+    html_esc "$1" && html_line m "$esc"
+    return
+  fi
+  case $1 in
+  'diff --git '*)
+    flush_run
+    in_hdr=1
+    html_esc "$1" && html_line m "$esc"
+    ;;
+  @@*)
+    flush_run
+    in_hdr=0
+    html_esc "$1" && html_line h "$esc"
+    ;;
+  -*)
+    [ ${#adds[@]} -eq 0 ] || flush_run
+    dels+=("$1")
+    ;;
+  +*) adds+=("$1") ;;
+  *)
+    flush_run
+    html_esc "$1" && html_line c "$esc"
+    ;;
+  esac
+}
+
+# The Markdown `diff` prints, on stdin, as one self-contained HTML page:
+# "## " headings, fenced diff blocks with their changed words marked, other
+# fenced blocks as plain lines, any other line as a paragraph.
+diff_html() {
+  local line fence="" lang="" bt='`' in_hdr=0 dels=() adds=() wd_a wd_b wd_old wd_new esc
+  wd_a=$(mktemp)
+  wd_b=$(mktemp)
+  cat <<'HTML'
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight diff</title>
+<style>
+:root{--fg:#1f2328;--bg:#fff;--mute:#59636e;--line:#d1d9e0;--hunk:#ddf4ff;--del:#ffebe9;--add:#dafbe1;--delw:#ffb0a8;--addw:#8ee6a0}
+@media(prefers-color-scheme:dark){:root{--fg:#e6edf3;--bg:#0d1117;--mute:#9198a1;--line:#3d444d;--hunk:#121d2f;--del:#3c1618;--add:#12261e;--delw:#7d2a2a;--addw:#1f6f3a}}
+body{margin:16px;background:var(--bg);color:var(--fg);font:14px/1.5 -apple-system,system-ui,sans-serif}
+h2{font-size:15px;margin:20px 0 8px}
+.b{font:12px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;border:1px solid var(--line);border-radius:6px;overflow:hidden;margin:0 0 12px}
+.l{white-space:pre-wrap;overflow-wrap:anywhere;padding:0 10px;min-height:1.6em}
+.h{background:var(--hunk);color:var(--mute)}.m{color:var(--mute);font-weight:600}
+.d{background:var(--del)}.a{background:var(--add)}
+.d .w{background:var(--delw);border-radius:3px}.a .w{background:var(--addw);border-radius:3px}
+</style></head><body>
+HTML
+  while IFS= read -r line; do
+    if [ -n "$fence" ]; then
+      if [ "$line" = "$fence" ]; then
+        flush_run
+        echo '</div>'
+        fence=""
+      elif [ "$lang" = diff ]; then
+        diff_line "$line"
+      else
+        html_esc "$line" && html_line c "$esc"
+      fi
+      continue
+    fi
+    case $line in
+    "$bt$bt$bt"*)
+      fence=${line%%[!$bt]*}
+      lang=${line#"$fence"}
+      in_hdr=0
+      echo '<div class=b>'
+      ;;
+    '## '*) html_esc "${line#\#\# }" && echo "<h2>$esc</h2>" ;;
+    '') ;;
+    *) html_esc "$line" && echo "<p>$esc</p>" ;;
+    esac
+  done
+  [ -z "$fence" ] || { flush_run && echo '</div>'; }
+  echo '</body></html>'
+  rm -f "$wd_a" "$wd_b"
 }
 
 # The bead part of `diff`: every bead change since the window's start, and a
@@ -938,15 +1096,23 @@ bead_diff() {
 }
 
 sub_diff() {
+  local code full="" beads
   if [ -n "$dolt_json" ]; then
-    render_bead_diff <"$dolt_json"
+    beads=$(render_bead_diff <"$dolt_json")
+    [ -z "$beads" ] || printf '%s\n' "$beads"
+    [ -z "$diff_html" ] || fenced diff "$beads" | diff_html >"$diff_html"
     return
   fi
   if [ -n "$diff_from" ]; then
-    code_diff "$diff_from"
-    echo
+    code=$(code_diff "$diff_from") || exit 1
+    printf '%s\n\n' "$code"
   fi
-  bead_diff
+  beads=$(bead_diff)
+  [ -z "$beads" ] || printf '%s\n' "$beads"
+  [ -n "$diff_html" ] || return 0
+  # The page has room for every line: the commits never fall back to a stat.
+  [ -z "$diff_from" ] || full=$(code_inline_max=-1 code_diff "$diff_from")
+  printf '%s\n\n%s\n' "$full" "$beads" | diff_html >"$diff_html"
 }
 
 cp_unreviewed_bead_changes() {

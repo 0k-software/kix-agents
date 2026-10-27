@@ -345,6 +345,42 @@ check "outside git: exit 0" "$?" "0"
 check "outside git: silent" "$out" ""
 teardown
 
+echo "diff --html: bead diff with changed words marked"
+setup
+"$BIN" diff --dolt-json "$FX/dolt-diff.json" --html "$work/d.html" >"$work/d.txt"
+check "text unchanged" "$(cat "$work/d.txt")" "$(cat "$FX/expected.txt")"
+check "a whole page" "$(head -n1 "$work/d.html")" "<!doctype html>"
+check "hunk header" "$(grep -c '<div class="l h">@@ t-qlg · Modified one · modified @@</div>' "$work/d.html")" "1"
+check "old word" "$(grep -c '<div class="l d">-status: <span class=w>open</span></div>' "$work/d.html")" "1"
+check "new word" "$(grep -c '<div class="l a">+status: <span class=w>in_progress</span></div>' "$work/d.html")" "1"
+check "text field words" "$(grep -c '<div class="l a">+  line <span class=w>2 changed</span></div>' "$work/d.html")" "1"
+check "unpaired add, whole line" "$(grep -c '<div class="l a">+  line four</div>' "$work/d.html")" "1"
+check "context" "$(grep -c '<div class="l c">   line one</div>' "$work/d.html")" "1"
+teardown
+
+echo "diff --html: escapes HTML"
+setup
+notes_diff 'a <b>&' 'a <i>&'
+"$BIN" diff --dolt-json "$work/n.json" --html "$work/d.html" >/dev/null
+check "escaped" "$(grep -c '<div class="l d">-  a <span class=w>&lt;b&gt;&amp;</span></div>' "$work/d.html")" "1"
+check "no raw tag" "$(grep -c '<b>' "$work/d.html")" "0"
+teardown
+
+echo "diff --html: code in full, words marked"
+setup
+echo "hello world" >w.txt && git_q add -A && git_q commit -q -m w
+echo "hello there" >w.txt && git_q add -A && git_q commit -q -m there
+first=$(git rev-parse HEAD)
+seq 1 200 >big.txt && git_q add -A && git_q commit -q -m big
+"$BIN" diff --from "$first" --html "$work/d.html" >"$work/d.txt"
+check "code words" "$(grep -c '<div class="l a">+hello <span class=w>there</span></div>' "$work/d.html")" "1"
+check "text still a stat" "$(grep -c '^Too long to show inline (' "$work/d.txt")" "1"
+check "html not cut" "$(grep -c 'Too long' "$work/d.html")" "0"
+check "all lines" "$(grep -c '<div class="l a">+200</div>' "$work/d.html")" "1"
+check "file header is meta" "$(grep -c '<div class="l m">+++ b/big.txt</div>' "$work/d.html")" "1"
+check "section heading" "$(grep -c '<h2>Code (' "$work/d.html")" "1"
+teardown
+
 if [ "$failures" -gt 0 ]; then
   echo "$failures failure(s)"
   exit 1

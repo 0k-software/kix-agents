@@ -109,11 +109,13 @@ per branch. Only `preflight-checks` writes it — never edit its files:
   `👀 beads reviewed up to <short> · <time>` line; a SessionStart hook writes
   the session's start mark the same way. `unreviewed-bead-changes` and `diff`
   count from the latest review mark, else the start mark;
-- `preflight-checks diff [--from <sha>]` — what changed, for the user to
-  review: with `--from`, the commits `<sha>^..HEAD` (inline, or a stat when
-  long), then every bead change in that window as a git-style diff — fields,
-  deps, labels, comments — with a ⚠️ line when other sessions of the repo ran
-  in it.
+- `preflight-checks diff [--from <sha>] [--html <file>]` — what changed, for
+  the user to review: with `--from`, the commits `<sha>^..HEAD` (inline, or a
+  stat when long), then every bead change in that window as a git-style diff —
+  fields, deps, labels, comments — with a ⚠️ line when other sessions of the
+  repo ran in it. `--html` also writes it all to `<file>` as a page: the
+  commits in full, and the changed words inside each changed line highlighted,
+  like GitHub's diff.
 
 A marker records only that the check ran, and what it saw (HEAD, the tree, the
 latest conversation, bd state). It is not an approval; the approval is the
@@ -625,9 +627,15 @@ depends on the verdict:
   - "Not now" — "Stop. The ⚠️ block stays."
 
   On "Show me what changed", run
-  `preflight-checks diff --from <first step 5 commit>` (no `--from` when step 5
-  committed nothing) and print its output in the reply as it is — never a
-  summary of it. Then ask the same question again, without this option.
+  `preflight-checks diff --from <first step 5 commit> --html <file>` (no
+  `--from` when step 5 committed nothing), with `<file>` a new
+  `preflight-diff-<time>.html` in your scratchpad directory (else
+  `${TMPDIR:-/tmp}`). Print its output in the reply as it is — never a summary
+  of it — and end the reply with a link to the page, `[Open the diff](<file>)`
+  (the absolute path). Then send the page with SendUserFile (`display: render`,
+  when the tool exists): the app may shrink the reply before a question card to
+  one line, and the page still reaches the user. Never retype the page's HTML.
+  Then ask the same question again, without this option.
 
 - **Open** — nothing new was committed; the reply lists what is still open. The
   question: "Rerun `<command>` to decide them?" Options: "Run `<command>`
@@ -706,6 +714,8 @@ even when that run ships. On "Not now", stop — nothing runs after the answer.
   running it on "Run again, skip my review".
 - Summarizing the `preflight-checks diff` output instead of printing it, or
   dropping its ⚠️ line about other sessions.
+- Showing what changed without `--html`, or without sending the page and its
+  link — or retyping its HTML into a widget instead.
 - A **changed** rerun reply that doesn't say new, unseen commits landed, or
   that offers only "I reviewed" — a user who skips the review on purpose must
   have an honest option — or dropping the "without your review" ⚠️ item after

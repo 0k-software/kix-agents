@@ -17,6 +17,11 @@ The format is based on
   now makes the verdict **changed** (the new `unreviewed-bead-changes` row). A
   SessionStart hook records the session's start mark; `bd-mark review` moves it
   on "I reviewed" and on a clear verdict.
+- "Show me what changed" also writes the diff as an HTML page
+  (`preflight-checks diff --html <file>`): the commits in full, and the changed
+  words inside each changed line highlighted, like GitHub's diff. Preflight
+  sends the page and links it, so it reaches the user even when the app shrinks
+  the reply before the question card.
 - Preflight checks `acceptance-criteria` (the branch's bead criteria against
   the diff) and `findings-leftovers` (open findings block shipping), and
   `preflight-checks start|mark|resolve|findings`: per-session check markers and
