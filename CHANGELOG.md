@@ -9,6 +9,15 @@ The format is based on
 
 ### Added
 
+- `kix:preflight` is faster (kxa-4z5): `preflight-checks start` prints a brief
+  — the rows, then each stale check's instructions and the data it needs
+  (range, bead criteria, checkbox candidates, bd updates, prompts since its
+  marker, its open findings) — and `mark --batch` marks every check in one
+  call. Each check stales only on its own inputs: a Fix commit
+  (`resolve <id> fixed <commit>`) reruns just `diff-review`. The script reads
+  the transcript, the store and bd once per call (~3 s → ~0.8 s on a 9 MB
+  transcript). No more progress lines in preflight, ship and close; a rerun
+  after approved fixes goes without asking.
 - `kix:preflight`'s **changed** rerun question offers "Show me what changed":
   `preflight-checks diff` prints this run's commits and every bead change since
   the user's last review — fields, deps, labels and comments, git-style, read

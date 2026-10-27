@@ -1,28 +1,15 @@
 # conversation-leftovers
 
-**Reads.** The session's conversation.
+**Reads.** The session's conversation; the data lists the prompts since the
+marker.
 
-**Delta.** The conversation since the `conversation since <ts>` in the row's
-detail: the turns, automated events and AskUserQuestion answers after that
-time. When the row's status is `unknown` (no transcript to read), find the line
-`🛫 preflight check started here · <run>` in your context and review everything
-below it; no such line (the context was compacted) → review the whole session
-and say so.
+**Delta.** The conversation since the marker: the prompts listed, and what
+happened after them.
 
-**Findings.** Category `conversation`: the leftovers listed below.
-
-**Moot findings.** Read `preflight-checks findings conversation-leftovers`
-before you start. When the delta settled one of them — fixed by hand, or the
-user said "never mind" — resolve it: `preflight-checks resolve <id> fixed`, or
-`preflight-checks resolve <id> discarded "obsolete: <why>"`. No other outcome.
-Leave the rest open. `mark` takes only the new findings.
-
-Preflight's own process questions (Decide, Verdict, rerun) are not leftovers;
-only what the answers say is. Questions about findings are
-`findings-leftovers`' job, so nothing is reported twice.
-
-Read the session — the whole of it on a first run or an `unknown` row with no
-🛫 line, else only the delta — and list:
+**Findings.** Category `conversation`. Preflight's own process questions
+(Decide, Verdict, rerun) are not leftovers — only what the answers say is.
+Questions about findings are `findings-leftovers`' job, so nothing is reported
+twice. List:
 
 - things the user asked for that were not done, or were done only in part;
 - questions you asked that the user never answered — an AskUserQuestion the
@@ -37,8 +24,3 @@ Read the session — the whole of it on a first run or an `unknown` row with no
 
 If the conversation was summarized earlier, say so: findings before the summary
 are only as good as the summary.
-
-This check's progress line tallies each of the six kinds, e.g.
-`✅ 4/16 Conversation leftovers — asks 0 · unanswered 0/0 · deferred 0 · promised 0 · inferred 1`;
-`unanswered x/y` is questions the user left unanswered / questions you left
-unanswered.

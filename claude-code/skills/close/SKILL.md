@@ -19,7 +19,7 @@ replies, AskUserQuestion questions and option labels, and every commit you
 write.
 
 **Questions.** Every AskUserQuestion follows `kix:preflight`'s _Asking
-questions_ order: the text, then a command, then the ❓ line, then the card.
+questions_ order: the text, then a command, then the card. No progress lines.
 
 ## Repo type
 
@@ -40,12 +40,6 @@ git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null \
 
 Below, `<base>` is that ref (e.g. `origin/main`) and `<default>` is the branch
 name without `origin/`.
-
-## Progress
-
-Print a progress line when each step ends, and a ❓ line before each question,
-as `kix:preflight`'s _Progress_ says: `kix:ship` (with its preflight) prints
-1–16, then step 2a is 17/18 and 2b is 18/18.
 
 ## 1. Ship
 
@@ -95,11 +89,11 @@ Also look for what is still open under the task:
   `Gates/`.
 
 When there is any, do not offer to mark the task done: print
-`⚠️ 17/18 Mark task done — <task> has <n> item(s) left`, list each — when it
-applies (as the task says it) and what to do, or the blocking issue's id — and
-stop there: skip 2b, do not offer to archive. End on that ⚠️ block, and say to
-run `/kix:close` again once the items are done — the rerun ships nothing new
-and goes straight to marking the task done and archiving.
+`⚠️ <task> has <n> item(s) left`, list each — when it applies (as the task says
+it) and what to do, or the blocking issue's id — and stop there: skip 2b, do
+not offer to archive. End on that ⚠️ block, and say to run `/kix:close` again
+once the items are done — the rerun ships nothing new and goes straight to
+marking the task done and archiving.
 
 Otherwise run the `kix:title` skill with `📦` — the task's work landed and is
 being delivered — then ask with AskUserQuestion, naming each task: "Mark <task>

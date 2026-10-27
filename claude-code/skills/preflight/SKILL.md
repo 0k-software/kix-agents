@@ -21,6 +21,11 @@ text, AskUserQuestion questions and option labels, and the content of every
 note, task or commit body you write (labels included — a Portuguese arrival
 says `Sessão do Claude:`).
 
+**Speed.** Every tool call costs a model turn. Send independent calls together
+in one message — the diff and the files around its hunks, caller greps, test
+runs, lookups during a check, a Fix job's edits to several files. Print no
+progress lines: no step numbers, no per-step ✅, ⏭️, ❓ or ⏳ lines.
+
 ## Repo type
 
 Detect it once, before step 1, from the repository root
@@ -37,89 +42,60 @@ Everything marked _(Kingdone)_ or _(Beads)_ below applies only to that type. In
 a Kingdone repo the vault's own conventions (its `CLAUDE.md`) apply to every
 job: renames through the Obsidian CLI, and so on.
 
-## Deterministic checkpoints
+## preflight-checks
 
 `preflight-checks` (on PATH from the kix plugin's `bin/`; else
-`claude-code/bin/preflight-checks` in a kix-agents checkout) runs every check
-that needs no judgement in one call. Preflight calls it with `--format tsv`:
-one bare tab-separated `<name> <status> <detail>` line each, no table padding
-to spend tokens on (the default, `pretty`, is a table for a person at a
-terminal). Read its lines instead of running the git commands yourself:
+`claude-code/bin/preflight-checks` in a kix-agents checkout) does everything
+that needs no judgement, and keeps each check's markers and findings in a
+per-session store that only it writes — never edit its files. `--help` lists
+every row and subcommand. What preflight uses:
 
-| Line                      | Status                                  | What it says                                                               |
-| ------------------------- | --------------------------------------- | -------------------------------------------------------------------------- |
-| `default`                 | fact                                    | `<base>`, e.g. `origin/main` (`-`: no default branch found)                |
-| `from`                    | fact                                    | the HEAD `diff-review`'s marker saw, when an ancestor of HEAD; `-`         |
-| `shortstat`               | fact                                    | diff from `<from>` (else the merge base with `<base>`) to HEAD             |
-| `markdown`                | fact                                    | Markdown files the branch or the dirty tree touches                        |
-| `fetch`                   | fact                                    | `fetched`, `fresh` (cached), `failed` or `skipped`                         |
-| `uncommitted-changes`     | pass · finding                          | uncommitted changes                                                        |
-| `unlanded-commits`        | pass · finding · skip                   | commits not on `<base>`                                                    |
-| `behind-default-branch`   | pass · finding · skip                   | `<base>` is not an ancestor of HEAD                                        |
-| `open-checkboxes`         | fresh · stale · never · unknown · skip  | marker status; the detail ends with ` — <file:line list>`                  |
-| `diff-review`             | fresh · stale · never · unknown · skip  | marker status of the code review                                           |
-| `acceptance-criteria`     | fresh · stale · never · unknown · skip  | marker status; stale too when the branch's bead was updated                |
-| `conversation-leftovers`  | fresh · stale · never · unknown · skip  | marker status; stale on new conversation                                   |
-| `related-tracker-items`   | fresh · stale · never · unknown · skip  | marker status; _(Beads)_ stale too on any bd update                        |
-| `unraised-follow-ups`     | fresh · stale · never · unknown · skip  | marker status                                                              |
-| `post-landing-steps`      | fresh · stale · never · unknown · skip  | marker status                                                              |
-| `findings-leftovers`      | pass · finding                          | open findings on this branch: `none open`, or their ids                    |
-| `unreviewed-bead-changes` | pass · finding · stale · unknown · skip | beads changed since the user's last review (else session start): their ids |
+- `preflight-checks start --format tsv [--bead <id>]` — **the brief.** Opens a
+  run (its `🛫 preflight check started here · <time>` line), prints the rows
+  below, then one `## <check> · <status> · <detail>` section per check that
+  needs running: the check's instructions and a **Data:** list — the range and
+  files, the bead's acceptance, design or notes, candidate findings, bd
+  updates, the prompts since the check's marker, and its open findings. `<id>`
+  is the branch's bead (an id in the branch name, the issue claimed or worked
+  on in this session, or one the conversation names); without it, an id in the
+  branch name is used. No bead: drop `--bead` here and in `mark --batch`.
+- `preflight-checks mark --batch [--bead <id>] <<'JSON' … JSON` — records that
+  the checks ran, all at once:
+  `{"<check>": [<new findings>], …, "resolve": [["<id>", "fixed"], ["<id>", "discarded", "obsolete: <why>"]]}`.
+  It checks everything before writing anything, then prints every open finding
+  of the branch as one JSON array.
+- `preflight-checks resolve <id> fixed [<commit>] | deferred <ref> | discarded <reason…>`
+  — closes a finding. Pass a Fix job's commit (`HEAD` right after it): its
+  commit then stales only `diff-review`.
+- `preflight-checks findings` — the branch's open findings, as JSON.
+- `preflight-checks --no-fetch --format tsv` — the rows alone.
+- `preflight-checks bd-mark review` and `preflight-checks diff [--from <sha>]`
+  — _Verdict_.
 
-A markable row (the seven between `behind-default-branch` and
-`findings-leftovers`) reads its check's marker (_Markers_ below):
+The rows, one `<name> <status> <detail>` line each:
 
-- `fresh` — nothing the check reads changed since its marker; the detail is
-  `no changes since <at>`;
-- `stale` — the detail names the delta, comma-joined:
-  `new commits since <short>`, `rebased since <short>`, `dirty tree`,
-  `<n> bd update(s) since <t>`, `<id> updated`, `conversation since <ts>`
-  (`conversation unknown since <run>` when there is no transcript to read);
-- `never` — no marker (`no marker`): the check never ran on this branch in this
-  session;
-- `unknown` — the marker can't tell, there is no transcript to read
-  (`since <run>`);
-- `skip` — no marker and nothing to look at; the detail says why (`no changes`,
-  `no unchecked items`, `no tracker`).
+| Row                                                              | Status                                  | Says                                                      |
+| ---------------------------------------------------------------- | --------------------------------------- | --------------------------------------------------------- |
+| `default`, `from`, `shortstat`, `markdown`, `fetch`              | fact                                    | `<base>` (e.g. `origin/main`), diff-review's last head, … |
+| `uncommitted-changes`                                            | pass · finding                          | uncommitted changes                                       |
+| `unlanded-commits`                                               | pass · finding · skip                   | commits not on `<base>`                                   |
+| `behind-default-branch`                                          | pass · finding · skip                   | `<base>` is not an ancestor of HEAD                       |
+| the seven checks, from `open-checkboxes` to `post-landing-steps` | fresh · stale · never · unknown · skip  | the check's marker against what the check reads           |
+| `findings-leftovers`                                             | pass · finding                          | open findings on this branch: their ids                   |
+| `unreviewed-bead-changes`                                        | pass · finding · stale · unknown · skip | beads changed since the user's last review: their ids     |
 
-It runs twice: at step 1 with `KIX_FETCH_TTL=0` (always fetches), and at the
-start of step 2 with `--no-fetch`, after step 1 may have committed or rebased.
+A check is `fresh` when nothing it reads changed since its marker, `stale` with
+what changed, `never` without a marker, `unknown` when its marker can't tell
+(no transcript to read), `skip` when there is nothing to look at. Each check
+watches only its own inputs — a Fix commit stales only `diff-review`, a bd
+update only `related-tracker-items`, a new prompt only the conversation checks.
 
-**Default branch.** Never assume `main`: `<base>` is the `default` line (e.g.
+**Default branch.** Never assume `main`: `<base>` is the `default` row (e.g.
 `origin/main`) and `<default>` is the branch name without `origin/`.
 
-## Markers
-
-Each check's runs and findings live in a per-session store under the git common
-dir (`kix/checks/<session>/`), shared by every worktree of the repo and read
-per branch. Only `preflight-checks` writes it — never edit its files:
-
-- `preflight-checks start` — opens a run and prints its
-  `🛫 preflight check started here · <time>` line;
-- `preflight-checks mark <check> [--bead <id>]` — records that `<check>` ran;
-  stdin is a JSON array of its **new** findings (`[]` for none); prints their
-  ids (`<check>-<n>`);
-- `preflight-checks resolve <id> fixed | deferred <ref> | discarded <reason…>`
-  — closes a finding;
-- `preflight-checks findings [<check>]` — the open findings on this branch, as
-  one JSON array (`id`, `check`, `category`, `file`, `line`, `summary`,
-  `short_summary`, `failure_scenario`, `ref`; the optional ones only when set);
-- `preflight-checks bd-mark review` — records that the user has seen every bead
-  change up to now (the beads DB's dolt commit) and prints a
-  `👀 beads reviewed up to <short> · <time>` line; a SessionStart hook writes
-  the session's start mark the same way. `unreviewed-bead-changes` and `diff`
-  count from the latest review mark, else the start mark;
-- `preflight-checks diff [--from <sha>]` — what changed, for the user to
-  review: with `--from`, the commits `<sha>^..HEAD` (inline, or a stat when
-  long), then every bead change in that window as a git-style diff — fields,
-  deps, labels, comments — with a ⚠️ line when other sessions of the repo ran
-  in it.
-
-A marker records only that the check ran, and what it saw (HEAD, the tree, the
-latest conversation, bd state). It is not an approval; the approval is the
+A marker records only that the check ran and what it saw; the approval is the
 user's "Ship" answer in `kix:ship`. A finding stays open until something
-resolves it — `mark` takes only new ones, so nothing needs passing back to
-carry it to the next run.
+resolves it, so nothing needs passing back to carry it to the next run.
 
 ## Asking questions
 
@@ -130,8 +106,7 @@ Every AskUserQuestion, in this skill and in every kix skill that points here
    explained, the compare link — in the reply;
 2. a real command of its own (a `grep`, a `bd show`, a `git` call that the
    question is about);
-3. the ❓ line;
-4. the AskUserQuestion call.
+3. the AskUserQuestion call.
 
 The app summarizes the reply text that comes right before a question card, and
 on mobile the user then gets a one-line summary instead of the block. A tool
@@ -139,233 +114,115 @@ call between the text and the card keeps the text whole (checked on mobile,
 2026-10-24). Links never go inside the question: a link in a card cannot be
 opened on mobile.
 
-## Progress
-
-The user wants to see where a run is while it runs. When each step ends, print
-one progress line (none when it starts; the only other lines are the 🛫 line
-from `preflight-checks start`, the ❓ line before a question and the ⏳ line
-when a Fixes job starts, below), numbered across the whole run the user started
-(the `<command>` of _Verdict_), not per skill. Each check of step 2 is a step
-of its own:
-
-| Step                                        | `/kix:preflight` | `/kix:ship` | `/kix:close` |
-| ------------------------------------------- | ---------------- | ----------- | ------------ |
-| Rebase (1)                                  | 1/12             | 1/16        | 1/18         |
-| Diff review (2a)                            | 2/12             | 2/16        | 2/18         |
-| Acceptance criteria (2b)                    | 3/12             | 3/16        | 3/18         |
-| Conversation leftovers (2c)                 | 4/12             | 4/16        | 4/18         |
-| Open checkboxes (2d)                        | 5/12             | 5/16        | 5/18         |
-| Related tracker items (2e)                  | 6/12             | 6/16        | 6/18         |
-| Unraised follow-ups (2f)                    | 7/12             | 7/16        | 7/18         |
-| Post-landing steps (2g)                     | 8/12             | 8/16        | 8/18         |
-| Report (3)                                  | 9/12             | 9/16        | 9/18         |
-| Decide (4)                                  | 10/12            | 10/16       | 10/18        |
-| Fixes (5)                                   | 11/12            | 11/16       | 11/18        |
-| Verdict (6)                                 | 12/12            | 12/16       | 12/18        |
-| Confirm, Gate, Push, Check (`kix:ship` 2–5) | —                | 13–16       | 13–16        |
-| Mark task done, Archive (`kix:close` 2a–2b) | —                | —           | 17–18        |
-
-Each line starts with an emoji for the step's state, then `<n>/<total>` and the
-step name:
-
-| Emoji | When                                                                | Example                                                |
-| ----- | ------------------------------------------------------------------- | ------------------------------------------------------ |
-| ✅    | the step finished and worked — with its result                      | `✅ 4/16 Conversation leftovers — 0 findings`          |
-| ⏭️    | the step does not apply                                             | `⏭️ 10/16 Decide — no findings`                        |
-| ⚠️    | the user must act on something, now or later — say what             | `⚠️ 12/16 Verdict — changed: …`                        |
-| ❓    | right before each question to the user — with a short summary of it | `❓ 10/16 Decide — finding 2/6: tally vs split`        |
-| ⏳    | a Fixes job starts                                                  | `⏳ 11.1/16 Fixes — job 1/2: ❓ before every question` |
-
-Fixes (progress step 11 in every run) numbers each job as a sub-step: `11.1`,
-`11.2`, … Print its ⏳ line when the job starts and its ✅ or ⚠️ line, with the
-commit or task id, when the job is done:
-`✅ 11.1/16 Fixes — job 1/2: ❓ before every question (bb5098b)`. The step's
-own ✅ line follows the last job.
-
-Before **every** AskUserQuestion — in any step of preflight, `kix:ship` or
-`kix:close`, each one-by-one finding question and each discard-reason question
-included — print a ❓ line right before calling the tool:
-`❓ <n>/<total> <Step> — <very short summary of what is about to be asked>`
-(e.g. `❓ 10/16 Decide — finding 2/6: tally vs split`,
-`❓ 13/16 Confirm — ship these 3 commits?`,
-`❓ 18/18 Archive — archive this session?`). The step still ends with its ✅ or
-⚠️ line; Decide's ✅ line counts each kind of decision (e.g.
-`✅ 10/16 Decide — 2 fixes queued, 1 skipped`).
-
-A run that finishes ends with its last step's own line, saying what that step
-actually did — `✅ 16/16 Check — 14 commits landed on main (1435da0..a21b626)`,
-not a bare `done`.
-
-⚠️ means "don't lose this": anything the user has to do after the run, even
-when it blocks nothing and needs no answer now (a question needing an answer
-now is ❓). Use it for a run that stopped before its last step, and for any
-step result that leaves the user something to do later — a deferred task to
-pick up, a branch or worktree to clean, a skill to reinstall, another session
-that must ship first. Put it on the step line where it shows up
-(`⚠️ 6/16 Related tracker items — dot-a7j done by this branch, close it after the ship`).
-Every run that leaves anything pending ends with a ⚠️ block listing each item
-and what to do, after the last step's line:
+**Pending items.** A run that leaves the user anything to do — a deferred task
+to pick up, an item to close after the ship, a range that went through without
+their review, a run that stopped early — ends with a ⚠️ block listing each item
+and what to do:
 
 ```
-⚠️ Stopped at 12/16 Verdict — to do next:
+⚠️ To do next:
 - skim bb5098b..44b795d, then run /kix:ship again
 - close dot-a7j after the ship
 ```
 
-Every step gets its own line, printed as that step ends — even when several
-steps end with nothing to say. Never fold them into one summary ("steps 1–6
-clear"):
-
-```
-✅ 1/16 Rebase — already on main
-✅ 2/16 Diff review — 0 findings
-⏭️ 3/16 Acceptance criteria — no changes since 2026-10-22T12:01:07Z
-✅ 4/16 Conversation leftovers — asks 0 · unanswered 0/0 · deferred 0 · promised 0 · inferred 0
-```
-
-Each step runs at least one real command of its own (a grep, a `bd` search, a
-`git` call — whatever the step actually needs), and its progress line goes out
-right after that command, as its own message. Never put several steps' lines in
-one text block: the app shrinks such a block into one summary line.
-
 ## 1. Rebase onto the default branch
 
 Before any review, bring the branch up to date, so everything is reviewed on
-top of the current `<default>`. Start with one call — it fetches origin and
-reads everything below:
+top of the current `<default>`. One call fetches origin and prints the brief:
 
 ```bash
-KIX_FETCH_TTL=0 preflight-checks --format tsv
+KIX_FETCH_TTL=0 preflight-checks start --format tsv --bead <id>
 ```
 
-On an `uncommitted-changes` finding, commit first (project commit procedure) —
-a rebase needs a clean tree. A `fetch` of `failed` means origin was
-unreachable: say so, and go on against the `<base>` this clone already has.
+A `fetch` of `failed` means origin was unreachable: say so, and go on against
+the `<base>` this clone already has. When `uncommitted-changes` reads `pass`
+and `behind-default-branch` reads `pass` (`already on <base>`), nothing moves:
+the brief is current — go to step 2.
 
-**Skip when already on `<default>`.** The rebase is a step of its own, apart
-from the commit above: a `behind-default-branch` row of `pass`
-(`already on <base>`: `<base>` is an ancestor of HEAD) means nothing would
-move. Skip the rebase and the force-push, and end the step with
-`✅ 1/<total> Rebase — already on <default>`. The commit of a dirty tree does
-not change that answer — it only adds on top of HEAD. Only a `finding` row runs
-what follows.
-
-Otherwise rebase onto `<base>` with the `kix:rebase` skill when it is available
-— it re-runs the pre-commit hook on every commit; slow, but worth the wait.
-Invoke it with a leading `?` (`kix:rebase ? <base>`) to force its interactive
-mode whatever the user's configured default: the abort-on-conflict step below
-needs the rebase to stop on a conflict, not auto-resolve it. An older
-`kix:rebase` (its _Invocation modes_ list no `?` marker) would read the `?` as
-part of the branch name: invoke it with just `<default>` then — interactive is
-its only default. Without it, `git rebase <base>`. Then
-`git push --force-with-lease origin HEAD` (on `<default>` itself there is no
-branch push).
+Otherwise, on an `uncommitted-changes` finding, commit first (project commit
+procedure) — a rebase needs a clean tree. On a `behind-default-branch` finding,
+rebase onto `<base>` with the `kix:rebase` skill when it is available — it
+re-runs the pre-commit hook on every commit; slow, but worth the wait. Invoke
+it with a leading `?` (`kix:rebase ? <base>`) to force its interactive mode
+whatever the user's configured default: the abort-on-conflict step below needs
+the rebase to stop on a conflict, not auto-resolve it. An older `kix:rebase`
+(its _Invocation modes_ list no `?` marker) would read the `?` as part of the
+branch name: invoke it with just `<default>` then. Without it,
+`git rebase <base>`. Then `git push --force-with-lease origin HEAD` (on
+`<default>` itself there is no branch push). Never rebase when
+`behind-default-branch` reads `pass` — the commit of a dirty tree only adds on
+top of HEAD.
 
 If the rebase stops on a conflict, abort it (`git rebase --abort`) and stop
 everything: "Before anything else, this branch needs a rebase onto `<default>`,
 and it conflicts. Nothing lands until the branch sits on `<default>`."
 Resolving the conflict is the user's call.
 
-## 2. Collect findings
-
-Run the seven checks in the main session, before asking anything. No check goes
-to an agent: an agent starts without the conversation, and most checks read it
-— the code review too, to tell a bug from intended behavior — so an agent
-either misses it or pays for a copy of it. A measured run found nothing an
-agent caught that the inline run missed, at about three times the tokens.
-
-Open the step with two calls — step 1 may have committed or moved the branch
-since its own run:
+After a commit or a rebase, print a new brief — the first one saw the old HEAD:
 
 ```bash
-preflight-checks start
-preflight-checks --no-fetch --format tsv
+preflight-checks start --no-fetch --format tsv --bead <id>
 ```
 
-`start` prints `🛫 preflight check started here · <time>`: print that line as
-the step's first output, as it is. It is what a check with an `unknown` row
-looks for in your context later: the 🛫 line whose time matches the row's
-`since <run>` — an earlier run's line, not the one this run just printed.
+## 2. Run the checks
 
-Then take each markable row in the order of the _Progress_ table (2a–2g:
-`diff-review`, `acceptance-criteria`, `conversation-leftovers`,
-`open-checkboxes`, `related-tracker-items`, `unraised-follow-ups`,
-`post-landing-steps`), by its status:
+The brief's sections are the work: one per check that is `stale`, `never` or
+`unknown`. A check with no section is `fresh` or `skip`, or the brief marked it
+itself (`marked by start: …`): don't run it, its open findings stay in the
+store. Run the sections in the main session, before asking anything. No check
+goes to an agent: most read the conversation — the code review too, to tell a
+bug from intended behavior — and an agent either misses it or pays for a copy.
 
-- **`fresh`** — nothing it reads changed since its marker: don't run it. Its
-  open findings are still in the store, and step 3 reads them from there; run
-  `preflight-checks findings <name>` as the step's own command and print
-  `⏭️ <n>/<total> <Check> — no changes since <at>` (the row's detail), adding
-  how many open findings it carries, if any.
-- **`skip`** — nothing to look at: print `⏭️ <n>/<total> <Check> — <detail>`
-  (e.g. `no unchecked items`), right after the status call. No marker.
-- **`stale`, `never` or `unknown`** — read the check's file,
-  `${CLAUDE_PLUGIN_ROOT}/skills/preflight/checks/<name>.md` (in a kix-agents
-  checkout, `claude-code/skills/preflight/checks/<name>.md`), and run it over
-  the row's delta: `stale` reviews only what the detail names, `never` the
-  whole branch and session, `unknown` everything since the 🛫 line whose time
-  matches the row's `since <run>` — an earlier run's line, not the one this run
-  just printed (the file says how); a `stale` row whose detail includes
-  `conversation unknown since <run>` reviews its conversation part the same
-  way. First resolve its moot open findings, as the file's _Moot findings_
-  says. Then mark it right away, before the next check, with its new findings
-  on stdin:
+For each section, follow its instructions over its **Data:**, and only over the
+delta its header names: `stale` reviews what changed since its marker, `never`
+the whole branch and session, `unknown` everything since the 🛫 line whose time
+its data names — an earlier run's line, not this run's (no such line, the
+context was compacted: the whole session, and say so). Gather what the data
+doesn't give in parallel calls.
 
-  ```bash
-  preflight-checks mark <name> <<'JSON'
-  [{"category": "…", "file": "…", "line": 12, "summary": "…", "short_summary": "…", "failure_scenario": "…"}]
-  JSON
-  ```
+**Moot findings.** A section's data lists the check's open findings
+(`- open: <id> — …`). When the delta settled one — fixed by hand, or the user
+said "never mind" — resolve it in the batch: `["<id>", "fixed"]`, or
+`["<id>", "discarded", "obsolete: <why>"]`. No other outcome; leave the rest
+open, and never put an old finding in the batch again.
 
-  `acceptance-criteria` also passes `--bead <id>` (its file says when not).
-  Each finding carries the fields step 3 reports — `file` and `line` only when
-  it points at one: `category` as the check file gives it, `summary` the
-  problem then the fix "apply all" will run, fenced so it stands out in one
-  line of plain text (line breaks get eaten): `… |—| SUGGESTED FIX: <fix> |—|`,
-  and `failure_scenario` what is lost or goes wrong if the branch lands now. No
-  new finding → `[]`. Print the check's ✅ line after `mark` (⏭️ when its check
-  file says to skip), with its count of new findings (`conversation-leftovers`
-  tallies by kind, as its file says).
+Then mark every section's check in **one** call — a check with nothing new gets
+`[]`, and a check with no section never goes in:
 
-Marking each check right after it runs means everything later in the run — the
-Decide answers, a Fixes commit, the rerun answer — stales the checks that read
-it. That is intended: the next run reviews just that delta.
+```bash
+preflight-checks mark --batch --bead <id> <<'JSON'
+{"diff-review": [{"category": "…", "file": "…", "line": 12, "summary": "… |—| SUGGESTED FIX: <fix> |—|", "short_summary": "…", "failure_scenario": "…"}],
+ "open-checkboxes": [],
+ "resolve": [["conversation-leftovers-2", "fixed"]]}
+JSON
+```
 
-Never write a marker or a finding yourself, and never pass an old finding to
-`mark` again: it stays open on its own until something resolves it.
+Each finding: `category` as the check gives it; `file` and `line` only when it
+points at one; `summary` the problem, then the fix step 5 will run, fenced so
+it stands out in one line of plain text (`… |—| SUGGESTED FIX: <fix> |—|`);
+`failure_scenario` what is lost or goes wrong if the branch lands now.
+`open-checkboxes`' data gives its candidates ready to paste: keep the real
+ones, fill in their fix and failure, drop the rest.
 
 ## 3. Report
 
-The list is every open finding on this branch, from the store:
+The list is the JSON `mark --batch` printed: every open finding on this branch,
+new and carried. When the brief had no section (nothing to mark), read it with
+`preflight-checks findings`. Make **one** ReportFindings call with all of them,
+`diff-review` first. It replaces any call the code-review skill made. Per
+finding, straight from its JSON:
 
-```bash
-preflight-checks findings
-```
+- `file` / `line`: where it lives. ReportFindings requires `file`, so a finding
+  stored without one gets the branch's spec or plan, else the touched file
+  closest to the item;
+- `category`: as stored;
+- `summary`: as stored, then the id at the very end:
+  `… |—| [id: diff-review-1]` (ReportFindings has no id field; step 5 names it
+  in `resolve`);
+- `failure_scenario`: as stored.
 
-That is the new findings step 2 just marked plus every one still open from
-earlier runs — a `fresh` check's carried findings included, and those left for
-later. Make **one** ReportFindings call with all of them, `diff-review` first.
-It replaces any call the code-review skill made. Per finding, straight from its
-JSON:
-
-- `file` / `line`: where it lives — the code, the file with the checklist, or
-  the file the conversation item is about. ReportFindings requires `file`, so a
-  finding stored without one still gets one here: the branch's spec or plan,
-  else the touched file closest to the item. `line` only when it points at one;
-- `category`: as the check file gives it — for `diff-review`, the category the
-  code review gave; `acceptance`, `conversation`, `checklist`, `tracker`;
-  `related`, `idea`, `next-step` or `pitfall` for `unraised-follow-ups`;
-  `after-ship` for `post-landing-steps`;
-- `summary`: the problem, then the fix, fenced
-  (`… |—| SUGGESTED FIX: <fix> |—|`, as step 2 wrote it), then the finding's id
-  as metadata at the very end: `… |—| [id: diff-review-1]`. ReportFindings has
-  no id field and rejects unknown ones, so the id rides in the summary; step 5
-  names it in `resolve`;
-- `failure_scenario`: what is lost or goes wrong if the branch lands now.
-
-Then print the same list in chat, complete: the ReportFindings card renders
-poorly on mobile (Remote Control), so the chat list must stand on its own —
-nothing only the card shows. Per finding:
+Then print the same list in chat, complete — the card renders poorly on mobile,
+so the chat list must stand on its own:
 
 ```
 N/T. `<file>:<line>` — <problem> [id: <id>]
@@ -373,8 +230,8 @@ N/T. `<file>:<line>` — <problem> [id: <id>]
    If left: <failure scenario>
 ```
 
-Wherever a finding is named — the chat list, a question, a ❓ line, a job's ⏳
-or ✅ line — give its number out of the total: `finding 6/9`, `6/9.`.
+Wherever a finding is named — the chat list, a question, a job — give its
+number out of the total: `finding 6/9`, `6/9.`.
 
 Zero findings → go to step 6 (Verdict).
 
@@ -393,9 +250,9 @@ First AskUserQuestion, a single question: "Apply all suggested fixes"
   the user answers in one sitting and walks away while the queue runs. Before
   each question, print the finding in the reply as a short block the user can
   read and scroll back to — the card collapses to the chosen label once
-  answered — then run a command and print the ❓ line, as _Asking questions_
-  says. Print it as Markdown, not in a code block, with exactly this shape — a
-  bold heading, then one labelled bullet per line, never a prose paragraph:
+  answered — then run a command, as _Asking questions_ says. Print it as
+  Markdown, not in a code block, with exactly this shape — a bold heading, then
+  one labelled bullet per line, never a prose paragraph:
 
   ```
   **Finding 6/9 — `<file>:<line>`**
@@ -449,21 +306,25 @@ First AskUserQuestion, a single question: "Apply all suggested fixes"
 ## 5. Run the queue
 
 Every decision that changes files or the tracker becomes one job. Jobs run
-**one at a time**, in order, in the main session: finish one (its commit and
-push) before starting the next. Never run two at once — each commits, and a
-pre-commit hook may reject a commit while other changes sit unstaged. No job
-goes to an agent: the jobs run in sequence anyway, so an agent saves no time,
-and it would start without the conversation that explains the fix.
+**one at a time**, in order, in the main session: finish one (its commit)
+before starting the next — each commits, and a pre-commit hook may reject a
+commit while other changes sit unstaged. No job goes to an agent: it would
+start without the conversation that explains the fix.
 
-Each job follows these rules, and ends by closing its finding in the store with
-`preflight-checks resolve <id> …` — the outcome each rule below names:
+A job is two steps: its edits, all in one message (several files at once), then
+**one** Bash call that commits and closes the finding — the pre-commit hook
+runs the project's checks (a repo without one: put its check command first,
+e.g. `make check &&`). Each job ends by closing its finding with the outcome
+its rule names:
 
-- **Fix:** apply it and make one atomic commit for it (project commit procedure
-  — `kix:commit` when available), then push the branch. A fix to a bd issue is
-  a `bd update` (and `bd dep add` for a link), then `bd dolt push` when the
-  repo has a Dolt remote — no commit; the job's ✅ line names the issue id
-  instead of a commit. Then `resolve <id> fixed`, only once its commit (or bd
-  edit) is in.
+- **Fix:** one atomic commit, message in the project's style:
+
+  ```bash
+  git add <files> && git commit -m "<message>" && preflight-checks resolve <id> fixed HEAD
+  ```
+
+  A fix to a bd issue is a `bd update` (and `bd dep add` for a link) — no
+  commit: `bd update … && preflight-checks resolve <id> fixed`.
 
 - _(Kingdone)_ **Create arrival:** one note in `Gates/`:
 
@@ -483,7 +344,7 @@ Each job follows these rules, and ends by closing its finding in the store with
   `[-]` with `→ arrival created: [[Gates/<title>|<title>]]` at its end;
   anything else (a paragraph, a heading, a decision) gets a line saying it left
   a pending item in that arrival, with the link. Commit the arrival and the
-  source edit together (`docs(gates): add arrival for …`) and push. Then
+  source edit together (`docs(gates): add arrival for …`), then
   `resolve <id> deferred "Gates/<title>"`.
 
 - _(Beads)_ **Create task:** find the current work first — the issue the branch
@@ -492,21 +353,19 @@ Each job follows these rules, and ends by closing its finding in the store with
   task unrelated and say so. Then:
 
   ```bash
-  bd create --type=task --priority=2 \
+  t=$(bd create --type=task --priority=2 --silent \
     --title="<Imperative verb and what to do>" \
     --description="Claude session: [<session title>](<session link>)
   Source: <file>:<line>
 
   <Two or three lines of context: what was left and why.>" \
-    <relation>
+    <relation>) && preflight-checks resolve <id> deferred "$t" && echo "$t"
   ```
 
   `<relation>` is `--parent=<id>` when the current work is an epic, otherwise
   `--deps=discovered-from:<id>`; leave it out when there is none. When the
   finding is a checklist item, mark it `[-]` with `→ task created: <task id>`
-  at its end, commit that edit (one commit) and push. Finish with
-  `bd dolt push` when the repo has a Dolt remote, then
-  `resolve <id> deferred <task id>`.
+  at its end and commit that edit (one commit).
 
 - **Note in the task:** write the item into the current work's own content — no
   new task, arrival, label or heading of our own. Say when it applies, in the
@@ -522,11 +381,10 @@ Each job follows these rules, and ends by closing its finding in the store with
 
   - _(Beads)_ the current issue's description
     (`bd update <id> --description=…`, keeping what is there), or its notes
-    when that is where the project keeps them; then `bd dolt push` when the
-    repo has a Dolt remote. No identifiable current issue → do not write it
-    anywhere; the finding becomes a ⚠️ line in the closing ⚠️ block, and say
-    so.
-  - _(Kingdone)_ the current quest's main note; commit it and push.
+    when that is where the project keeps them. No identifiable current issue →
+    do not write it anywhere; the finding becomes a ⚠️ line in the closing ⚠️
+    block, and say so.
+  - _(Kingdone)_ the current quest's main note; commit it.
 
   Then `resolve <id> deferred <bead id>` (_(Kingdone)_ the quest note's path; a
   ⚠️ line instead, _(Neither)_ included: `deferred "⚠️ block"`).
@@ -542,14 +400,21 @@ Each job follows these rules, and ends by closing its finding in the store with
 - **Leave for later:** nothing at all — the finding stays open in the store,
   and the next run reports it again.
 
-After the queue, call ReportFindings again with step 3's list, each finding's
-`outcome` read from the `resolve` each job ran, and what is still open from
-`preflight-checks findings`: a finding it still returns is open and gets no
-`outcome`; one it no longer returns was resolved — `fixed` for a `fixed`,
-`skipped` for a `deferred` or `discarded` (after-ship ones included). A
-discarded finding's `summary` ends with `|—| DISCARDED: <reason> |—|`. Reprint
-the chat list with each finding's result — fixed (with its commit), deferred
-(arrival link or task id), discarded — <reason>, or still open.
+After the last job, one call pushes and reads the state for step 6:
+
+```bash
+git push --force-with-lease origin HEAD; bd dolt push; preflight-checks --no-fetch --format tsv; preflight-checks findings
+```
+
+(`bd dolt push` only when a job touched the tracker and the repo has a Dolt
+remote; no branch push on `<default>` itself.) Then call ReportFindings again
+with step 3's list, each finding's `outcome` read from that `findings` output:
+a finding it still returns is open and gets no `outcome`; one it no longer
+returns was resolved — `fixed` for a `fixed`, `skipped` for a `deferred` or
+`discarded`. A discarded finding's `summary` ends with
+`|—| DISCARDED: <reason> |—|`. Reprint the chat list with each finding's result
+— fixed (with its commit), deferred (arrival link or task id), discarded —
+<reason>, or still open.
 
 ## 6. Verdict
 
@@ -571,12 +436,10 @@ card on mobile. When the remote is not on GitHub, print the range's
 app's diff pane (`mcp__ccd_view__show_pane`) — it fails more often than not —
 and never tell the user a keyboard shortcut.
 
-Read the store's state again first — step 5 may have resolved findings or
-committed since step 2's call:
-
-```bash
-preflight-checks --no-fetch --format tsv
-```
+Read the rows from step 5's last call. When step 5 ran no job, read them in one
+call that also runs its discards:
+`preflight-checks resolve <id> discarded <reason>; …; preflight-checks --no-fetch --format tsv`
+— step 2's batch changed them since the brief.
 
 - **Changed** — step 5 committed anything (fixes, arrivals, checklist edits),
   or `unreviewed-bead-changes` reads `finding` or `stale`: a bead changed that
@@ -604,14 +467,21 @@ preflight-checks --no-fetch --format tsv
   not fresh, no finding is open and nothing was committed): treat it as
   **changed**: say so and ask the rerun question (below).
 
+**Rerun without asking.** A **changed** verdict whose only changes are step 5's
+Fix jobs — each one a fix the user picked from the offered options (or "Apply
+all"), not text they typed under "Other", and no bead changed but by those jobs
+— reruns `<command>` right away, without the rerun question: say in one line
+that it reruns to review the fix commits, show their compare link, and go. Only
+once in a row: when that rerun ends **changed** again, ask. No `bd-mark review`
+here — the user has not looked.
+
 **Rerun.** A link can't run a slash command, but an answer can. After a
 **changed** or **open** verdict's ⚠️ block, write what is being asked and each
-option in the reply, then follow _Asking questions_: a command, the ❓ line
-(e.g. `❓ 12/16 Verdict — rerun /kix:ship?`), then the AskUserQuestion card.
-The only link is the compare link the verdict already printed in the reply —
-the step 5 commits for **changed**, the branch diff for **open** — never a
-second link with a different range, and never inside the question. The question
-depends on the verdict:
+option in the reply, then follow _Asking questions_: a command, then the
+AskUserQuestion card. The only link is the compare link the verdict already
+printed in the reply — the step 5 commits for **changed**, the branch diff for
+**open** — never a second link with a different range, and never inside the
+question. The question depends on the verdict:
 
 - **Changed** — the reply says outright that new commits landed that the user
   has not seen: "`<n>` new commits landed since your last look
@@ -636,86 +506,61 @@ depends on the verdict:
   question: "Rerun `<command>` to decide them?" Options: "Run `<command>`
   again" (Recommended) · "Not now".
 
-On any run option, rerun `<command>` right away, from its first step, with
-fresh progress numbering. On "I reviewed", run
-`preflight-checks bd-mark review` first; on "Run again, skip my review", don't
-— the unseen bead changes show again next time. On "Run again, skip my review",
-the skip goes on record: the rerun's final ⚠️ block (add one if the run would
-otherwise end without it) carries
+On any run option, rerun `<command>` right away, from its first step. On "I
+reviewed", run `preflight-checks bd-mark review` first; on "Run again, skip my
+review", don't — the unseen bead changes show again next time. On "Run again,
+skip my review", the skip goes on record: the rerun's final ⚠️ block (add one
+if the run would otherwise end without it) carries
 `- <first short sha>..<HEAD short sha> went through without your review — skim it`,
 even when that run ships. On "Not now", stop — nothing runs after the answer.
 
 ## Common mistakes
 
-- Two ReportFindings lists (one from code-review, one of yours) instead of one.
-- A chat list that leaves out what the ReportFindings card shows.
+- Running a check the brief gave no section, or reading a check file the brief
+  already printed.
+- Marking checks one by one, or a fresh check at all, or passing an old open
+  finding to `mark` again.
+- Reviewing a stale check's whole history instead of its delta.
+- One tool call per lookup when they could go out together; a Fix job split
+  into edit, test, commit and resolve calls; a push after every job.
+- Printing progress lines.
+- Two ReportFindings lists (one from code-review, one of yours) instead of one,
+  or a chat list that leaves out what the card shows.
 - A one-by-one question with no finding block printed right before it, or with
-  the whole finding stuffed into the question text instead.
-- A finding block written as a paragraph, or missing its **Problem**, **If
-  left** or **Fix** bullet.
-- One-by-one that skips the `diff-review` findings, or the ones carried from an
-  earlier run.
-- One-by-one that applies each fix right after its answer (ask, fix, ask, fix)
-  instead of asking every question first and running the queue after the last.
-- Skipping `unraised-follow-ups`, or padding it with generic advice.
+  the whole finding stuffed into the question text; a block written as a
+  paragraph, or missing its **Problem**, **If left** or **Fix** bullet.
+- One-by-one that skips the `diff-review` findings or the carried ones, or that
+  applies each fix right after its answer instead of asking every question
+  first.
 - Doing an after-ship item before the ship, or creating a task, arrival, label
-  or heading for it instead of writing it in the current task the way the
-  project already does.
-- Searching the tracker only by the branch's issue id, or only in the touched
-  files.
-- Waving through a session that only created or rewrote tracker items because
-  there is no diff — those items are its work, and `related-tracker-items`
-  reviews each one.
-- Running the code review on a session with no diff, or answering a finding on
-  a bd issue with a code change instead of a `bd update`.
-- Listing only the questions the user left unanswered, not the ones you did.
+  or heading for it instead of writing it in the current task.
+- Answering a finding on a bd issue with a code change instead of a
+  `bd update`.
 - Running two queue jobs at once, or bundling several fixes in one commit.
 - Calling a run **clear** after it committed anything, or while
-  `findings-leftovers` reads `finding`.
-- Shipping from here — preflight only gives a verdict.
-- Opening the diff pane or telling the user a keyboard shortcut instead of
-  giving the compare link.
-- Treating "Leave for later" as a discard.
-- Discarding without a reason, or inventing one for the user.
-- Writing a marker or finding line by hand instead of through
-  `preflight-checks`.
-- Running a check whose row is `fresh`.
-- Reviewing a stale check's whole history instead of its delta.
-- Marking the checks all at the end of the run instead of each right after it
-  runs, or passing an old open finding to `mark` again.
-- Sending a check or a Fixes job to an agent instead of running it in the main
-  session.
-- Reviewing before the rebase.
-- Running `kix:rebase` or the force-push when the `behind-default-branch` row
-  reads `pass` — nothing moves, and the hook reruns on every commit for
-  nothing.
+  `findings-leftovers` reads `finding`; shipping from here.
+- Rerunning without asking after a fix the user typed under "Other", or twice
+  in a row.
+- Sending a check or a Fix job to an agent.
+- Reviewing before the rebase, or rebasing when `behind-default-branch` reads
+  `pass`.
 - Hardcoding `main` instead of the detected default branch.
-- Numbering progress per skill (`1/12` inside a `/kix:ship`) instead of across
-  the whole run, or dropping the line for a skipped step, printing a line when
-  a step starts instead of when it ends, or folding several steps into one
-  line.
-- Printing several steps' progress lines in one text block instead of one
-  message per step, each right after that step's own command.
-- Asking the user anything without printing the ❓ line first, or printing it
-  after the question.
-- Running Fixes jobs without their `<step>.<job>` ⏳ and ✅ lines.
-- Naming a finding by its number alone (`finding 6`) instead of out of the
-  total (`finding 6/9`).
+- Opening the diff pane or telling the user a keyboard shortcut instead of the
+  compare link.
+- Treating "Leave for later" as a discard; discarding without a reason, or
+  inventing one.
 - Ending a **changed**, **open** or ship _Gate_ stop with only a text "run it
   again" instead of the rerun question.
 - Answering "I reviewed" without `preflight-checks bd-mark review` first, or
-  running it on "Run again, skip my review".
+  running it on "Run again, skip my review" or a rerun without asking.
 - Summarizing the `preflight-checks diff` output instead of printing it, or
   dropping its ⚠️ line about other sessions.
 - A **changed** rerun reply that doesn't say new, unseen commits landed, or
-  that offers only "I reviewed" — a user who skips the review on purpose must
-  have an honest option — or dropping the "without your review" ⚠️ item after
-  "Run again, skip my review".
-- Ending a run with pending items but no ⚠️ block, or marking something the
-  user must do later with ✅.
+  that offers only "I reviewed", or dropping the "without your review" ⚠️ item
+  after "Run again, skip my review".
+- Ending a run with pending items but no ⚠️ block.
 - Offering a defer option in a repo that has no inbox, or Kingdone conventions
   (Gates, `R\$`) outside a Kingdone repo.
-- Counting a skipped or dismissed question as answered.
 - Naming an arrival without linking it, or a task without its id; leaving the
   source checklist item without a pointer back.
 - Writing in English to a user who speaks Portuguese.

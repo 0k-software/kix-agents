@@ -1,25 +1,13 @@
 # related-tracker-items
 
 **Reads.** The tracker: _(Beads)_ bd issues, _(Kingdone)_ `Gates/`, quests and
-notes. _(Neither)_ there is no tracker: skip this check.
+notes. Mechanical: search, compare, list — don't deliberate.
 
-**Delta.** The conversation since the `conversation since <ts>` in the row's
-detail (turns, automated events and AskUserQuestion answers after that time),
-and the new commits or dirty tree. When the status is `unknown` (no transcript
-to read), find the line `🛫 preflight check started here · <run>` in your
-context and review everything below it; no such line (the context was
-compacted) → review the whole session and say so. _(Beads)_ also the issues
-changed since the marker: `<n> bd update(s) since <time>` →
-`bd list --all --updated-after <time>`, and `<id> updated`. Review only those.
+**Delta.** _(Beads)_ the bd updates the data lists (every issue changed since
+the marker); a first run, the whole tracker. Review only those.
 
 **Findings.** Category `tracker`: every finding of this check, including those
 about items this session wrote.
-
-**Moot findings.** Read `preflight-checks findings related-tracker-items`
-before you start. When the delta settled one of them — fixed by hand, or the
-user said "never mind" — resolve it: `preflight-checks resolve <id> fixed`, or
-`preflight-checks resolve <id> discarded "obsolete: <why>"`. No other outcome.
-Leave the rest open. `mark` takes only the new findings.
 
 Search the tracker for items related to the work — by the files, the feature,
 the names and the terms the branch touches, not only by the id in the branch

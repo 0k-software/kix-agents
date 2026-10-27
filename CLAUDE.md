@@ -150,14 +150,17 @@ kix-agents ships a Claude Code marketplace + plugin — no application code:
   runtime (e.g. `claude-code/skills/setup/setup.sh` and
   `claude-code/skills/setup/assets/`), referenced via
   `${CLAUDE_PLUGIN_ROOT}/skills/<name>/…`. `preflight/` bundles
-  `claude-code/skills/preflight/checks/`, one instruction file per check.
+  `claude-code/skills/preflight/checks/`, one instruction file per check, which
+  `preflight-checks start` prints into its brief.
 - `claude-code/bin/` — executables Claude Code puts on the Bash tool's PATH
   while the plugin is enabled (`project-code`, which `kix:title` calls bare;
   `preflight-checks`, which `kix:preflight` calls for its deterministic
   checkpoints — a table row per fact and per checkpoint, `--format tsv` for
-  scripts; it also keeps each check's per-session markers and findings, the
-  bead review marks (`bd-mark`), and prints `diff` — the commits and the
-  `dolt diff` of the beads DB since the last review, git-style).
+  scripts; `start` is the brief — the rows plus each stale check's instructions
+  and data — and `mark --batch` marks them all in one call; it also keeps each
+  check's per-session markers and findings, the bead review marks (`bd-mark`),
+  and prints `diff` — the commits and the `dolt diff` of the beads DB since the
+  last review, git-style).
 - `claude-code/hooks/hooks.json` — plugin hooks, active in every session with
   the plugin enabled: `title-first-prompt.sh` (SessionStart, asks for
   `kix:title` after the first message), `bead-session-mark.sh` (SessionStart,

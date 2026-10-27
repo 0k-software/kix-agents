@@ -18,7 +18,7 @@ runs `kix:preflight` for both.
 **Language.** Reply in the language the user is speaking.
 
 **Questions.** Every AskUserQuestion follows `kix:preflight`'s _Asking
-questions_ order: the text, then a command, then the ❓ line, then the card.
+questions_ order: the text, then a command, then the card. No progress lines.
 
 **Default branch.** Never assume `main`:
 
@@ -32,10 +32,6 @@ name without `origin/`.
 
 ## Steps
 
-Print a progress line when each step ends, and a ❓ line before each question,
-as `kix:preflight`'s _Progress_ says: the preflight steps are 1–12, and steps
-2–5 below are 13–16 of 16 (of 18 when `kix:close` called ship).
-
 1. **Preflight.** Run the `kix:preflight` skill, every time — even when every
    check is fresh (preflight skips them then, but still rebases and checks the
    branch again). Its verdict decides:
@@ -46,9 +42,8 @@ as `kix:preflight`'s _Progress_ says: the preflight steps are 1–12, and steps
 
    A clear branch with no commits past `<base>` (`git rev-list --count
    <base>..HEAD` prints `0` — e.g. a session that only wrote bd issues) has
-   nothing to ship: print `⏭️` lines for steps 2–4 (`nothing to ship`) and
-   step 5's line says `0 commits — <default> unchanged`. Never ask to ship an
-   empty range.
+   nothing to ship: say `0 commits — <default> unchanged` and stop. Never ask
+   to ship an empty range.
 
 2. **Confirm.** Show the branch diff from `<base>` the way `kix:preflight`'s
    _Showing the diff_ says — the compare link in the reply, never in the
@@ -65,9 +60,7 @@ as `kix:preflight`'s _Progress_ says: the preflight steps are 1–12, and steps
 3. **Gate.** Right before pushing, recheck — the user may have taken a while:
 
    ```bash
-   git status --porcelain
-   git fetch origin
-   preflight-checks --no-fetch --format tsv
+   KIX_FETCH_TTL=0 preflight-checks --format tsv
    ```
 
    Stop unless `uncommitted-changes` is `pass`, `behind-default-branch` is
@@ -83,26 +76,17 @@ as `kix:preflight`'s _Progress_ says: the preflight steps are 1–12, and steps
    range `<base>..HEAD`. `<command>` as _Verdict_ defines it (`/kix:close` when
    close called ship). Never rebase or review here to fix it.
 
-4. **Push the default branch and the branch.**
+4. **Push and check**, in one call:
 
    ```bash
-   git push origin HEAD:<default>
-   git push --force-with-lease origin HEAD
+   git push origin HEAD:<default> && git push --force-with-lease origin HEAD \
+     && git fetch origin && git merge-base --is-ancestor HEAD <base> && echo IN_DEFAULT \
+     && git log --oneline <old base>..HEAD
    ```
 
    The push to `<default>` is a fast-forward. If it is rejected, `<default>`
-   moved: stop with the step 3 message.
-
-   On `<default>` itself (no branch), push is just `git push`.
-
-5. **Check.**
-
-   ```bash
-   git fetch origin
-   git merge-base --is-ancestor HEAD <base> && echo IN_DEFAULT
-   ```
-
-   Report the commits that landed (`git log --oneline <old base>..HEAD`).
+   moved: stop with the step 3 message. On `<default>` itself (no branch), the
+   push is just `git push`. Report the commits that landed.
 
 ## Common mistakes
 
@@ -113,6 +97,4 @@ as `kix:preflight`'s _Progress_ says: the preflight steps are 1–12, and steps
 - Pushing without the "Ship" answer.
 - Shipping with a stale `diff-review` or open findings.
 - Hardcoding `main` instead of the detected default branch.
-- Restarting the progress count at ship's own steps instead of going on from
-  preflight's.
 - Force-pushing the default branch — never.
