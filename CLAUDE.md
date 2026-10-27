@@ -168,7 +168,7 @@ kix-agents ships a Claude Code marketplace + plugin — no application code:
   `allow-remote-control-off.sh` (PreToolUse, lets `kix:close` turn Remote
   Control off without a prompt). `autocommit.sh` sits beside them but is not in
   `hooks.json`: a per-project Stop hook that blocks the turn's end until the
-  agent commits its work in two Bash calls (stage and list, then commit), wired
+  agent commits its work in one Bash call (`git add -A && git commit`), wired
   per repo (kxa-6ei.4).
 - `claude-code/templates/*.md` — orphaned body templates from removed creation
   skills; not consumed by anything today

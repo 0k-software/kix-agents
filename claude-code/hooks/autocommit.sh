@@ -1,10 +1,9 @@
 #!/bin/bash
 # Stop hook: land the turn's work in a commit, one commit per prompt. The block
-# reason has the agent stage and list the change in one Bash call, then write
-# the message itself and commit in one more - no /kix:commit round trips
-# (kxa-6ei.8: the skill's own procedure, not the message, was the cost). The
-# kix pre-commit hook autofixes formatting and re-stages on its own, so only
-# real failures come back to the agent.
+# reason has the agent write the message itself and stage and commit in one
+# Bash call - no /kix:commit round trips (kxa-6ei.8: the skill's own procedure,
+# not the message, was the cost). The kix pre-commit hook autofixes formatting
+# and re-stages on its own, so only real failures come back to the agent.
 # Guards first so we never burn a turn when there is nothing safe to commit.
 
 input=$(cat)
@@ -156,17 +155,11 @@ and do not run /kix:commit.
 Decide before running anything: if you edited nothing this turn, everything
 dirty is the user's - say so and skip the commit.
 
-Otherwise stage everything and list it in ONE Bash call:
+Otherwise write the message yourself from what you did this turn, in the repo's
+style: the commit section of its CLAUDE.md if it has one, else the subject and
+body shape of recent `git log`. Then commit everything in ONE Bash call:
 
-    git add -A && git diff --cached --stat && git log -5
-
-Write the message yourself from what you did this turn, in the repo's style:
-the commit section of its CLAUDE.md if it has one, else the subject and body
-shape of that `git log`. Read a file's diff (`git diff --cached -- <file>`)
-only when the stat lists one whose change you do not already know. Then commit
-in ONE more Bash call:
-
-    git commit -F - <<'EOF'
+    git add -A && git commit -F - <<'EOF'
     <subject>
 
     <body>
