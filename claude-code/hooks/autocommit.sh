@@ -2,8 +2,9 @@
 # Stop hook: land the turn's work in a commit, one commit per prompt. The block
 # reason has the agent stage and list the change in one Bash call, then write
 # the message itself and commit in one more - no /kix:commit round trips
-# (kxa-6ei.8: the skill's own procedure, not the message, was the cost). The kix pre-commit hook autofixes formatting and
-# re-stages on its own, so only real failures come back to the agent.
+# (kxa-6ei.8: the skill's own procedure, not the message, was the cost). The
+# kix pre-commit hook autofixes formatting and re-stages on its own, so only
+# real failures come back to the agent.
 # Guards first so we never burn a turn when there is nothing safe to commit.
 
 input=$(cat)
