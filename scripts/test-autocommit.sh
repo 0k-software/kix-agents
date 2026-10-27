@@ -83,13 +83,14 @@ check "no decision" "$(jq -r '.decision // ""' <<<"$out")" ""
 check "names the reason" \
   "$(jq -r .systemMessage <<<"$out" | grep -c 'main is protected (pull requests required)')" "1"
 
-echo "dirty working branch: blocks with the one-call commit"
+echo "dirty working branch: blocks with stage-read, then commit"
 r=$(fresh dirty)
 echo change >"$r/a.txt"
 out=$(run "$r")
 check "decision" "$(jq -r .decision <<<"$out")" "block"
 reason=$(jq -r .reason <<<"$out")
-check "one-call commit" "$(grep -c "git add -A && git commit -F - <<'EOF'" <<<"$reason")" "1"
+check "stages before reading" "$(grep -c 'git add -A && git diff --cached && git log -5' <<<"$reason")" "1"
+check "commit from heredoc" "$(grep -c "git commit -F - <<'EOF'" <<<"$reason")" "1"
 check "user-edits skip" "$(grep -c 'edited by the user' <<<"$reason")" "1"
 check "no-progress stop" "$(grep -c 'no progress' <<<"$reason")" "1"
 check "tree left uncommitted" "$(git -C "$r" status --porcelain)" " M a.txt"

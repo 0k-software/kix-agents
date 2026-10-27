@@ -1,8 +1,8 @@
 #!/bin/bash
 # Stop hook: land the turn's work in a commit, one commit per prompt. The block
-# reason has the agent write the message itself and commit in one Bash call -
-# no /kix:commit round trips (kxa-6ei.8: the skill's own procedure, not the
-# message, was the cost). The kix pre-commit hook autofixes formatting and
+# reason has the agent stage and read the diff in one Bash call, then write the
+# message itself and commit in one more - no /kix:commit round trips
+# (kxa-6ei.8: the skill's own procedure, not the message, was the cost). The kix pre-commit hook autofixes formatting and
 # re-stages on its own, so only real failures come back to the agent.
 # Guards first so we never burn a turn when there is nothing safe to commit.
 
@@ -153,22 +153,27 @@ CODE = """You left uncommitted work in the tree. Commit it now - do not ask firs
 and do not run /kix:commit.
 
 If everything dirty was edited by the user rather than you, say so and skip the
-commit.
+commit (if you already staged it, `git reset` first).
 
-Otherwise write the message yourself from what you did this turn, in the repo's
-style: the commit section of its CLAUDE.md if it has one, else the subject and
-body shape of recent `git log`. Then commit everything in ONE Bash call:
+Otherwise stage everything and read it in ONE Bash call - the staged diff shows
+new files too:
 
-    git add -A && git commit -F - <<'EOF'
+    git add -A && git diff --cached && git log -5
+
+Write the message yourself from that diff and what you did this turn, in the
+repo's style: the commit section of its CLAUDE.md if it has one, else the
+subject and body shape of that `git log`. Then commit in ONE more Bash call:
+
+    git commit -F - <<'EOF'
     <subject>
 
     <body>
     EOF
 
 The pre-commit hook fixes formatting and re-stages on its own. If it fails for
-another reason, fix what it reports and rerun the same command. Stop when an
-attempt makes no progress (the same errors, no files changed) and report the
-failure instead of retrying.
+another reason, fix what it reports and rerun the same commit command. Stop
+when an attempt makes no progress (the same errors, no files changed) and
+report the failure instead of retrying.
 
 Then report the short SHA in one line."""
 
