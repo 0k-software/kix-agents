@@ -997,6 +997,9 @@ diff_line() {
     dels+=("$1")
     ;;
   +*) adds+=("$1") ;;
+  # "\ No newline at end of file" sits between a removal and its addition:
+  # flushing on it would cost the pair its word marks.
+  \\*) ;;
   *)
     flush_run
     html_esc "$1" && html_line c "$esc"

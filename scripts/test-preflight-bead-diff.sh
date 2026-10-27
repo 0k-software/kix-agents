@@ -381,6 +381,15 @@ check "file header is meta" "$(grep -c '<div class="l m">+++ b/big.txt</div>' "$
 check "section heading" "$(grep -c '<h2>Code (' "$work/d.html")" "1"
 teardown
 
+echo "diff --html: a last line without a newline still gets word marks"
+setup
+printf 'hello world' >n.txt && git_q add -A && git_q commit -q -m n
+printf 'hello there' >n.txt && git_q add -A && git_q commit -q -m n2
+"$BIN" diff --from HEAD --html "$work/d.html" >/dev/null
+check "old word" "$(grep -c '<div class="l d">-hello <span class=w>world</span></div>' "$work/d.html")" "1"
+check "new word" "$(grep -c '<div class="l a">+hello <span class=w>there</span></div>' "$work/d.html")" "1"
+teardown
+
 if [ "$failures" -gt 0 ]; then
   echo "$failures failure(s)"
   exit 1
