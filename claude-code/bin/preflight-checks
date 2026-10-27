@@ -3,16 +3,18 @@
 # call, plus the facts kix:preflight reads before its checks (kxa-cx0). No LLM,
 # no network beyond a cached fetch: fast enough for a Stop hook (kxa-v9v).
 # Each checkpoint is its own cp_* function so the check library (kxa-102) and
-# the gate runner (kxa-efc) can name and reuse them.
+# the gate runner (kxa-efc) can name and reuse them. Every source — the
+# transcript, the store, bd, git status — is read once per call (kxa-4z5).
 
 set -uo pipefail
 
 usage() {
   cat <<'EOF'
 Usage: preflight-checks [--format pretty|tsv] [--no-fetch] [--session ID]
-       preflight-checks start [--session ID]
+       preflight-checks start [--bead ID] [--format pretty|tsv] [--no-fetch]
        preflight-checks mark <check> [--bead ID] [--session ID]   (JSON on stdin)
-       preflight-checks resolve <id> fixed|deferred <ref>|discarded <reason...>
+       preflight-checks mark --batch [--bead ID]                  (JSON on stdin)
+       preflight-checks resolve <id> fixed [<commit>]|deferred <ref>|discarded <reason...>
        preflight-checks findings [<check>]
 
 Prints one row per fact, then one per checkpoint. --format pretty (the
@@ -38,10 +40,18 @@ Checkpoints (status pass | finding | fresh | stale | unknown | never | skip):
   unlanded-commits       commits in HEAD that are not on the default branch
   behind-default-branch  the default branch is not an ancestor of HEAD
   open-checkboxes ...    one row per markable check (see `mark`): fresh when
-                         its marker exists and nothing it saw changed, stale
-                         with the reasons, never with no marker, skip when
-                         there is nothing to check. open-checkboxes adds the
-                         unchecked "- [ ]" lines as file:line.
+                         its marker exists and none of its own inputs changed,
+                         stale with the reasons, never with no marker, skip
+                         when there is nothing to check. Each check watches
+                         only what it reads: diff-review every commit and the
+                         tree; acceptance-criteria, unraised-follow-ups and
+                         post-landing-steps commits other than Fix commits
+                         (resolve ... fixed <commit>); the bead for
+                         acceptance-criteria and post-landing-steps; new
+                         prompts for the conversation checks;
+                         related-tracker-items bd updates only;
+                         open-checkboxes unchecked "- [ ]" lines in Markdown
+                         changed since its marker, listed as file:line.
   findings-leftovers     findings recorded with `mark` and still open
   unreviewed-bead-changes
                          beads changed since the latest bd-mark review, else
@@ -51,11 +61,23 @@ Checkpoints (status pass | finding | fresh | stale | unknown | never | skip):
 
 Subcommands (the session store, kxa-102; JSON lines under
 <git common dir>/kix/checks/<session>/, append-only, read per branch):
-  start     record a run anchor and print it
+  start     the brief: record a run anchor, print it, the rows above, then
+            one section per stale, never or unknown check — its instructions
+            (skills/preflight/checks/<check>.md) and the data it needs
+            (range, bead criteria, candidate findings, bd updates, prompts
+            since its marker, its open findings). Marks acceptance-criteria
+            itself when there is no bead, or the bead has no design or
+            acceptance. Fetches like the default call
   mark      record that <check> ran; stdin is a JSON array of new findings
             (category, summary, optional file, line, short_summary,
             failure_scenario, ref); prints their new ids
-  resolve   close a finding: fixed, deferred <ref> or discarded <reason...>
+  mark --batch
+            stdin is {"<check>": [new findings], ..., "resolve": [[id,
+            outcome, ref or reason], ...]}: checks everything first, then
+            resolves and marks every check named; prints the branch's open
+            findings as one JSON array
+  resolve   close a finding: fixed [<commit> — the Fix commit, which then
+            stales only diff-review], deferred <ref> or discarded <reason...>
   findings  print the open findings of this branch as one JSON array
   bd-mark start|review
             record the beads DB's dolt commit in bd.jsonl (kxa-a9i): start
@@ -67,7 +89,8 @@ Subcommands (the session store, kxa-102; JSON lines under
             bead change since the bd-mark window as a git-style diff, with a
             warning when other sessions of the repo ran in that window
 
-  --bead ID     with mark acceptance-criteria: the bead whose updates stale it
+  --bead ID     the branch's bead, whose updates stale acceptance-criteria and
+                post-landing-steps (start: else an id in the branch name)
 
   --no-fetch    never fetch; the default fetches origin only when the last
                 fetch is older than KIX_FETCH_TTL minutes (default 5)
@@ -83,8 +106,11 @@ fetch=1
 format=pretty
 session=${CLAUDE_CODE_SESSION_ID-}
 bead=""
+bead_ts=""
+base=""
 dolt_json=""
 diff_from=""
+batch=0
 sub=""
 pos=()
 case ${1-} in
@@ -102,6 +128,7 @@ while [ $# -gt 0 ]; do
   fi
   case $1 in
   --no-fetch) fetch=0 ;;
+  --batch) batch=1 ;;
   --format)
     format=${2-}
     shift
@@ -149,13 +176,39 @@ command -v jq >/dev/null 2>&1 || {
   exit 1
 }
 
+# Before the cd below: the check files live next to this script's plugin.
+checks_dir="$(cd "$(dirname "$0")/.." && pwd)/skills/preflight/checks"
+
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 || {
   echo "preflight-checks: not inside a git work tree" >&2
   exit 1
 }
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
+# --- per-call cache --------------------------------------------------------
+# One directory per call, so a value read inside a $(...) subshell is still
+# read only once: the transcript pass, the store, bd and git status.
+
+cache_dir=$(mktemp -d "${TMPDIR:-/tmp}/preflight-checks.XXXXXX") || exit 1
+trap 'rm -rf "$cache_dir"' EXIT
+
+# cached KEY CMD...: CMD's output and exit status, run once per call.
+cached() {
+  local f="$cache_dir/$1"
+  shift
+  if [ ! -f "$f.rc" ]; then
+    "$@" >"$f"
+    echo $? >"$f.rc"
+  fi
+  cat "$f"
+  return "$(cat "$f.rc")"
+}
+
+# Drops KEY after a write that changes it.
+uncache() { rm -f "$cache_dir/$1" "$cache_dir/$1.rc"; }
+
 rows=""
+auto_marked=""
 emit() { rows+=$(printf '%s\t%s\t%s' "$1" "$2" "$3")$'\n'; }
 
 # A Markdown table padded to its widest cell, so it reads aligned in a terminal
@@ -173,6 +226,13 @@ table() {
       row(dash(w[1]), dash(w[2]), dash(w[3]))
       for (r = 2; r <= NR; r++) row(cell[r, 1], cell[r, 2], cell[r, 3])
     }'
+}
+
+print_rows() {
+  case $format in
+  tsv) printf '%s' "$rows" ;;
+  pretty) table ;;
+  esac
 }
 
 # --- facts ---------------------------------------------------------------
@@ -240,6 +300,9 @@ touched_markdown() {
 
 join() { paste -sd, - | sed 's/,/, /g'; }
 
+head_sha() { cached head git rev-parse HEAD 2>/dev/null; }
+porcelain() { cached porcelain git status --porcelain; }
+
 # --- session store (kxa-102) ----------------------------------------------
 # Two append-only JSON-lines files per session, in the git common dir so every
 # worktree of the repo shares them. Lines carry their branch and every read
@@ -248,7 +311,8 @@ join() { paste -sd, - | sed 's/,/, /g'; }
 
 now() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 
-cur_branch() {
+cur_branch() { cached branch branch_name; }
+branch_name() {
   local b
   b=$(git branch --show-current)
   echo "${b:-HEAD}"
@@ -276,17 +340,116 @@ merged_findings() {
 # Beads repo: .beads/ and a bd on PATH.
 beads_repo() { [ -d .beads ] && command -v bd >/dev/null 2>&1; }
 
-# updated_at of a bead, empty when bd cannot show it.
+# The beads DB's dolt directory (bead_db_dir, below), read once.
+bead_db() { cached dbdir bead_db_dir; }
+
+# A bead id safe in SQL and in a cache file name.
+valid_id() { [[ $1 =~ ^[A-Za-z0-9._-]+$ ]]; }
+
+# updated_at of a bead (2026-10-27T17:56:54Z), empty when it cannot be read:
+# one SQL query when dolt can read the beads DB, else bd show.
 bead_updated() {
-  bd show "$1" --json 2>/dev/null |
-    jq -r 'if type == "array" then .[0] else . end | .updated_at // empty' 2>/dev/null
+  valid_id "$1" || return 0
+  cached "bead-$1" bead_updated_read "$1"
 }
 
-conversation_checks="conversation-leftovers related-tracker-items unraised-follow-ups post-landing-steps"
-is_conversation_check() { case " $conversation_checks " in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
+bead_updated_read() {
+  local db
+  if db=$(bead_db); then
+    (cd "$db" && dolt sql -r csv -q "select date_format(updated_at, '%Y-%m-%dT%H:%i:%sZ') from issues where id = '$1'" 2>/dev/null) |
+      tail -n +2
+  else
+    bd show "$1" --json 2>/dev/null |
+      jq -r 'if type == "array" then .[0] else . end | .updated_at // empty' 2>/dev/null
+  fi
+}
+
+# The bead as bd show prints it (one object), for the brief; fails when bd
+# cannot show it.
+bead_json() {
+  valid_id "$1" || return 1
+  cached "beadjson-$1" bead_json_read "$1"
+}
+
+bead_json_read() {
+  bd show "$1" --json 2>/dev/null |
+    jq -ce 'if type == "array" then .[0] else . end | select(type == "object")' 2>/dev/null
+}
+
+# The issues updated after ISO time $1, as a JSON array of {id, status,
+# title}; fails when neither dolt nor bd can read them.
+bd_updates_since() {
+  cached "bdsince-$(printf '%s' "$1" | tr -c 'A-Za-z0-9' _)" bd_updates_read "$1"
+}
+
+bd_updates_read() {
+  local db out
+  if db=$(bead_db); then
+    [[ $1 =~ ^[0-9-]+T[0-9:]+Z$ ]] || return 1
+    out=$(cd "$db" && dolt sql -r json -q "select id, status, title from issues where updated_at > '$(printf '%s' "$1" | sed 's/T/ /; s/Z$//')' order by updated_at" 2>/dev/null) ||
+      return 1
+    # No row prints nothing at all.
+    [ -n "$out" ] || out='{}'
+    printf '%s' "$out" | jq -c '[.rows[]?]'
+  else
+    out=$(bd list --all --updated-after "$1" --json 2>/dev/null) || return 1
+    printf '%s' "$out" | jq -ce 'if type == "array" then map({id, status, title}) else error end' 2>/dev/null
+  fi
+}
+
+# The bead an id in the branch name names, when bd knows it; else nothing.
+branch_bead() {
+  local c
+  beads_repo || return 0
+  for c in $(cur_branch | grep -oE '[a-z][a-z0-9]*-[a-z0-9]+(\.[0-9]+)*' | head -n3); do
+    [ -n "$(bead_updated "$c")" ] && {
+      echo "$c"
+      return
+    }
+  done
+}
+
+# --- what stales each check (kxa-4z5) ---------------------------------------
+# commits: any new commit; work-commits: new commits other than Fix commits;
+# dirty: an uncommitted change; bead: the branch's bead updated; bd: any bd
+# update; conversation: a new prompt; checkboxes: unchecked items in Markdown
+# changed since the marker.
+triggers() {
+  case $1 in
+  diff-review) echo "commits dirty" ;;
+  acceptance-criteria) echo "work-commits dirty bead" ;;
+  open-checkboxes) echo checkboxes ;;
+  conversation-leftovers) echo conversation ;;
+  related-tracker-items) echo bd ;;
+  unraised-follow-ups) echo "work-commits dirty conversation" ;;
+  post-landing-steps) echo "work-commits bead conversation" ;;
+  esac
+}
+
+has_trigger() { case " $(triggers "$1") " in *" $2 "*) return 0 ;; *) return 1 ;; esac; }
+
+watches_head() { has_trigger "$1" commits || has_trigger "$1" work-commits || has_trigger "$1" checkboxes; }
+
+# Full shas of the Fix commits resolve recorded, on any branch, one per line.
+fix_commits() { cached fixcommits fix_commits_read; }
+fix_commits_read() { store_lines findings.jsonl | jq -r '.commit // empty' | sort -u; }
+
+# True when $1..HEAD holds at least one commit and all are Fix commits.
+only_fix_commits() {
+  local c fixes list
+  fixes=$(fix_commits)
+  list=$(git rev-list "$1..HEAD")
+  [ -n "$fixes" ] && [ -n "$list" ] || return 1
+  for c in $list; do
+    printf '%s\n' "$fixes" | grep -qx "$c" || return 1
+  done
+}
+
+# --- the transcript (one pass) -----------------------------------------------
 
 # The session's transcript: first match of <config>/projects/*/<session>.jsonl,
 # empty when there is none or the session is unknown.
+transcript() { cached transcript transcript_path; }
 transcript_path() {
   local f
   [ -n "${session:-}" ] && [ "$session" != unknown ] || return 0
@@ -298,67 +461,81 @@ transcript_path() {
   done
 }
 
-# {"turn": {uuid, ts}} of the last parseable transcript line with a uuid; {}
-# without a transcript or a uuid line. Unparseable lines (Claude Code writing)
-# are skipped.
-turn_snapshot() {
+# The transcript as a TSV index, from one jq pass, read once per call:
+#   u <line> <uuid> <ts>       every entry with a uuid
+#   p <line> <ts> <excerpt>    every entry that starts a turn: a prompt that is
+#                              not injected meta text, or a queued command
+# An AskUserQuestion answer starts nothing: after a marker it answers
+# preflight's own Decide or Verdict question. Unparseable lines (Claude Code
+# writing) are skipped.
+tx_index() { cached txindex tx_index_read; }
+tx_index_read() {
   local t
-  t=$(transcript_path)
-  [ -n "$t" ] || {
+  t=$(transcript)
+  [ -n "$t" ] || return 0
+  jq -rR '
+    fromjson? | select(type == "object") | input_line_number as $n
+    | (if (.uuid | type) == "string" then "u\t\($n)\t\(.uuid)\t\(.timestamp // "" | tostring)" else empty end),
+      (select((.timestamp | type) == "string") | . as $e | (.message.content?) as $c
+        | select((.type == "attachment" and .attachment.type? == "queued_command")
+            or (.type == "user" and .isMeta != true
+                and (($c | type) == "string" or (($c | type) == "array" and $c[0]?.type? != "tool_result"))))
+        | (if $e.type == "attachment" then ($e.attachment.prompt // "" | tostring)
+           elif ($c | type) == "string" then $c
+           else ([$c[]? | select(.type? == "text") | .text] | first // "") end)
+        | gsub("(?s)<system-reminder>.*?</system-reminder>"; "") | gsub("\\s+"; " ") | ltrimstr(" ") | .[0:100]
+        | "p\t\($n)\t\($e.timestamp)\t\(.)")
+  ' "$t" 2>/dev/null
+}
+
+# {"turn": {uuid, ts}} of the last transcript entry with a uuid; {} without
+# one.
+turn_snapshot() {
+  local u ts
+  IFS=$'\t' read -r u ts < <(tx_index | awk -F'\t' '$1 == "u" { u = $3; t = $4 } END { if (u != "") print u "\t" t }')
+  if [ -z "$u" ]; then
     echo '{}'
-    return
-  }
-  jq -cR 'fromjson? | select(type == "object" and (.uuid | type) == "string")' "$t" |
-    jq -sc 'if length == 0 then {} else last | {turn: {uuid: .uuid, ts: .timestamp}} end'
-}
-
-# Timestamp of the first transcript entry after the marker's turn that starts
-# a turn (a prompt that is not injected meta text) or answers an
-# AskUserQuestion; empty when there is none. "After" is the lines following the
-# marker's uuid, else the entries stamped later than its ts.
-conversation_since() {
-  jq -cR 'fromjson? | select(type == "object")' "$1" | jq -rs --arg uuid "$2" --arg ts "$3" '
-    . as $e
-    | [ $e[] | select(.type == "assistant") | .message.content? | arrays | .[]
-        | select(type == "object" and .type == "tool_use" and .name == "AskUserQuestion") | .id ] as $ask
-    | (first(range(0; length) as $i | select($e[$i].uuid == $uuid) | $i) // null) as $at
-    | (if $at != null then $e[$at + 1:] else [$e[] | select((.timestamp | type) == "string" and .timestamp > $ts)] end)
-    | first(.[]
-        | select((.type == "user" or .type == "attachment") and (.timestamp | type) == "string")
-        | (.message.content?) as $c
-        | select(
-            (.type == "attachment" and .attachment.type? == "queued_command")
-            or (.type == "user" and .isMeta != true and (($c | type) == "string" or (($c | type) == "array" and ($c[0]?.type? != "tool_result"))))
-            or (($c | type) == "array" and $c[0]?.type? == "tool_result" and ($c[0].tool_use_id | IN($ask[]))))
-        | .timestamp) // empty'
-}
-
-# Extra marker fields as a JSON object: what the check saw, to compare with
-# later. Per-check snapshots join here, so the writer below stays the only
-# place a marker line is built. $2 is the marker's time, $bead_ts the bead's
-# updated_at (read before anything is written).
-marker_snapshot() {
-  if is_conversation_check "$1"; then
-    jq -nc --argjson a "$(marker_snapshot_base "$1" "$2")" --argjson b "$(turn_snapshot)" '$a + $b'
   else
-    marker_snapshot_base "$1" "$2"
+    jq -nc --arg u "$u" --arg t "$ts" '{turn: {uuid: $u, ts: (if $t == "" then null else $t end)}}'
   fi
 }
 
-marker_snapshot_base() {
-  local head dirty=true
-  case $1 in
-  open-checkboxes | diff-review | acceptance-criteria | related-tracker-items | unraised-follow-ups | post-landing-steps)
-    head=$(git rev-parse HEAD 2>/dev/null)
-    [ -z "$(git status --porcelain)" ] && dirty=false
-    jq -nc --arg head "$head" --argjson dirty "$dirty" --arg check "$1" --arg at "$2" \
-      --arg bead "$bead" --arg bead_ts "${bead_ts-}" --argjson beads "$(beads_repo && echo true || echo false)" '
-      {head: $head, clean: ($dirty | not)}
-      + (if $check == "related-tracker-items" and $beads then {bd: $at} else {} end)
-      + (if $check == "acceptance-criteria" and $bead != "" then {bead: {id: $bead, updated: $bead_ts}} else {} end)'
-    ;;
-  *) echo '{}' ;;
-  esac
+# "<ts>\t<excerpt>" of every prompt after the marker's turn: the entries after
+# the line of its uuid $1, else those stamped later than its ts $2.
+prompts_since() {
+  tx_index | awk -F'\t' -v u="$1" -v ts="$2" '
+    $1 == "u" && u != "" && $3 == u && at == "" { at = $2 }
+    $1 == "p" { n++; pl[n] = $2; pt[n] = $3; px[n] = $4 }
+    END {
+      for (i = 1; i <= n; i++)
+        if ((at != "" && pl[i] + 0 > at + 0) || (at == "" && pt[i] > ts)) print pt[i] "\t" px[i]
+    }'
+}
+
+# Timestamp of the first prompt after the marker's turn; empty when none.
+conversation_since() { prompts_since "$1" "$2" | head -n1 | cut -f1; }
+
+# --- markers -------------------------------------------------------------
+
+# Extra marker fields as a JSON object: what the check saw, to compare with
+# later — only the inputs its triggers watch. $2 is the marker's time,
+# $bead_ts the bead's updated_at (read before anything is written).
+marker_snapshot() {
+  local dirty=true extra
+  [ -z "$(porcelain)" ] && dirty=false
+  extra=$(jq -nc --arg head "$(head_sha)" --argjson dirty "$dirty" --arg at "$2" \
+    --arg bead "$bead" --arg bead_ts "$bead_ts" \
+    --argjson h "$(watches_head "$1" && echo true || echo false)" \
+    --argjson bd "$(has_trigger "$1" bd && beads_repo && echo true || echo false)" \
+    --argjson b "$(has_trigger "$1" bead && echo true || echo false)" '
+    (if $h then {head: $head, clean: ($dirty | not)} else {} end)
+    + (if $bd then {bd: $at} else {} end)
+    + (if $b and $bead != "" then {bead: {id: $bead, updated: $bead_ts}} else {} end)')
+  if has_trigger "$1" conversation; then
+    jq -nc --argjson a "$extra" --argjson b "$(turn_snapshot)" '$a + $b'
+  else
+    echo "$extra"
+  fi
 }
 
 # marker_line CHECK AT RUN IDS_JSON
@@ -375,35 +552,26 @@ latest_run() {
 }
 
 markable="open-checkboxes diff-review acceptance-criteria conversation-leftovers related-tracker-items unraised-follow-ups post-landing-steps"
+# The order the brief and the skill take them in.
+brief_order="diff-review acceptance-criteria conversation-leftovers open-checkboxes related-tracker-items unraised-follow-ups post-landing-steps"
 
 die() {
   echo "preflight-checks: $*" >&2
   exit 1
 }
 
-sub_start() {
-  local t dir
-  t=$(now)
-  dir=$(store_dir)
-  mkdir -p "$dir"
-  jq -nc --arg run "$t" --arg branch "$(cur_branch)" '{run: $run, branch: $branch}' >>"$dir/markers.jsonl"
-  echo "🛫 preflight check started here · $t"
+# Reads the bead's updated_at for the markers; dies when it can't.
+read_bead_ts() {
+  [ -n "$bead" ] || return 0
+  bead_ts=$(bead_updated "$bead")
+  [ -n "$bead_ts" ] || die "bead '$bead' not found"
 }
 
-sub_mark() {
-  local check=${pos[0]-} input t run dir n all new ids
-  case " $markable " in
-  *" $check "*) ;;
-  *) die "cannot mark '$check'; one of: $markable" ;;
-  esac
-  if [ "$check" = acceptance-criteria ] && [ -n "$bead" ]; then
-    command -v bd >/dev/null 2>&1 || die "bd is required for --bead"
-    bead_ts=$(bead_updated "$bead")
-    [ -n "$bead_ts" ] || die "bead '$bead' not found"
-  fi
+# mark_one CHECK: stdin is the JSON array of its new findings (already
+# checked); writes them and the marker, prints their ids.
+mark_one() {
+  local check=$1 input t run dir n new ids
   input=$(cat)
-  printf '%s' "$input" | jq -e 'type == "array" and all(.[]; type == "object")' >/dev/null 2>&1 ||
-    die "stdin must be a JSON array of finding objects"
   t=$(now)
   run=$(latest_run)
   : "${run:=$t}"
@@ -414,31 +582,103 @@ sub_mark() {
   new=$(printf '%s' "$input" | jq -c --arg check "$check" --arg at "$t" --arg b "$(cur_branch)" --argjson n "$n" '
     to_entries[] | .key as $i | .value as $f |
     {id: "\($check)-\($n + $i + 1)", check: $check, outcome: "open", at: $at, branch: $b} +
-    ($f | del(.id, .check, .outcome, .at, .branch))')
+    ($f | del(.id, .check, .outcome, .at, .branch, .commit))')
   ids=$(printf '%s' "$new" | jq -sc 'map(.id)')
   mkdir -p "$dir"
   [ -z "$new" ] || printf '%s\n' "$new" >>"$dir/findings.jsonl"
   marker_line "$check" "$t" "$run" "$ids" >>"$dir/markers.jsonl"
+  uncache markers
   printf '%s' "$ids" | jq -r '.[]'
 }
 
-sub_resolve() {
-  local id=${pos[0]-} outcome=${pos[1]-} rest dir
-  rest="${pos[*]:2}"
+is_markable() { case " $markable " in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
+
+sub_mark() {
+  local check=${pos[0]-} input
+  [ "$batch" = 1 ] && {
+    sub_mark_batch
+    return
+  }
+  is_markable "$check" || die "cannot mark '$check'; one of: $markable"
+  input=$(cat)
+  printf '%s' "$input" | jq -e 'type == "array" and all(.[]; type == "object")' >/dev/null 2>&1 ||
+    die "stdin must be a JSON array of finding objects"
+  [ "$check" = acceptance-criteria ] || [ "$check" = post-landing-steps ] || bead=""
+  read_bead_ts
+  printf '%s' "$input" | mark_one "$check"
+}
+
+# Checks everything before writing anything: one bad check name, finding or
+# resolve leaves the store as it was.
+sub_mark_batch() {
+  local input err i n id outcome rest lines="" line c
+  input=$(cat)
+  err=$(printf '%s' "$input" | jq -r --arg m "$markable" '
+    if type != "object" then "stdin must be a JSON object"
+    else
+      ([keys[] | select(. != "resolve" and (. as $k | $m | split(" ") | index([$k]) | not))]
+        | if length > 0 then "unknown check(s): " + join(", ") else empty end)
+      // ([to_entries[] | select(.key != "resolve" and ((.value | type) != "array" or any(.value[]; type != "object"))) | .key]
+        | if length > 0 then "not an array of finding objects: " + join(", ") else empty end)
+      // (if has("resolve") and ((.resolve | type) != "array"
+              or any(.resolve[]; type != "array" or length < 2 or any(.[]; type != "string")))
+          then "resolve must be [[id, outcome, ref or reason], ...]" else empty end)
+      // empty
+    end' 2>/dev/null) || die "stdin must be a JSON object"
+  [ -z "$err" ] || die "$err"
+  read_bead_ts
+  n=$(printf '%s' "$input" | jq '.resolve // [] | length')
+  for ((i = 0; i < n; i++)); do
+    id=$(printf '%s' "$input" | jq -r ".resolve[$i][0]")
+    outcome=$(printf '%s' "$input" | jq -r ".resolve[$i][1]")
+    rest=$(printf '%s' "$input" | jq -r ".resolve[$i][2:] | join(\" \")")
+    line=$(resolve_line "$id" "$outcome" "$rest") || exit 1
+    lines+="$line"$'\n'
+  done
+  mkdir -p "$(store_dir)"
+  [ -z "$lines" ] || printf '%s' "$lines" >>"$(store_dir)/findings.jsonl"
+  for c in $brief_order; do
+    printf '%s' "$input" | jq -e --arg c "$c" 'has($c)' >/dev/null || continue
+    (
+      [ "$c" = acceptance-criteria ] || [ "$c" = post-landing-steps ] || bead=""
+      printf '%s' "$input" | jq -c --arg c "$c" '.[$c]' | mark_one "$c" >/dev/null
+    )
+    uncache markers
+  done
+  open_findings
+}
+
+# The findings.jsonl line that closes finding $1 with outcome $2 and its ref,
+# reason or commit $3; dies on a bad one.
+resolve_line() {
+  local id=$1 outcome=$2 rest=$3 commit=""
   merged_findings | jq -e --arg id "$id" 'any(.[]; .id == $id)' >/dev/null ||
     die "unknown finding '$id'"
-  dir=$(store_dir)
   case $outcome in
-  fixed) rest="" ;;
+  fixed)
+    if [ -n "$rest" ]; then
+      commit=$(git rev-parse -q --verify "$rest^{commit}") || die "fixed: not a commit: '$rest'"
+    fi
+    rest=""
+    ;;
   deferred) [ -n "$rest" ] || die "deferred needs a ref" ;;
   discarded) [ -n "$rest" ] || die "discarded needs a reason" ;;
   *) die "outcome must be fixed, deferred or discarded: '$outcome'" ;;
   esac
   jq -nc --arg id "$id" --arg outcome "$outcome" --arg at "$(now)" --arg b "$(cur_branch)" \
-    --arg rest "$rest" '
+    --arg rest "$rest" --arg commit "$commit" '
     {id: $id, outcome: $outcome, at: $at, branch: $b} +
     (if $outcome == "deferred" then {ref: $rest}
-     elif $outcome == "discarded" then {reason: $rest} else {} end)' >>"$dir/findings.jsonl"
+     elif $outcome == "discarded" then {reason: $rest}
+     elif $commit != "" then {commit: $commit} else {} end)'
+}
+
+sub_resolve() {
+  local line dir
+  line=$(resolve_line "${pos[0]-}" "${pos[1]-}" "${pos[*]:2}") || exit 1
+  dir=$(store_dir)
+  mkdir -p "$dir"
+  printf '%s\n' "$line" >>"$dir/findings.jsonl"
 }
 
 # Open findings of this branch, ordered by check then number (so -10 follows
@@ -453,7 +693,7 @@ open_findings() {
 
 cp_uncommitted_changes() {
   local n
-  n=$(git status --porcelain | wc -l | tr -d ' ')
+  n=$(porcelain | wc -l | tr -d ' ')
   if [ "$n" = 0 ]; then
     emit uncommitted-changes pass "clean"
   else
@@ -491,10 +731,11 @@ cp_behind_default_branch() {
   fi
 }
 
-# file:line of each unchecked item outside fenced code blocks: a "- [ ]" in a
-# ``` or ~~~ block is a template or an example, not pending work. As in
-# CommonMark, only a run of the opening fence's character, at least as long and
-# with nothing after it, closes the block, so a ~~~ inside ``` stays inside.
+# "file:line<TAB>text" of each unchecked item outside fenced code blocks: a
+# "- [ ]" in a ``` or ~~~ block is a template or an example, not pending work.
+# As in CommonMark, only a run of the opening fence's character, at least as
+# long and with nothing after it, closes the block, so a ~~~ inside ``` stays
+# inside.
 unchecked_items() {
   awk -v f="$1" '
     {
@@ -506,17 +747,36 @@ unchecked_items() {
           rest ~ /^[[:space:]]*$/) { fence = ""; next }
       }
     }
-    fence == "" && /^[[:space:]]*[-*+] \[ \]/ { print f ":" FNR }
+    fence == "" && /^[[:space:]]*[-*+] \[ \]/ {
+      t = $0; sub(/^[[:space:]]*[-*+] \[ \][[:space:]]*/, "", t); gsub(/\t/, " ", t)
+      print f ":" FNR "\t" substr(t, 1, 120)
+    }
   ' "$1"
+}
+
+# Unchecked items in the Markdown changed since open-checkboxes' marker.
+checkbox_items() { cached checkboxes checkbox_items_read; }
+checkbox_items_read() {
+  local f
+  touched_markdown "$(marker_from open-checkboxes)" | while IFS= read -r f; do
+    [ -n "$f" ] && [ -f "$f" ] && unchecked_items "$f"
+  done
+  return 0
 }
 
 # --- marker status (kxa-102) ---------------------------------------------
 
-# The latest marker line of a check on this branch, else empty.
-marker_of() {
-  store_lines markers.jsonl | jq -c --arg b "$(cur_branch)" --arg c "$1" '
-    select(.branch == $b and .check == $c)' | tail -n1
+# The latest marker line of each check on this branch, one JSON object keyed
+# by check, read once (again after a mark).
+last_markers() { cached markers last_markers_read; }
+last_markers_read() {
+  store_lines markers.jsonl | jq -sc --arg b "$(cur_branch)" '
+    map(select(.branch == $b and has("check"))) | group_by(.check)
+    | map({key: .[0].check, value: last}) | from_entries'
 }
+
+# The latest marker line of a check on this branch, else empty.
+marker_of() { last_markers | jq -c --arg c "$1" '.[$c] // empty'; }
 
 short_sha() { echo "${1:0:7}"; }
 
@@ -532,39 +792,42 @@ marker_from() {
   fi
 }
 
-# Prints "status<TAB>detail" for a markable check: fresh, stale or never. The
-# skip cases belong to the callers, who know what there is to check.
+# Prints "status<TAB>detail" for a markable check: fresh, stale, unknown or
+# never, from the triggers it watches. The skip cases belong to the callers,
+# who know what there is to check.
 marker_status() {
-  local check=$1 m reasons=() h n b id upd now_upd tx tu tts since unknown=""
+  local check=$1 m reasons=() h clean b id upd tu tts runat at now_upd out n since unknown=""
   m=$(marker_of "$check")
   if [ -z "$m" ]; then
     printf 'never\tno marker\n'
     return
   fi
-  h=$(printf '%s' "$m" | jq -r '.head // empty')
-  if [ -n "$h" ] && [ "$h" != "$(git rev-parse HEAD 2>/dev/null)" ]; then
+  IFS=$'\x1f' read -r h clean b id upd tu tts runat at < <(printf '%s' "$m" | jq -r '
+    [.head // "", (if has("clean") then (.clean | tostring) else "" end), .bd // "",
+     .bead.id // "", .bead.updated // "", .turn.uuid // "", .turn.ts // "",
+     .run // .at // "", .at // ""] | join("\u001f")')
+  if [ -n "$h" ] && [ "$h" != "$(head_sha)" ] && watches_head "$check"; then
     if git merge-base --is-ancestor "$h" HEAD 2>/dev/null; then
-      reasons+=("new commits since $(short_sha "$h")")
+      has_trigger "$check" work-commits && only_fix_commits "$h" ||
+        reasons+=("new commits since $(short_sha "$h")")
     else
       reasons+=("rebased since $(short_sha "$h")")
     fi
   fi
   # Marked on a dirty tree, or dirty now (only checks that snapshot the tree).
-  if printf '%s' "$m" | jq -e 'has("clean") and (.clean | not)' >/dev/null ||
-    { printf '%s' "$m" | jq -e 'has("clean")' >/dev/null && [ -n "$(git status --porcelain)" ]; }; then
+  if { has_trigger "$check" dirty || has_trigger "$check" checkboxes; } &&
+    { [ "$clean" = false ] || { [ -n "$clean" ] && [ -n "$(porcelain)" ]; }; }; then
     reasons+=("dirty tree")
   fi
-  b=$(printf '%s' "$m" | jq -r '.bd // empty')
-  if [ -n "$b" ] && beads_repo; then
-    if n=$(bd list --all --updated-after "$b" --json 2>/dev/null) && n=$(printf '%s' "$n" | jq 'length' 2>/dev/null) && [ -n "$n" ]; then
+  if [ -n "$b" ] && has_trigger "$check" bd && beads_repo; then
+    if out=$(bd_updates_since "$b") && n=$(printf '%s' "$out" | jq 'length' 2>/dev/null) && [ -n "$n" ]; then
       [ "$n" -gt 0 ] && reasons+=("$n bd update(s) since $b")
     else
       reasons+=("bd unreadable")
     fi
   fi
-  id=$(printf '%s' "$m" | jq -r '.bead.id // empty')
-  if [ -n "$id" ] && command -v bd >/dev/null 2>&1; then
-    upd=$(printf '%s' "$m" | jq -r '.bead.updated // empty')
+  if [ -n "$id" ] && has_trigger "$check" bead &&
+    { command -v bd >/dev/null 2>&1 || bead_db >/dev/null; }; then
     now_upd=$(bead_updated "$id")
     if [ -z "$now_upd" ]; then
       reasons+=("$id unreadable")
@@ -572,21 +835,18 @@ marker_status() {
       reasons+=("$id updated")
     fi
   fi
-  if is_conversation_check "$check"; then
-    tx=$(transcript_path)
-    tu=$(printf '%s' "$m" | jq -r '.turn.uuid // empty')
-    tts=$(printf '%s' "$m" | jq -r '.turn.ts // empty')
-    if [ -z "$tx" ] || [ -z "$tu$tts" ]; then
-      unknown="conversation unknown since $(printf '%s' "$m" | jq -r '.run // .at')"
+  if has_trigger "$check" conversation; then
+    if [ -z "$(transcript)" ] || [ -z "$tu$tts" ]; then
+      unknown="conversation unknown since $runat"
     else
-      since=$(conversation_since "$tx" "$tu" "$tts")
+      since=$(conversation_since "$tu" "$tts")
       [ -n "$since" ] && reasons+=("conversation since $since")
     fi
   fi
   if [ ${#reasons[@]} -eq 0 ] && [ -n "$unknown" ]; then
-    printf 'unknown\tsince %s\n' "$(printf '%s' "$m" | jq -r '.run // .at')"
+    printf 'unknown\tsince %s\n' "$runat"
   elif [ ${#reasons[@]} -eq 0 ]; then
-    printf 'fresh\tno changes since %s\n' "$(printf '%s' "$m" | jq -r .at)"
+    printf 'fresh\tno changes since %s\n' "$at"
   else
     [ -n "$unknown" ] && reasons+=("$unknown")
     printf 'stale\t%s\n' "$(printf '%s\n' "${reasons[@]}" | join)"
@@ -605,17 +865,19 @@ emit_marker() {
   fi
 }
 
+# Stale only while changed Markdown holds unchecked items: an edit that left
+# none has nothing to judge.
 cp_open_checkboxes() {
-  local s d items from files
+  local s d items
   IFS=$'\t' read -r s d < <(marker_status open-checkboxes)
-  from=$(marker_from open-checkboxes)
-  files=$(touched_markdown "$from")
-  items=$(printf '%s\n' "$files" | while IFS= read -r f; do
-    [ -n "$f" ] && [ -f "$f" ] && unchecked_items "$f"
-  done)
+  items=$(checkbox_items | cut -f1)
   if [ "$s" = never ] && [ -z "$items" ]; then
     emit open-checkboxes skip "no unchecked items"
     return
+  fi
+  if [ "$s" = stale ] && [ -z "$items" ]; then
+    s=fresh
+    d="no changes since $(marker_of open-checkboxes | jq -r .at)"
   fi
   if [ "$s" != fresh ] && [ -n "$items" ]; then
     d="$d — $(printf '%s\n' "$items" | join)"
@@ -626,14 +888,21 @@ cp_open_checkboxes() {
 cp_diff_review() {
   local n=1
   [ -n "$base" ] && n=$(git rev-list --count "$base..HEAD")
-  if [ "$n" = 0 ] && [ -z "$(git status --porcelain)" ]; then
+  if [ "$n" = 0 ] && [ -z "$(porcelain)" ]; then
     emit_marker diff-review "no changes"
   else
     emit_marker diff-review
   fi
 }
 
-cp_acceptance_criteria() { emit_marker acceptance-criteria; }
+# The row says why when start marked the check itself.
+cp_acceptance_criteria() {
+  if [ -n "$auto_marked" ]; then
+    emit acceptance-criteria fresh "marked by start: $auto_marked"
+  else
+    emit_marker acceptance-criteria
+  fi
+}
 cp_conversation_leftovers() { emit_marker conversation-leftovers; }
 
 cp_related_tracker_items() {
@@ -980,7 +1249,189 @@ cp_unreviewed_bead_changes() {
   fi
 }
 
+# --- the brief (kxa-4z5) ---------------------------------------------------
+
+# acceptance-criteria needs no judgement without a bead, or with a bead that
+# has neither design nor acceptance criteria: start marks it [] itself.
+
+auto_mark() {
+  local info
+  [ "$(marker_status acceptance-criteria | cut -f1)" = fresh ] && return 0
+  if [ -n "$bead" ]; then
+    info=$(bead_json "$bead") || return 0
+    printf '%s' "$info" |
+      jq -e '(.design // "") == "" and (.acceptance_criteria // "") == ""' >/dev/null || return 0
+    bead_ts=$(bead_updated "$bead")
+    [ -n "$bead_ts" ] || return 0
+    auto_marked="$bead has no design or acceptance criteria"
+  else
+    auto_marked="no bead for this branch"
+  fi
+  echo '[]' | mark_one acceptance-criteria >/dev/null
+}
+
+# The bead's lines of the brief: acceptance and design for
+# acceptance-criteria, notes for post-landing-steps. Long text is cut at 40
+# lines, with a pointer to the rest.
+brief_bead() {
+  local info
+  if [ -z "$bead" ]; then
+    echo "- bead: none found (start --bead <id> names it)"
+    return
+  fi
+  info=$(bead_json "$bead") || {
+    echo "- bead: $bead unreadable"
+    return
+  }
+  printf '%s' "$info" | jq -r --arg c "$1" '
+    def text($name; $v):
+      if ($v // "") == "" then "- \($name): none"
+      else ($v | split("\n")) as $l
+        | "- \($name)\(if ($l | length) > 40 then " (first 40 of \($l | length) lines; bd show \(.id) for the rest)" else "" end):",
+          ($l[:40][] | "    " + .)
+      end;
+    "- bead: \(.id) · \(.title)",
+    (if $c == "acceptance-criteria" then text("acceptance"; .acceptance_criteria), text("design"; .design)
+     else text("notes"; .notes) end)'
+}
+
+# Unchecked items as ready findings for mark --batch: the model drops the
+# false positives and fills in the fix and the failure.
+brief_checkboxes() {
+  echo "- candidates for mark --batch (keep the real ones, fill the <…>):"
+  checkbox_items | jq -Rr '
+    select(length > 0) | split("\t") | (.[0] | capture("^(?<f>.*):(?<l>[0-9]+)$")) as $p
+    | {category: "checklist", file: $p.f, line: ($p.l | tonumber),
+       summary: "Unchecked: \(.[1] // "") |—| SUGGESTED FIX: <fix> |—|",
+       failure_scenario: "<what is lost if it lands now>"}
+    | "    " + tojson'
+}
+
+# A check's data lines: its range and files, the bead, the candidates, the bd
+# updates and the prompts since its marker, and its open findings. Pointers
+# and excerpts only, never a whole diff or transcript.
+brief_data() {
+  local c=$1 s=$2 m from files n b out tu tts runat
+  m=$(marker_of "$c")
+  if watches_head "$c" && [ "$c" != open-checkboxes ]; then
+    from=$(marker_from "$c")
+    if [ -n "$from" ]; then
+      out=$(git diff --shortstat "$from...HEAD" | sed 's/^ *//')
+      echo "- range: $(git rev-parse --short=7 "$from")...$(git rev-parse --short=7 HEAD) · ${out:-no committed changes}"
+      files=$(git -c core.quotePath=false diff --name-only "$from...HEAD")
+      n=$(printf '%s' "$files" | grep -c .)
+      [ "$n" -eq 0 ] || echo "- files: $(printf '%s\n' "$files" | head -n15 | join)$([ "$n" -le 15 ] || echo " (+$((n - 15)) more)")"
+    fi
+    n=$(porcelain | grep -c .)
+    [ "$n" -eq 0 ] || echo "- uncommitted: $n path(s)"
+  fi
+  case $c in
+  acceptance-criteria | post-landing-steps) brief_bead "$c" ;;
+  open-checkboxes) brief_checkboxes ;;
+  related-tracker-items)
+    b=$(printf '%s' "$m" | jq -r '.bd // empty')
+    if [ -n "$b" ] && out=$(bd_updates_since "$b"); then
+      echo "- bd updates since $b:"
+      printf '%s' "$out" | jq -r '.[:20][] | "    \(.id) · \(.status) · \(.title)"'
+    else
+      echo "- the whole tracker"
+    fi
+    ;;
+  esac
+  if has_trigger "$c" conversation; then
+    tu=$(printf '%s' "$m" | jq -r '.turn.uuid // empty')
+    tts=$(printf '%s' "$m" | jq -r '.turn.ts // empty')
+    runat=$(printf '%s' "$m" | jq -r '.run // .at // empty')
+    if [ "$s" = never ]; then
+      echo "- conversation: the whole session"
+    elif [ -z "$(transcript)" ] || [ -z "$tu$tts" ]; then
+      echo "- conversation: everything below the 🛫 line of $runat"
+    else
+      out=$(prompts_since "$tu" "$tts")
+      n=$(printf '%s' "$out" | grep -c .)
+      if [ "$n" -eq 0 ]; then
+        echo "- conversation: no new prompt"
+      else
+        echo "- prompts since the marker ($n, newest last$([ "$n" -le 10 ] || echo ", last 10")):"
+        printf '%s\n' "$out" | tail -n10 | awk -F'\t' '{ print "    " $1 " · " $2 }'
+      fi
+    fi
+  fi
+  open_findings "$c" | jq -r '.[] | "- open: \(.id) — \((.short_summary // .summary // "") | .[0:100])"'
+}
+
+# One section per check the model has to run: its instructions, then its data.
+brief() {
+  local c s d
+  for c in $brief_order; do
+    IFS=$'\t' read -r s d < <(printf '%s' "$rows" | awk -F'\t' -v n="$c" '$1 == n { print $2 "\t" $3 }')
+    case $s in stale | never | unknown) ;; *) continue ;; esac
+    printf '\n## %s · %s · %s\n\n' "$c" "$s" "$d"
+    if [ -f "$checks_dir/$c.md" ]; then
+      sed '1{/^# /d;}' "$checks_dir/$c.md" | sed '/./,$!d'
+    else
+      echo "(no instructions at $checks_dir/$c.md)"
+    fi
+    echo
+    echo "Data:"
+    brief_data "$c" "$s"
+  done
+}
+
+sub_start() {
+  local t dir
+  fetched=$(do_fetch)
+  base=$(default_ref)
+  [ -n "$bead" ] || bead=$(branch_bead)
+  t=$(now)
+  dir=$(store_dir)
+  mkdir -p "$dir"
+  jq -nc --arg run "$t" --arg branch "$(cur_branch)" '{run: $run, branch: $branch}' >>"$dir/markers.jsonl"
+  echo "🛫 preflight check started here · $t"
+  auto_mark
+  status_rows
+  echo
+  print_rows
+  brief
+}
+
 # --- run -----------------------------------------------------------------
+
+status_rows() {
+  local markdown stat from
+  rows=""
+  markdown=$(touched_markdown)
+  if [ -n "$base" ]; then
+    stat=$(git diff --shortstat "$base...HEAD" | sed 's/^ *//')
+  else
+    stat=""
+  fi
+  from=$(marker_of diff-review | jq -r '.head // empty')
+  if [ -n "$from" ] && git merge-base --is-ancestor "$from" HEAD 2>/dev/null; then
+    stat=$(git diff --shortstat "$from...HEAD" | sed 's/^ *//')
+  else
+    from=""
+  fi
+
+  emit default fact "${base:--}"
+  emit from fact "${from:--}"
+  emit shortstat fact "${stat:-no changes}"
+  emit markdown fact "$(printf '%s\n' "$markdown" | sed '/^$/d' | join)"
+  emit fetch fact "$fetched"
+
+  cp_uncommitted_changes
+  cp_unlanded_commits
+  cp_behind_default_branch
+  cp_open_checkboxes
+  cp_diff_review
+  cp_acceptance_criteria
+  cp_conversation_leftovers
+  cp_related_tracker_items
+  cp_unraised_follow_ups
+  cp_post_landing_steps
+  cp_findings_leftovers
+  cp_unreviewed_bead_changes
+}
 
 case $sub in
 start) sub_start; exit $? ;;
@@ -993,41 +1444,5 @@ esac
 
 fetched=$(do_fetch)
 base=$(default_ref)
-markdown=$(touched_markdown)
-
-if [ -n "$base" ]; then
-  stat=$(git diff --shortstat "$base...HEAD" | sed 's/^ *//')
-else
-  stat=""
-fi
-
-from=$(marker_of diff-review | jq -r '.head // empty')
-if [ -n "$from" ] && git merge-base --is-ancestor "$from" HEAD 2>/dev/null; then
-  stat=$(git diff --shortstat "$from...HEAD" | sed 's/^ *//')
-else
-  from=""
-fi
-
-emit default fact "${base:--}"
-emit from fact "${from:--}"
-emit shortstat fact "${stat:-no changes}"
-emit markdown fact "$(printf '%s\n' "$markdown" | sed '/^$/d' | join)"
-emit fetch fact "$fetched"
-
-cp_uncommitted_changes
-cp_unlanded_commits
-cp_behind_default_branch
-cp_open_checkboxes
-cp_diff_review
-cp_acceptance_criteria
-cp_conversation_leftovers
-cp_related_tracker_items
-cp_unraised_follow_ups
-cp_post_landing_steps
-cp_findings_leftovers
-cp_unreviewed_bead_changes
-
-case $format in
-tsv) printf '%s' "$rows" ;;
-pretty) table ;;
-esac
+status_rows
+print_rows

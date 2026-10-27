@@ -53,14 +53,14 @@ row() { "$BIN" --format tsv --no-fetch | awk -F'\t' -v n="$1" '$1 == n { print $
 
 echo "start prints the anchor line"
 setup
-out=$("$BIN" start)
+out=$("$BIN" start --no-fetch | head -n1)
 check "anchor line" "$(printf '%s' "$out" | grep -cE '^🛫 preflight check started here · [0-9-]{10}T[0-9:]{8}Z$')" "1"
 check "run recorded" "$(tail -n1 "$store/markers.jsonl" | jq -r .run)" "${out##* · }"
 teardown
 
 echo "mark assigns ids and records the run"
 setup
-start=$("$BIN" start)
+start=$("$BIN" start --no-fetch | head -n1)
 start=${start##* · }
 out=$(echo '[{"category":"x","summary":"a"},{"category":"x","summary":"b"}]' | "$BIN" mark diff-review)
 check "first ids" "$out" $'diff-review-1\ndiff-review-2'
@@ -73,7 +73,7 @@ teardown
 
 echo "mark with [] still writes a marker"
 setup
-"$BIN" start >/dev/null
+"$BIN" start --no-fetch >/dev/null
 before=$(lines "$store/markers.jsonl")
 echo '[]' | "$BIN" mark diff-review >/dev/null
 check "findings" "$(flen)" "0"
@@ -82,7 +82,7 @@ teardown
 
 echo "mark rejects junk"
 setup
-"$BIN" start >/dev/null
+"$BIN" start --no-fetch >/dev/null
 echo '[{"category":"x","summary":"a"}]' | "$BIN" mark diff-review >/dev/null
 m=$(lines "$store/markers.jsonl")
 f=$(lines "$store/findings.jsonl")
@@ -342,7 +342,7 @@ tx_result r1 $T3 b1
 check "fresh" "$(row conversation-leftovers | cut -d/ -f1)" "fresh"
 teardown
 
-echo "conversation: question answers stale"
+echo "conversation: question answers do not stale (preflight's own questions)"
 setup
 tx_init
 tx_turn u1 $T1 "hello"
@@ -350,7 +350,7 @@ echo '[]' | "$BIN" mark conversation-leftovers >/dev/null
 tx_ask a1 $T2 q1
 check "asked, unanswered" "$(row conversation-leftovers | cut -d/ -f1)" "fresh"
 tx_result r1 $T3 q1
-check "answered" "$(row conversation-leftovers)" "stale/conversation since $T3"
+check "answered" "$(row conversation-leftovers | cut -d/ -f1)" "fresh"
 teardown
 
 echo "conversation: meta lines do not"
@@ -392,20 +392,20 @@ echo "conversation: no transcript"
 setup
 tx_init
 tx_turn u1 $T1 "hello"
-run=$("$BIN" start)
+run=$("$BIN" start --no-fetch | head -n1)
 run=${run##* · }
 echo '[]' | "$BIN" mark conversation-leftovers >/dev/null
-echo '[]' | "$BIN" mark related-tracker-items >/dev/null
+echo '[]' | "$BIN" mark unraised-follow-ups >/dev/null
 mkdir "$work/empty"
 export CLAUDE_CONFIG_DIR="$work/empty"
 check "unknown" "$(row conversation-leftovers)" "unknown/since $run"
 echo c >c.txt && commit c
-check "stale and unknown" "$(row related-tracker-items)" "stale/new commits since $(git rev-parse HEAD~1 | cut -c1-7), conversation unknown since $run"
+check "stale and unknown" "$(row unraised-follow-ups)" "stale/new commits since $(git rev-parse HEAD~1 | cut -c1-7), conversation unknown since $run"
 teardown
 setup
 export CLAUDE_CONFIG_DIR="$work/empty2"
 mkdir "$work/empty2"
-run=$("$BIN" start)
+run=$("$BIN" start --no-fetch | head -n1)
 run=${run##* · }
 echo '[]' | "$BIN" mark conversation-leftovers >/dev/null
 check "marked without transcript: no turn" "$(tail -n1 "$store/markers.jsonl" | jq 'has("turn")')" "false"
@@ -513,6 +513,117 @@ PATH="$bin" "$BIN" findings >/dev/null 2>&1
 check "exit" "$?" "1"
 err=$(PATH="$bin" "$BIN" findings 2>&1 >/dev/null)
 check "message" "$err" "preflight-checks: jq is required"
+teardown
+
+# --- kxa-4z5: scoped staleness, mark --batch, the brief --------------------
+
+echo "a Fix commit stales only diff-review"
+setup
+stub_bd
+tx_init
+tx_turn u1 $T1 "hello"
+echo '{"id":"kxa-1","updated_at":"T1"}' >"$work/bd-show.json"
+echo a >a.txt && commit one
+echo '{"diff-review": [{"category":"x","summary":"a"}], "acceptance-criteria": [], "unraised-follow-ups": [], "post-landing-steps": [], "related-tracker-items": [], "conversation-leftovers": []}' |
+  "$BIN" mark --batch --bead kxa-1 >/dev/null
+echo b >a.txt && commit fix
+"$BIN" resolve diff-review-1 fixed HEAD
+check "commit recorded" "$(tail -n1 "$store/findings.jsonl" | jq -r .commit)" "$(git rev-parse HEAD)"
+check "diff-review" "$(row diff-review | cut -d/ -f1)" "stale"
+for c in acceptance-criteria unraised-follow-ups post-landing-steps related-tracker-items conversation-leftovers; do
+  check "$c after a fix" "$(row "$c" | cut -d/ -f1)" "fresh"
+done
+echo c >c.txt && commit work
+check "work commit stales unraised" "$(row unraised-follow-ups | cut -d/ -f1)" "stale"
+check "work commit stales acceptance" "$(row acceptance-criteria | cut -d/ -f1)" "stale"
+check "work commit leaves conversation" "$(row conversation-leftovers | cut -d/ -f1)" "fresh"
+check "work commit leaves tracker" "$(row related-tracker-items | cut -d/ -f1)" "fresh"
+"$BIN" resolve diff-review-1 fixed nope 2>/dev/null
+check "bad commit exit" "$?" "1"
+teardown
+
+echo "bd updates stale only related-tracker-items"
+setup
+stub_bd
+tx_init
+tx_turn u1 $T1 "hello"
+echo '{"related-tracker-items": [], "unraised-follow-ups": [], "conversation-leftovers": []}' | "$BIN" mark --batch >/dev/null
+echo '[{"id":"x","status":"open","title":"t"}]' >"$work/bd-list.json"
+check "tracker" "$(row related-tracker-items | cut -d/ -f1)" "stale"
+check "unraised" "$(row unraised-follow-ups | cut -d/ -f1)" "fresh"
+check "conversation" "$(row conversation-leftovers | cut -d/ -f1)" "fresh"
+teardown
+
+echo "open-checkboxes: Markdown without unchecked items stays fresh"
+setup
+printf -- '- [ ] x\n' >a.md && commit a
+echo '[]' | "$BIN" mark open-checkboxes >/dev/null
+printf -- 'prose\n' >b.md && commit b
+check "fresh" "$(row open-checkboxes | cut -d/ -f1)" "fresh"
+printf -- '- [x] x\n' >a.md
+check "ticked, still none" "$(row open-checkboxes | cut -d/ -f1)" "fresh"
+printf -- '- [ ] y\n' >>b.md
+check "dirty with an item" "$(row open-checkboxes)" "stale/new commits since $(git rev-parse HEAD~1 | cut -c1-7), dirty tree — b.md:2"
+teardown
+
+echo "mark --batch"
+setup
+out=$(echo '{"diff-review": [{"category":"x","summary":"a"},{"category":"x","summary":"b"}], "open-checkboxes": []}' | "$BIN" mark --batch)
+check "prints open findings" "$(printf '%s' "$out" | jq -c '[.[].id]')" '["diff-review-1","diff-review-2"]'
+check "one marker each" "$(jq -r .check "$store/markers.jsonl" | sort | paste -sd, -)" "diff-review,open-checkboxes"
+out=$(echo '{"diff-review": [{"category":"x","summary":"c"}], "resolve": [["diff-review-1", "fixed"], ["diff-review-2", "discarded", "obsolete:", "gone"]]}' | "$BIN" mark --batch)
+check "resolved and new" "$(printf '%s' "$out" | jq -c '[.[].id]')" '["diff-review-3"]'
+check "reason joined" "$("$BIN" findings | jq length)" "1"
+check "reason kept" "$(jq -sc 'map(select(.id == "diff-review-2")) | last | .reason' "$store/findings.jsonl")" '"obsolete: gone"'
+m=$(lines "$store/markers.jsonl")
+f=$(lines "$store/findings.jsonl")
+for junk in '[]' '{"nope": []}' '{"diff-review": {}}' '{"diff-review": [1]}' '{"resolve": [["diff-review-3"]]}' \
+  '{"diff-review": [], "resolve": [["diff-review-9", "fixed"]]}' '{"diff-review": [], "resolve": [["diff-review-3", "maybe"]]}' 'not json'; do
+  echo "$junk" | "$BIN" mark --batch >/dev/null 2>&1
+  check "junk exit: $junk" "$?" "1"
+done
+check "markers unchanged" "$(lines "$store/markers.jsonl")" "$m"
+check "findings unchanged" "$(lines "$store/findings.jsonl")" "$f"
+teardown
+
+echo "start: the brief"
+setup
+tx_init
+tx_turn u1 $T1 "hello"
+printf -- '- [ ] write docs\n' >a.md && commit a
+out=$("$BIN" start --no-fetch --format tsv)
+check "anchor first" "$(printf '%s\n' "$out" | head -n1 | grep -c '^🛫 preflight check started here')" "1"
+check "rows" "$(printf '%s\n' "$out" | grep -c "^diff-review$(printf '\t')never")" "1"
+check "auto-marked acceptance" "$(printf '%s\n' "$out" | grep "^acceptance-criteria" | cut -f2-)" "fresh$(printf '\t')marked by start: no bead for this branch"
+check "no acceptance section" "$(printf '%s\n' "$out" | grep -c '^## acceptance-criteria')" "0"
+for c in diff-review conversation-leftovers open-checkboxes unraised-follow-ups post-landing-steps; do
+  check "section $c" "$(printf '%s\n' "$out" | grep -c "^## $c · never")" "1"
+done
+check "no tracker, no section" "$(printf '%s\n' "$out" | grep -c '^## related-tracker-items')" "0"
+check "instructions inlined" "$(printf '%s\n' "$out" | grep -c '^\*\*Reads\.\*\*')" "5"
+check "candidate" "$(printf '%s\n' "$out" | grep '"file":"a.md"' | sed 's/^ *//' | jq -c '[.file, .line, .category]')" '["a.md",1,"checklist"]'
+check "candidate text" "$(printf '%s\n' "$out" | grep -c 'Unchecked: write docs')" "1"
+check "range" "$(printf '%s\n' "$out" | grep -c '^- range: ')" "3"
+echo '{"diff-review": [], "conversation-leftovers": [], "open-checkboxes": [], "unraised-follow-ups": [], "post-landing-steps": []}' | "$BIN" mark --batch >/dev/null
+tx_turn u2 $T2 "also fix the readme"
+out=$("$BIN" start --no-fetch --format tsv)
+check "fresh checks leave" "$(printf '%s\n' "$out" | grep -c '^## diff-review')" "0"
+check "prompt excerpt" "$(printf '%s\n' "$out" | grep -c "    $T2 · also fix the readme")" "3"
+teardown
+
+echo "start: --bead with criteria keeps acceptance for the model"
+setup
+stub_bd
+echo '{"id":"kxa-1","title":"T","updated_at":"T1","acceptance_criteria":"it works","design":"1. a\n2. b"}' >"$work/bd-show.json"
+echo a >a.txt && commit one
+out=$("$BIN" start --no-fetch --format tsv --bead kxa-1)
+check "section" "$(printf '%s\n' "$out" | grep -c '^## acceptance-criteria · never')" "1"
+check "acceptance text" "$(printf '%s\n' "$out" | grep -c '^    it works$')" "1"
+check "design text" "$(printf '%s\n' "$out" | grep -c '^    2. b$')" "1"
+echo '{"id":"kxa-1","title":"T","updated_at":"T1"}' >"$work/bd-show.json"
+out=$("$BIN" start --no-fetch --format tsv --bead kxa-1)
+check "empty bead auto-marked" "$(printf '%s\n' "$out" | grep "^acceptance-criteria" | cut -f3)" "marked by start: kxa-1 has no design or acceptance criteria"
+check "bead recorded" "$(jq -sc 'map(select(.check == "acceptance-criteria")) | last | .bead' "$store/markers.jsonl")" '{"id":"kxa-1","updated":"T1"}'
 teardown
 
 if [ "$failures" -gt 0 ]; then

@@ -243,7 +243,7 @@ echo "row: beads but no readable DB → skip that says so, not no beads"
 setup
 mkdir -p .beads "$work/stubs"
 printf '#!/bin/sh\nexit 0\n' >"$work/stubs/bd" && chmod +x "$work/stubs/bd"
-for t in bash env jq git awk sed tr cut paste wc grep sort date dirname basename find mktemp touch cat head tail diff; do
+for t in bash env jq git awk sed tr cut paste wc grep sort date dirname basename find mktemp touch cat head tail diff rm; do
   p=$(command -v "$t") && ln -sf "$p" "$work/stubs/$t"
 done
 check "skip detail" "$(PATH="$work/stubs" row unreviewed-bead-changes)" "skip/beads DB not readable (no dolt CLI, or not embedded mode)"
