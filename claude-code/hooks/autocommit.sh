@@ -1,7 +1,7 @@
 #!/bin/bash
 # Stop hook: land the turn's work in a commit, one commit per prompt. The block
-# reason has the agent stage and read the diff in one Bash call, then write the
-# message itself and commit in one more - no /kix:commit round trips
+# reason has the agent stage and list the change in one Bash call, then write
+# the message itself and commit in one more - no /kix:commit round trips
 # (kxa-6ei.8: the skill's own procedure, not the message, was the cost). The kix pre-commit hook autofixes formatting and
 # re-stages on its own, so only real failures come back to the agent.
 # Guards first so we never burn a turn when there is nothing safe to commit.
@@ -152,17 +152,18 @@ import json
 CODE = """You left uncommitted work in the tree. Commit it now - do not ask first,
 and do not run /kix:commit.
 
-If everything dirty was edited by the user rather than you, say so and skip the
-commit (if you already staged it, `git reset` first).
+Decide before running anything: if you edited nothing this turn, everything
+dirty is the user's - say so and skip the commit.
 
-Otherwise stage everything and read it in ONE Bash call - the staged diff shows
-new files too:
+Otherwise stage everything and list it in ONE Bash call:
 
-    git add -A && git diff --cached && git log -5
+    git add -A && git diff --cached --stat && git log -5
 
-Write the message yourself from that diff and what you did this turn, in the
-repo's style: the commit section of its CLAUDE.md if it has one, else the
-subject and body shape of that `git log`. Then commit in ONE more Bash call:
+Write the message yourself from what you did this turn, in the repo's style:
+the commit section of its CLAUDE.md if it has one, else the subject and body
+shape of that `git log`. Read a file's diff (`git diff --cached -- <file>`)
+only when the stat lists one whose change you do not already know. Then commit
+in ONE more Bash call:
 
     git commit -F - <<'EOF'
     <subject>
