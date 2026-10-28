@@ -2,6 +2,27 @@
 
 The approved design, as written into the bead's design field (2026-10-24).
 
+Amended 2026-10-28 (kelvinst, after the live check). Supersedes the parts below
+where they disagree:
+
+- No "Show me what changed" option. The Verdict's own status call takes
+  `--diff-html <file> [--from <first step 5 commit>]` and writes the diff page
+  only when something is unreviewed (step 5 commits, or
+  `unreviewed-bead-changes` reads finding or stale), naming it in a `diff-page`
+  row. A **changed** verdict opens that page right away: the app's browser
+  pane, else `open` / `xdg-open`. No diff text and no link in the reply. The
+  rerun question keeps I reviewed / skip my review / not now.
+- The page (`diff --html`): the commits in full, no stat fallback, and every
+  bead change. Inside each changed line, the changed words are highlighted from
+  `git diff --word-diff=porcelain`, like GitHub. One self-contained HTML file
+  with dark mode.
+- Scope: only this session's beads count. bd records no session, so they are
+  read from the session's transcript: ids in the bd write commands it ran (Bash
+  tool, or the user's `!` shell) and the ids its `bd create`s printed, plus
+  every bead a dependency links to them, either way. Other sessions' changes
+  show only as a "not shown" count. With no transcript, all beads count, with
+  the other-sessions warning.
+
 Approved 2026-10-24 (kelvinst, brainstorm session).
 
 Where: only preflight's Verdict **changed** rerun question gets a 4th option

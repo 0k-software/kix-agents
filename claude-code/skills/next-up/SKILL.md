@@ -175,37 +175,31 @@ No fixes → one line saying the tracker is clean, and go to Step 5.
 
 ## Step 3 — Decide
 
-First question: "Apply all" (Recommended) · "Go one by one".
+Ask one question per fix (or per linked group), in the list's order — no "Apply
+all" question first: the first question is fix 1's. Right before each question,
+print the fix in the reply as a short Markdown block — the card collapses to
+the chosen label once answered, and the block is what the user scrolls back to:
 
-- **Apply all:** queue every fix with its recommended option. No more
-  questions, except a fix that has no recommended option (the mixed-epic
-  status, a stale in_progress, a worktree removal, an orphan branch): those are
-  still asked one by one.
-- **Go one by one:** one question per fix (or per linked group), in the list's
-  order. Right before each question, print the fix in the reply as a short
-  Markdown block — the card collapses to the chosen label once answered, and
-  the block is what the user scrolls back to:
+```
+**Fix 2/4 — Fold kxa-9so "Bar" into kxa-5l3 "Close rewrite"**
 
-  ```
-  **Fix 2/4 — Fold kxa-9so "Bar" into kxa-5l3 "Close rewrite"**
+- **What:** …
+- **Why:** …
+- **Command:** `bd …`
+```
 
-  - **What:** …
-  - **Why:** …
-  - **Command:** `bd …`
-  ```
+The card: "Apply" (Recommended when it is) · "Skip"; "Other" is always there
+and means change — follow what the user types, and re-propose the changed fix
+(block and card) before moving on.
 
-  The card: "Apply" (Recommended when it is) · "Skip"; "Other" is always there
-  and means change — follow what the user types, and re-propose the changed fix
-  (block and card) before moving on.
+A collision gets real options instead of Apply: **fold** (the work becomes part
+of the sweeping epic), **hybrid** (do the piece now in the shape the epic
+wants), **keep both** (with an order: `bd dep add`). Explain each in the block
+with bead titles, recommended first.
 
-  A collision gets real options instead of Apply: **fold** (the work becomes
-  part of the sweeping epic), **hybrid** (do the piece now in the shape the
-  epic wants), **keep both** (with an order: `bd dep add`). Explain each in the
-  block with bead titles, recommended first.
-
-  Before asking a fix, check the earlier answers: a fix an earlier answer made
-  moot is dropped, and one it changed is rewritten — say so in one line
-  (`Fix 5/7 dropped — kxa-xyz "Qux" was folded in fix 2`).
+Before asking a fix, check the earlier answers: a fix an earlier answer made
+moot is dropped, and one it changed is rewritten — say so in one line
+(`Fix 5/7 dropped — kxa-xyz "Qux" was folded in fix 2`).
 
 **Nothing runs between questions.** An answer only records the decision; the
 queue starts after the last one, so the user answers in one sitting.

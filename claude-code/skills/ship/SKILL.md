@@ -70,11 +70,11 @@ name without `origin/`.
    since the preflight (uncommitted changes / `<default>` moved / diff not
    reviewed / open findings / bead changes not reviewed) with the branch diff
    from `<base>` as its link, then ask "Run `<command>` again?" with
-   `kix:preflight`'s _Verdict_ **changed** rerun options except "Show me what
-   changed" — this stop applied nothing for the user to review (reviewed · skip
-   my review · not now); on "skip my review", the ⚠️ item names the branch
-   range `<base>..HEAD`. `<command>` as _Verdict_ defines it (`/kix:close` when
-   close called ship). Never rebase or review here to fix it.
+   `kix:preflight`'s _Verdict_ **changed** rerun options (reviewed · skip my
+   review · not now) — this stop opens no diff page; on "skip my review", the
+   ⚠️ item names the branch range `<base>..HEAD`. `<command>` as _Verdict_
+   defines it (`/kix:close` when close called ship). Never rebase or review
+   here to fix it.
 
 4. **Push and check**, in one call:
 

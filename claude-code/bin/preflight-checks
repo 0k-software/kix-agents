@@ -11,6 +11,7 @@ set -uo pipefail
 usage() {
   cat <<'EOF'
 Usage: preflight-checks [--format pretty|tsv] [--no-fetch] [--session ID]
+                        [--diff-html FILE [--from SHA]]
        preflight-checks start [--bead ID] [--format pretty|tsv] [--no-fetch]
        preflight-checks mark <check> [--bead ID] [--session ID]   (JSON on stdin)
        preflight-checks mark --batch [--bead ID]                  (JSON on stdin)
@@ -34,6 +35,9 @@ Facts (status "fact"):
   shortstat  git diff --shortstat from the merge base to HEAD
   markdown   Markdown files the branch or the dirty tree touches, ", "-joined
   fetch      fresh | fetched | failed | skipped
+  diff-page  with --diff-html: FILE when it wrote the page `diff --html`
+             writes (--from given, or unreviewed-bead-changes is finding or
+             stale), else "-"
 
 Checkpoints (status pass | finding | fresh | stale | unknown | never | skip):
   uncommitted-changes    uncommitted changes
@@ -57,7 +61,10 @@ Checkpoints (status pass | finding | fresh | stale | unknown | never | skip):
                          beads changed since the latest bd-mark review, else
                          the session's start mark: pass, finding with their
                          ids, stale when dolt no longer knows the mark,
-                         unknown with no mark, skip without a beads DB
+                         unknown with no mark, skip without a beads DB. With
+                         the session's transcript, only the beads its bd
+                         write commands touched and those a dependency links
+                         to them count; the rest are a "not shown" count
 
 Subcommands (the session store, kxa-102; JSON lines under
 <git common dir>/kix/checks/<session>/, append-only, read per branch):
@@ -83,11 +90,13 @@ Subcommands (the session store, kxa-102; JSON lines under
             record the beads DB's dolt commit in bd.jsonl (kxa-a9i): start
             once per session (the SessionStart hook), review each time the
             user has seen the bead changes; a no-op without a beads DB
-  diff [--from SHA]
+  diff [--from SHA] [--html FILE]
             what changed, for the user to review: with --from, the commits
             SHA^..HEAD (inline up to 80 lines, else their stat); then every
             bead change since the bd-mark window as a git-style diff, with a
-            warning when other sessions of the repo ran in that window
+            warning when other sessions of the repo ran in that window.
+            --html also writes it all to FILE as a page, the commits in full
+            and the changed words of each changed line highlighted
 
   --bead ID     the branch's bead, whose updates stale acceptance-criteria and
                 post-landing-steps (start: else an id in the branch name)
@@ -111,6 +120,7 @@ base=""
 dolt_json=""
 diff_from=""
 batch=0
+diff_html=""
 sub=""
 pos=()
 case ${1-} in
@@ -148,6 +158,10 @@ while [ $# -gt 0 ]; do
     ;;
   --from)
     diff_from=${2-}
+    shift
+    ;;
+  --html | --diff-html)
+    diff_html=${2-}
     shift
     ;;
   -h | --help) usage && exit 0 ;;
@@ -1032,19 +1046,77 @@ bead_dolt_diff() {
   printf '%s' "$tables" | jq -sc '{tables: .}'
 }
 
-# The ids of the issues changed in DB $1 since commit $2, one per line,
-# sorted — what bead_dolt_diff | bead_changed_ids gives, in one dolt call
-# instead of four: the row runs on every preflight-checks call. Fails when
-# dolt does not know the commit.
-bead_changed_ids_since() {
-  local q="" t col out
+# The beads this session wrote through bd, from its transcript, one per line:
+# every id in a bd write command it ran (the Bash tool, or the user's own `!`
+# shell), and the id each of its `bd create`s printed. bd records no session
+# on a write, so the transcript is the only place that knows. Fails without a
+# transcript.
+bead_write_cmds="create|update|close|reopen|dep|label|comment|comments|supersede|delete|defer|undefer|duplicate|set-state|human"
+session_bead_ids() {
+  local t out tid
+  t=$(transcript_path)
+  [ -n "$t" ] || return 1
+  out=$(grep -E 'bd |Created issue' "$t" | jq -r --arg w "$bead_write_cmds" '
+    def ids: scan("[A-Za-z0-9]+-[A-Za-z0-9]+(?:\\.[0-9]+)*");
+    def cmds($tid):
+      scan("(?:^|[\\n;&|(]|<bash-input>)\\s*bd\\s+(?:-[-A-Za-z]*(?:=\\S+)?\\s+)*(" + $w + ")\\b([^\\n;&|<]*)")
+      | if .[0] == "create" then (if $tid then "T " + $tid else empty end)
+        else .[1] | ids | "I " + . end;
+    def created: scan("Created issue:\\s*([A-Za-z0-9.-]*[A-Za-z0-9])") | "I " + .[0];
+    (.message.content? // empty)
+    | if type == "string" then cmds(null), created
+      else .[]?
+        | if .type == "tool_use" and .name == "Bash" then .id as $i | (.input.command // "") | cmds($i)
+          elif .type == "tool_result" then
+            (.content | if type == "string" then . else (map(.text? // "") | join("\n")) end) | created
+          else empty end
+      end' 2>/dev/null)
+  {
+    printf '%s\n' "$out" | sed -n 's/^I //p'
+    # A `bd create --silent` prints only the new id: read it from that call's
+    # result.
+    for tid in $(printf '%s\n' "$out" | sed -n 's/^T //p'); do
+      grep -F "\"tool_use_id\":\"$tid\"" "$t" | jq -r '
+        .message.content[]? | select(.type == "tool_result")
+        | (.content | if type == "string" then . else (map(.text? // "") | join("\n")) end)
+        | [scan("[A-Za-z0-9]+-[A-Za-z0-9]+(?:\\.[0-9]+)*")][0] // empty' 2>/dev/null
+    done
+  } | sed '/^$/d' | sort -u
+}
+
+# Which changed beads in DB $1 since commit $2 the review covers, in one dolt
+# call. With a transcript: the beads this session wrote (session_bead_ids) and
+# the ones a dependency links to them, either way, now or before the window.
+# Without one: all of them. Prints the scope (session or all), how many
+# changed beads it leaves out, then the ids it keeps, one per line, sorted.
+# Fails when dolt does not know the commit.
+bead_scope() {
+  local q="" t col out mine scope=all changed keep
   for t in issues dependencies labels comments; do
     col=issue_id
     [ "$t" = issues ] && col=id
-    q+="${q:+ union }select coalesce(to_$col, from_$col) as id from dolt_diff('$2', 'WORKING', '$t')"
+    q+="${q:+ union }select 'c' as k, coalesce(to_$col, from_$col) as a, '' as b from dolt_diff('$2', 'WORKING', '$t')"
   done
+  if mine=$(session_bead_ids); then
+    scope=session
+    q+=" union select 'e', issue_id, coalesce(depends_on_issue_id, '') from dependencies"
+    q+=" union select 'e', from_issue_id, coalesce(from_depends_on_issue_id, '') from dolt_diff('$2', 'WORKING', 'dependencies') where from_issue_id is not null"
+  fi
   out=$(cd "$1" && dolt sql -r csv -q "$q" 2>/dev/null) || return 1
-  printf '%s\n' "$out" | tail -n +2 | sed '/^$/d' | sort -u
+  changed=$(printf '%s\n' "$out" | awk -F, '$1 == "c" && $2 != "" { print $2 }' | sort -u)
+  if [ "$scope" = session ]; then
+    # BSD awk rejects a newline in a -v value: pass the list through the
+    # environment.
+    keep=$(printf '%s\n' "$out" | MINE=$mine awk -F, '
+      BEGIN { n = split(ENVIRON["MINE"], m, "\n"); for (i = 1; i <= n; i++) if (m[i] != "") { s[m[i]] = 1; print m[i] } }
+      $1 == "e" { if ($2 in s && $3 != "") print $3; if ($3 in s) print $2 }' | sort -u)
+    keep=$(comm -12 <(printf '%s\n' "$changed" | sed '/^$/d') <(printf '%s\n' "$keep" | sed '/^$/d'))
+  else
+    keep=$changed
+  fi
+  echo "$scope"
+  echo $(($(printf '%s\n' "$changed" | sed '/^$/d' | wc -l) - $(printf '%s\n' "$keep" | sed '/^$/d' | wc -l)))
+  printf '%s\n' "$keep" | sed '/^$/d'
 }
 
 # Ids of the other sessions whose transcript changed after ISO time $1: any
@@ -1082,6 +1154,8 @@ render_bead_diff() {
   json=$(cat)
   ids=$(printf '%s' "$json" | bead_changed_ids)
   for id in $ids; do
+    # bead_diff's scope: only the beads the review covers.
+    [ -z "${bead_only+x}" ] || printf '%s\n' "$bead_only" | grep -qxF "$id" || continue
     row=$(printf '%s' "$json" | jq -c --arg id "$id" '
       first(.tables[]? | select(.name == "issues") | .data_diff[]?
         | select((.from_row.id // .to_row.id) == $id)) // null')
@@ -1160,8 +1234,9 @@ fenced() {
   printf '%s%s\n%s\n%s\n' "$f" "$1" "$2" "$f"
 }
 
-# The code part of `diff`: commits $1^..HEAD inline up to 80 lines, else
-# their stat.
+# The code part of `diff`: commits $1^..HEAD inline up to $code_inline_max
+# lines (no limit when negative), else their stat.
+code_inline_max=80
 code_diff() {
   local base d n
   git rev-parse -q --verify "$1^{commit}" >/dev/null || die "--from: not a commit: '$1'"
@@ -1171,7 +1246,7 @@ code_diff() {
   echo
   d=$(git diff --no-ext-diff "$base" HEAD)
   n=$(printf '%s\n' "$d" | wc -l | tr -d ' ')
-  if [ "$n" -le 80 ]; then
+  if [ "$code_inline_max" -lt 0 ] || [ "$n" -le "$code_inline_max" ]; then
     fenced diff "$d"
   else
     fenced text "$(git diff --stat "$base" HEAD)"
@@ -1180,11 +1255,164 @@ code_diff() {
   fi
 }
 
+# Text $1 HTML-escaped, in $esc. A variable, not a subshell: it runs once per
+# diff line. patsub_replacement (bash 5.2) would read the & in the
+# replacements as the match.
+shopt -u patsub_replacement 2>/dev/null || true
+esc_amp='&amp;' esc_lt='&lt;' esc_gt='&gt;'
+html_esc() {
+  esc=${1//&/$esc_amp}
+  esc=${esc//</$esc_lt}
+  esc=${esc//>/$esc_gt}
+}
+
+# One page line of class $1 (c context, d deleted, a added, h hunk, m file
+# header) holding HTML $2.
+html_line() { printf '<div class="l %s">%s</div>\n' "$1" "$2"; }
+
+# The changed words of line pair $1 (old) and $2 (new), both without their
+# sign, as HTML in $wd_old and $wd_new: git's word diff, each changed run in a
+# <span class=w>. Nothing marked when the two share no word — a pairing that
+# only lines up a removal with an unrelated addition.
+word_pair() {
+  local out l common=0
+  printf '%s\n' "$1" >"$wd_a"
+  printf '%s\n' "$2" >"$wd_b"
+  out=$(git diff --no-index --no-ext-diff --no-color --word-diff=porcelain "$wd_a" "$wd_b" | sed '1,/^@@/d')
+  wd_old="" wd_new=""
+  while IFS= read -r l; do
+    html_esc "${l:1}"
+    case $l in
+    ' '*)
+      wd_old+=$esc wd_new+=$esc
+      [ -z "${l// /}" ] || common=1
+      ;;
+    -*) wd_old+="<span class=w>$esc</span>" ;;
+    +*) wd_new+="<span class=w>$esc</span>" ;;
+    esac
+  done <<<"$out"
+  [ -n "$out" ] && [ "$common" = 1 ] && return
+  html_esc "$1" && wd_old=$esc
+  html_esc "$2" && wd_new=$esc
+}
+
+# The run of deleted lines then added lines held in dels/adds, the i-th
+# deletion paired with the i-th addition for word marks, as page lines.
+flush_run() {
+  local i n=${#dels[@]} m=${#adds[@]} olds=() news=()
+  for ((i = 0; i < n && i < m; i++)); do
+    word_pair "${dels[i]:1}" "${adds[i]:1}"
+    olds[i]=$wd_old
+    news[i]=$wd_new
+  done
+  for ((i = 0; i < n; i++)); do
+    if [ "$i" -lt "$m" ]; then
+      html_line d "-${olds[i]}"
+    else
+      html_esc "${dels[i]}" && html_line d "$esc"
+    fi
+  done
+  for ((i = 0; i < m; i++)); do
+    if [ "$i" -lt "$n" ]; then
+      html_line a "+${news[i]}"
+    else
+      html_esc "${adds[i]}" && html_line a "$esc"
+    fi
+  done
+  dels=() adds=()
+}
+
+# One line of a diff block. A git file header runs from "diff --git" to the
+# first hunk, so a deleted "-- x" line is never read as a "--- a/x" header.
+diff_line() {
+  if [ "$in_hdr" = 1 ] && [ "${1:0:2}" != @@ ]; then
+    html_esc "$1" && html_line m "$esc"
+    return
+  fi
+  case $1 in
+  'diff --git '*)
+    flush_run
+    in_hdr=1
+    html_esc "$1" && html_line m "$esc"
+    ;;
+  @@*)
+    flush_run
+    in_hdr=0
+    html_esc "$1" && html_line h "$esc"
+    ;;
+  -*)
+    [ ${#adds[@]} -eq 0 ] || flush_run
+    dels+=("$1")
+    ;;
+  +*) adds+=("$1") ;;
+  # "\ No newline at end of file" sits between a removal and its addition:
+  # flushing on it would cost the pair its word marks.
+  \\*) ;;
+  *)
+    flush_run
+    html_esc "$1" && html_line c "$esc"
+    ;;
+  esac
+}
+
+# The Markdown `diff` prints, on stdin, as one self-contained HTML page:
+# "## " headings, fenced diff blocks with their changed words marked, other
+# fenced blocks as plain lines, any other line as a paragraph.
+diff_html() {
+  local line fence="" lang="" bt='`' in_hdr=0 dels=() adds=() wd_a wd_b wd_old wd_new esc
+  wd_a=$(mktemp)
+  wd_b=$(mktemp)
+  cat <<'HTML'
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight diff</title>
+<style>
+:root{--fg:#1f2328;--bg:#fff;--mute:#59636e;--line:#d1d9e0;--hunk:#ddf4ff;--del:#ffebe9;--add:#dafbe1;--delw:#ffb0a8;--addw:#8ee6a0}
+@media(prefers-color-scheme:dark){:root{--fg:#e6edf3;--bg:#0d1117;--mute:#9198a1;--line:#3d444d;--hunk:#121d2f;--del:#3c1618;--add:#12261e;--delw:#7d2a2a;--addw:#1f6f3a}}
+body{margin:16px;background:var(--bg);color:var(--fg);font:14px/1.5 -apple-system,system-ui,sans-serif}
+h2{font-size:15px;margin:20px 0 8px}
+.b{font:12px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;border:1px solid var(--line);border-radius:6px;overflow:hidden;margin:0 0 12px}
+.l{white-space:pre-wrap;overflow-wrap:anywhere;padding:0 10px;min-height:1.6em}
+.h{background:var(--hunk);color:var(--mute)}.m{color:var(--mute);font-weight:600}
+.d{background:var(--del)}.a{background:var(--add)}
+.d .w{background:var(--delw);border-radius:3px}.a .w{background:var(--addw);border-radius:3px}
+</style></head><body>
+HTML
+  while IFS= read -r line; do
+    if [ -n "$fence" ]; then
+      if [ "$line" = "$fence" ]; then
+        flush_run
+        echo '</div>'
+        fence=""
+      elif [ "$lang" = diff ]; then
+        diff_line "$line"
+      else
+        html_esc "$line" && html_line c "$esc"
+      fi
+      continue
+    fi
+    case $line in
+    "$bt$bt$bt"*)
+      fence=${line%%[!$bt]*}
+      lang=${line#"$fence"}
+      in_hdr=0
+      echo '<div class=b>'
+      ;;
+    '## '*) html_esc "${line#\#\# }" && echo "<h2>$esc</h2>" ;;
+    '') ;;
+    *) html_esc "$line" && echo "<p>$esc</p>" ;;
+    esac
+  done
+  [ -z "$fence" ] || { flush_run && echo '</div>'; }
+  echo '</body></html>'
+  rm -f "$wd_a" "$wd_b"
+}
+
 # The bead part of `diff`: every bead change since the window's start, and a
 # warning when other sessions of this repo ran in the window. Nothing without
 # a beads DB.
 bead_diff() {
-  local db w c at since out others
+  local db w c at since out others scope hidden
   db=$(bead_db_dir) || return 0
   w=$(bead_window)
   if [ -z "$w" ]; then
@@ -1201,14 +1429,22 @@ bead_diff() {
   esac
   echo "## Beads (since $since $(short_sha "$c") · $at)"
   echo
-  if ! out=$(bead_dolt_diff "$db" "$c"); then
+  if ! out=$(bead_dolt_diff "$db" "$c") || ! scope=$(bead_scope "$db" "$c"); then
     echo "Mark $(short_sha "$c") is not in beads history any more."
   else
-    out=$(printf '%s' "$out" | render_bead_diff)
+    hidden=$(printf '%s\n' "$scope" | sed -n 2p)
+    out=$(printf '%s' "$out" | bead_only=$(printf '%s\n' "$scope" | tail -n +3) render_bead_diff)
     if [ -z "$out" ]; then
       echo "No bead changes."
     else
       fenced diff "$out"
+    fi
+    if [ "$(printf '%s\n' "$scope" | head -n1)" = session ]; then
+      [ "$hidden" -eq 0 ] || {
+        echo
+        echo "$hidden bead change(s) by other sessions not shown."
+      }
+      return 0
     fi
   fi
   others=$(other_sessions_since "$at" | wc -l | tr -d ' ')
@@ -1218,20 +1454,35 @@ bead_diff() {
   }
 }
 
+# The page of `diff --html` into file $1: the commits $diff_from^..HEAD in
+# full (no stat fallback: the page has room), then the bead diff.
+write_diff_page() {
+  local full=""
+  if [ -n "$diff_from" ]; then
+    full=$(code_inline_max=-1 code_diff "$diff_from") || return 1
+  fi
+  { [ -z "$full" ] || printf '%s\n\n' "$full"; bead_diff; } | diff_html >"$1"
+}
+
 sub_diff() {
+  local code beads
   if [ -n "$dolt_json" ]; then
-    render_bead_diff <"$dolt_json"
+    beads=$(render_bead_diff <"$dolt_json")
+    [ -z "$beads" ] || printf '%s\n' "$beads"
+    [ -z "$diff_html" ] || fenced diff "$beads" | diff_html >"$diff_html"
     return
   fi
   if [ -n "$diff_from" ]; then
-    code_diff "$diff_from"
-    echo
+    code=$(code_diff "$diff_from") || exit 1
+    printf '%s\n\n' "$code"
   fi
-  bead_diff
+  beads=$(bead_diff)
+  [ -z "$beads" ] || printf '%s\n' "$beads"
+  [ -z "$diff_html" ] || write_diff_page "$diff_html"
 }
 
 cp_unreviewed_bead_changes() {
-  local db w c at ids n
+  local db w c at ids n out scope hidden note
   if ! db=$(bead_db_dir); then
     if beads_repo; then
       emit unreviewed-bead-changes skip "beads DB not readable (no dolt CLI, or not embedded mode)"
@@ -1247,13 +1498,24 @@ cp_unreviewed_bead_changes() {
   fi
   c=$(printf '%s' "$w" | jq -r .commit)
   at=$(printf '%s' "$w" | jq -r .at)
-  if ids=$(bead_changed_ids_since "$db" "$c"); then
-    ids=$(printf '%s' "$ids" | join)
+  if out=$(bead_scope "$db" "$c"); then
+    scope=$(printf '%s\n' "$out" | head -n1)
+    hidden=$(printf '%s\n' "$out" | sed -n 2p)
+    ids=$(printf '%s\n' "$out" | tail -n +3 | join)
+    note=""
+    [ "$hidden" -eq 0 ] || note="$hidden other$([ "$hidden" -eq 1 ] || echo s) not shown"
     if [ -z "$ids" ]; then
-      emit unreviewed-bead-changes pass "no bead changes since $(short_sha "$c")"
+      if [ "$scope" = session ]; then
+        emit unreviewed-bead-changes pass "no bead changes from this session since $(short_sha "$c")${note:+ ($note)}"
+      else
+        emit unreviewed-bead-changes pass "no bead changes since $(short_sha "$c")"
+      fi
     else
       n=$(printf '%s\n' "$ids" | tr ',' '\n' | wc -l | tr -d ' ')
-      emit unreviewed-bead-changes finding "$n bead(s) changed since $(short_sha "$c"): $ids"
+      if [ "$scope" = session ]; then
+        note="this session's beads and their deps${note:+; $note}"
+      fi
+      emit unreviewed-bead-changes finding "$n bead(s) changed since $(short_sha "$c"): $ids${note:+ ($note)}"
     fi
   else
     ids=$(bd list --all --updated-after "$at" --json 2>/dev/null | jq -r '.[]?.id' 2>/dev/null | join)
@@ -1457,4 +1719,19 @@ esac
 fetched=$(do_fetch)
 base=$(default_ref)
 status_rows
+
+# The Verdict's call writes the page itself, only when there is something to
+# review, so a changed verdict can open it with no second call.
+if [ -n "$diff_html" ]; then
+  if [ -n "$diff_from" ] || printf '%s' "$rows" | grep -qE $'^unreviewed-bead-changes\t(finding|stale)\t'; then
+    if write_diff_page "$diff_html"; then
+      emit diff-page fact "$diff_html"
+    else
+      emit diff-page fact -
+    fi
+  else
+    emit diff-page fact -
+  fi
+fi
+
 print_rows

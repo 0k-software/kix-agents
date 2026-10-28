@@ -68,21 +68,25 @@ every row and subcommand. What preflight uses:
   — closes a finding. Pass a Fix job's commit (`HEAD` right after it): its
   commit then stales only `diff-review`.
 - `preflight-checks findings` — the branch's open findings, as JSON.
-- `preflight-checks --no-fetch --format tsv` — the rows alone.
-- `preflight-checks bd-mark review` and `preflight-checks diff [--from <sha>]`
-  — _Verdict_.
+- `preflight-checks --no-fetch --format tsv [--diff-html <file> [--from <sha>]]`
+  — the rows alone; with `--diff-html`, it also writes the diff page
+  (_Verdict_) and adds a `diff-page` row: `<file>`, else `-`.
+- `preflight-checks bd-mark review` and
+  `preflight-checks diff [--from <sha>] [--html <file>]` — _Verdict_. `--html`
+  writes the same as a page: the commits in full, and the changed words inside
+  each changed line highlighted, like GitHub's diff.
 
 The rows, one `<name> <status> <detail>` line each:
 
-| Row                                                              | Status                                  | Says                                                      |
-| ---------------------------------------------------------------- | --------------------------------------- | --------------------------------------------------------- |
-| `default`, `from`, `shortstat`, `markdown`, `fetch`              | fact                                    | `<base>` (e.g. `origin/main`), diff-review's last head, … |
-| `uncommitted-changes`                                            | pass · finding                          | uncommitted changes                                       |
-| `unlanded-commits`                                               | pass · finding · skip                   | commits not on `<base>`                                   |
-| `behind-default-branch`                                          | pass · finding · skip                   | `<base>` is not an ancestor of HEAD                       |
-| the seven checks, from `open-checkboxes` to `post-landing-steps` | fresh · stale · never · unknown · skip  | the check's marker against what the check reads           |
-| `findings-leftovers`                                             | pass · finding                          | open findings on this branch: their ids                   |
-| `unreviewed-bead-changes`                                        | pass · finding · stale · unknown · skip | beads changed since the user's last review: their ids     |
+| Row                                                              | Status                                  | Says                                                                                                                                                                                    |
+| ---------------------------------------------------------------- | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `default`, `from`, `shortstat`, `markdown`, `fetch`              | fact                                    | `<base>` (e.g. `origin/main`), diff-review's last head, …                                                                                                                               |
+| `uncommitted-changes`                                            | pass · finding                          | uncommitted changes                                                                                                                                                                     |
+| `unlanded-commits`                                               | pass · finding · skip                   | commits not on `<base>`                                                                                                                                                                 |
+| `behind-default-branch`                                          | pass · finding · skip                   | `<base>` is not an ancestor of HEAD                                                                                                                                                     |
+| the seven checks, from `open-checkboxes` to `post-landing-steps` | fresh · stale · never · unknown · skip  | the check's marker against what the check reads                                                                                                                                         |
+| `findings-leftovers`                                             | pass · finding                          | open findings on this branch: their ids                                                                                                                                                 |
+| `unreviewed-bead-changes`                                        | pass · finding · stale · unknown · skip | beads this session wrote with bd, and their deps, changed since the user's last review: their ids; other sessions' changes only as a "not shown" count (all beads without a transcript) |
 
 A check is `fresh` when nothing it reads changed since its marker, `stale` with
 what changed, `never` without a marker, `unknown` when its marker can't tell
@@ -241,71 +245,68 @@ Zero findings → go to step 6 (Verdict).
 
 ## 4. Decide
 
-First AskUserQuestion, a single question: "Apply all suggested fixes"
-(Recommended) · "Go one by one".
+Walk **every** finding from the report — every check's, `diff-review` and
+`post-landing-steps` alike, and those carried from earlier runs — one
+AskUserQuestion per finding, one question per call. There is no "apply all"
+question first: the first question is finding 1's. Ask **all** of them first,
+back to back: an answer only records the decision, nothing runs yet. No fix,
+commit, task or `bd update` happens between two questions — step 5 starts only
+after the last finding (and its discard reason) is answered, so the user
+answers in one sitting and walks away while the queue runs. Before each
+question, print the finding in the reply as a short block the user can read and
+scroll back to — the card collapses to the chosen label once answered — then
+run a command, as _Asking questions_ says. Print it as Markdown, not in a code
+block, with exactly this shape — a bold heading, then one labelled bullet per
+line, never a prose paragraph:
 
-- **Apply all:** queue every suggested fix (step 5). No more questions.
-- **One by one:** walk **every** finding from the report — every check's,
-  `diff-review` and `post-landing-steps` alike, and those carried from earlier
-  runs — one AskUserQuestion per finding, one question per call. Ask **all** of
-  them first, back to back: an answer only records the decision, nothing runs
-  yet. No fix, commit, task or `bd update` happens between two questions — step
-  5 starts only after the last finding (and its discard reason) is answered, so
-  the user answers in one sitting and walks away while the queue runs. Before
-  each question, print the finding in the reply as a short block the user can
-  read and scroll back to — the card collapses to the chosen label once
-  answered — then run a command, as _Asking questions_ says. Print it as
-  Markdown, not in a code block, with exactly this shape — a bold heading, then
-  one labelled bullet per line, never a prose paragraph:
+```
+**Finding 6/9 — `<file>:<line>`**
+- **Problem:** <what goes wrong and when — one line>
+- **If left:** <the failure scenario — what breaks, for whom>
+- **Fix (recommended):** <the fix> — <why this one over the others>
+- **Alt — <other fix>:** <what it does, its trade-off>   (one per extra fix)
+- **Note:** <only what is specific to deferring, discarding or leaving this
+  finding, e.g. an existing task that already covers it — omit otherwise>
+```
 
-  ```
-  **Finding 6/9 — `<file>:<line>`**
-  - **Problem:** <what goes wrong and when — one line>
-  - **If left:** <the failure scenario — what breaks, for whom>
-  - **Fix (recommended):** <the fix> — <why this one over the others>
-  - **Alt — <other fix>:** <what it does, its trade-off>   (one per extra fix)
-  - **Note:** <only what is specific to deferring, discarding or leaving this
-    finding, e.g. an existing task that already covers it — omit otherwise>
-  ```
+**Problem**, **If left** and **Fix** are always there, even under caveman ultra
+— caveman shortens each bullet to fragments, it never drops a bullet or merges
+them into a paragraph.
 
-  **Problem**, **If left** and **Fix** are always there, even under caveman
-  ultra — caveman shortens each bullet to fragments, it never drops a bullet or
-  merges them into a paragraph.
+The question is one short line pointing at that block — "Finding 6/9 — take the
+recommended fix?" — never the finding itself. Options, in this order, each with
+its description:
 
-  The question is one short line pointing at that block — "Finding 6/9 — take
-  the recommended fix?" — never the finding itself. Options, in this order,
-  each with its description:
-  - the suggested fix (Recommended);
-  - each other real fix, when there is more than one — list them, keep your
-    pick first;
-  - the defer option, by repo type:
-    - _(Kingdone)_ "Create arrival" — "Creates an arrival in your inbox (Gates)
-      to do this another time; releases the ship after a re-run.";
-    - _(Beads)_ "Create task" — "Creates a bd task to do this another time;
-      releases the ship after a re-run.";
-    - _(Neither)_ no defer option;
+- the suggested fix (Recommended);
+- each other real fix, when there is more than one — list them, keep your pick
+  first;
+- the defer option, by repo type:
+  - _(Kingdone)_ "Create arrival" — "Creates an arrival in your inbox (Gates)
+    to do this another time; releases the ship after a re-run.";
+  - _(Beads)_ "Create task" — "Creates a bd task to do this another time;
+    releases the ship after a re-run.";
+  - _(Neither)_ no defer option;
 
-    An after-ship finding gets no defer option: its suggested fix already
-    leaves it for later, in the task itself;
+  An after-ship finding gets no defer option: its suggested fix already leaves
+  it for later, in the task itself;
 
-  - "Discard" — "ATTENTION: DISMISSES THE FINDING FOR GOOD AND RELEASES THE
-    SHIP. It does not matter; ship anyway. Asks for the reason.";
-  - "Leave for later" — "Not now, no decision yet. Keeps the finding open,
-    which blocks the ship until a later preflight resolves it."
+- "Discard" — "ATTENTION: DISMISSES THE FINDING FOR GOOD AND RELEASES THE SHIP.
+  It does not matter; ship anyway. Asks for the reason.";
+- "Leave for later" — "Not now, no decision yet. Keeps the finding open, which
+  blocks the ship until a later preflight resolves it."
 
-  AskUserQuestion takes at most four options: when the fixes, the defer option,
-  "Discard" and "Leave for later" do not fit, drop the least likely extra fix
-  and mention it in the block above. "Other" is always there; follow whatever
-  the user types.
+AskUserQuestion takes at most four options: when the fixes, the defer option,
+"Discard" and "Leave for later" do not fit, drop the least likely extra fix and
+mention it in the block above. "Other" is always there; follow whatever the
+user types.
 
-  When the user picks "Discard", ask right away, in its own AskUserQuestion,
-  why — the reason is required. The question is short ("Why discard finding
-  6/9?"); the finding is already in the block above. Offer 2–3 likely reasons
-  for this specific finding as options (e.g. "Not a real problem", "Intended
-  behavior", "Not worth the cost"); "Other" takes free text. Only a discard
-  with a reason counts: a skipped or empty answer leaves the finding undecided
-  — ask again, or treat it as "Leave for later". Under "Apply all" nothing is
-  discarded, so no reason is needed.
+When the user picks "Discard", ask right away, in its own AskUserQuestion, why
+— the reason is required. The question is short ("Why discard finding 6/9?");
+the finding is already in the block above. Offer 2–3 likely reasons for this
+specific finding as options (e.g. "Not a real problem", "Intended behavior",
+"Not worth the cost"); "Other" takes free text. Only a discard with a reason
+counts: a skipped or empty answer leaves the finding undecided — ask again, or
+treat it as "Leave for later".
 
 ## 5. Run the queue
 
@@ -407,18 +408,22 @@ its rule names:
 After the last job, one call pushes and reads the state for step 6:
 
 ```bash
-git push --force-with-lease origin HEAD; bd dolt push; preflight-checks --no-fetch --format tsv; preflight-checks findings
+git push --force-with-lease origin HEAD; bd dolt push; preflight-checks --no-fetch --format tsv --diff-html <file> [--from <first step 5 commit>]; preflight-checks findings
 ```
 
 (`bd dolt push` only when a job touched the tracker and the repo has a Dolt
-remote; no branch push on `<default>` itself.) Then call ReportFindings again
-with step 3's list, each finding's `outcome` read from that `findings` output:
-a finding it still returns is open and gets no `outcome`; one it no longer
-returns was resolved — `fixed` for a `fixed`, `skipped` for a `deferred` or
-`discarded`. A discarded finding's `summary` ends with
-`|—| DISCARDED: <reason> |—|`. Reprint the chat list with each finding's result
-— fixed (with its commit), deferred (arrival link or task id), discarded —
-<reason>, or still open.
+remote; no branch push on `<default>` itself. `<file>` is a new
+`preflight-diff-<time>.html` in your scratchpad directory, else
+`${TMPDIR:-/tmp}`; `--from` only when a job committed. The `diff-page` row
+names `<file>` when the call wrote it — the step 5 commits in full and every
+unreviewed bead change, the changed words highlighted — else `-`.) Then call
+ReportFindings again with step 3's list, each finding's `outcome` read from
+that `findings` output: a finding it still returns is open and gets no
+`outcome`; one it no longer returns was resolved — `fixed` for a `fixed`,
+`skipped` for a `deferred` or `discarded`. A discarded finding's `summary` ends
+with `|—| DISCARDED: <reason> |—|`. Reprint the chat list with each finding's
+result — fixed (with its commit), deferred (arrival link or task id), discarded
+— <reason>, or still open.
 
 ## 6. Verdict
 
@@ -442,8 +447,9 @@ and never tell the user a keyboard shortcut.
 
 Read the rows from step 5's last call. When step 5 ran no job, read them in one
 call that also runs its discards:
-`preflight-checks resolve <id> discarded <reason>; …; preflight-checks --no-fetch --format tsv`
-— step 2's batch changed them since the brief.
+`preflight-checks resolve <id> discarded <reason>; …; preflight-checks --no-fetch --format tsv --diff-html <file>`
+— step 2's batch changed them since the brief, and the call writes the diff
+page when a bead is unreviewed.
 
 - **Changed** — step 5 committed anything (fixes, arrivals, checklist edits),
   or `unreviewed-bead-changes` reads `finding` or `stale`: a bead changed that
@@ -451,12 +457,16 @@ call that also runs its discards:
   hand; a bd edit commits nothing, but the user has not seen it either — or a
   Fix job edited a tracker item (`bd update`, `bd dep add`), which still counts
   when the row reads `skip` because it can't read the beads DB. The rebase and
-  step 1's commit of a dirty tree do not count: step 2 checked them. Show the
-  diff of the step 5 commits (above) and name the changed beads from the row's
-  detail (else the items the Fix jobs edited) in the reply, then say: "There
-  were changes. Review them yourself — skim the diff — and if they look like
-  what you expect, rerun." Then ask the rerun question (below). Those commits
-  and items are not checked yet; the next run checks them.
+  step 1's commit of a dirty tree do not count: step 2 checked them. Open the
+  `diff-page` file right away, before the reply:
+  `mcp__Claude_Browser__navigate` to `file://<file>` when the browser tools
+  exist, else `open <file>` (macOS) or `xdg-open <file>` (Linux). Print no diff
+  text and no link to the page — the page is the diff. When `diff-page` is `-`
+  (the beads DB can't be read), show the diff of the step 5 commits (above) and
+  name the items the Fix jobs edited instead. Then say: "There were changes.
+  Review them yourself — skim the diff — and if they look like what you expect,
+  rerun." Then ask the rerun question (below). Those commits and items are not
+  checked yet; the next run checks them.
 - **Open** — the `findings-leftovers` row reads `finding`: its detail lists the
   ids still open (left for later, or never decided). List what is still open,
   show the branch diff (above), then ask the rerun question (below) for when
@@ -472,20 +482,20 @@ call that also runs its discards:
   **changed**: say so and ask the rerun question (below).
 
 **Rerun without asking.** A **changed** verdict whose only changes are step 5's
-Fix jobs — each one a fix the user picked from the offered options (or "Apply
-all"), not text they typed under "Other", and no bead changed but by those jobs
-— reruns `<command>` right away, without the rerun question: say in one line
-that it reruns to review the fix commits, show their compare link, and go. Only
-once in a row: when that rerun ends **changed** again, ask. No `bd-mark review`
-here — the user has not looked.
+Fix jobs — each one a fix the user picked from the offered options, not text
+they typed under "Other", and no bead changed but by those jobs — reruns
+`<command>` right away, without the rerun question: open the `diff-page` file
+as **Changed** says, say in one line that it reruns to review the fix commits,
+and go. Only once in a row: when that rerun ends **changed** again, ask. No
+`bd-mark review` here — the user has not looked.
 
 **Rerun.** A link can't run a slash command, but an answer can. After a
 **changed** or **open** verdict's ⚠️ block, write what is being asked and each
 option in the reply, then follow _Asking questions_: a command, then the
 AskUserQuestion card. The only link is the compare link the verdict already
-printed in the reply — the step 5 commits for **changed**, the branch diff for
-**open** — never a second link with a different range, and never inside the
-question. The question depends on the verdict:
+printed in the reply — the branch diff for **open**, and for **changed** only
+when no page opened — never a second link with a different range, and never
+inside the question. The question depends on the verdict:
 
 - **Changed** — the reply says outright that new commits landed that the user
   has not seen: "`<n>` new commits landed since your last look
@@ -493,18 +503,11 @@ question. The question depends on the verdict:
   haven't seen them." — naming the changed beads instead of (or next to) the
   commits when `unreviewed-bead-changes` lists any. The question: "Run
   `<command>` again?" Options:
-  - "I reviewed — run `<command>` again" (Recommended) — "You skimmed the new
-    commits. The rerun checks them again on its own.";
-  - "Show me what changed" — "Prints this run's commits and every bead change
-    since your last review here, then asks again.";
+  - "I reviewed — run `<command>` again" (Recommended) — "You skimmed the diff.
+    The rerun checks it again on its own.";
   - "Run again, skip my review" — "Rerun now without looking. Only the
     automated review checks the new commits.";
   - "Not now" — "Stop. The ⚠️ block stays."
-
-  On "Show me what changed", run
-  `preflight-checks diff --from <first step 5 commit>` (no `--from` when step 5
-  committed nothing) and print its output in the reply as it is — never a
-  summary of it. Then ask the same question again, without this option.
 
 - **Open** — nothing new was committed; the reply lists what is still open. The
   question: "Rerun `<command>` to decide them?" Options: "Run `<command>`
@@ -533,6 +536,8 @@ even when that run ships. On "Not now", stop — nothing runs after the answer.
 - A one-by-one question with no finding block printed right before it, or with
   the whole finding stuffed into the question text; a block written as a
   paragraph, or missing its **Problem**, **If left** or **Fix** bullet.
+- Asking "Apply all" or any other batch question before the first finding —
+  Decide always walks the findings one by one.
 - One-by-one that skips the `diff-review` findings or the carried ones, or that
   applies each fix right after its answer instead of asking every question
   first.
@@ -559,8 +564,9 @@ even when that run ships. On "Not now", stop — nothing runs after the answer.
   again" instead of the rerun question.
 - Answering "I reviewed" without `preflight-checks bd-mark review` first, or
   running it on "Run again, skip my review" or a rerun without asking.
-- Summarizing the `preflight-checks diff` output instead of printing it, or
-  dropping its ⚠️ line about other sessions.
+- A **changed** verdict that doesn't open the `diff-page` file right away, or
+  that prints the diff as text or a link to the page next to it, or retypes its
+  HTML.
 - A **changed** rerun reply that doesn't say new, unseen commits landed, or
   that offers only "I reviewed", or dropping the "without your review" ⚠️ item
   after "Run again, skip my review".

@@ -18,14 +18,20 @@ The format is based on
   the transcript, the store and bd once per call (~3 s → ~0.8 s on a 9 MB
   transcript). No more progress lines in preflight, ship and close; a rerun
   after approved fixes goes without asking.
-- `kix:preflight`'s **changed** rerun question offers "Show me what changed":
-  `preflight-checks diff` prints this run's commits and every bead change since
-  the user's last review — fields, deps, labels and comments, git-style, read
-  from the beads DB's `dolt diff` — with a warning when other sessions of the
-  repo ran in that window. Any unreviewed bead change, not only a Fix job's,
-  now makes the verdict **changed** (the new `unreviewed-bead-changes` row). A
-  SessionStart hook records the session's start mark; `bd-mark review` moves it
-  on "I reviewed" and on a clear verdict.
+- A **changed** verdict in `kix:preflight` opens a diff page right away: this
+  run's commits in full and every bead change since the user's last review —
+  fields, deps, labels and comments, read from the beads DB's `dolt_diff()` —
+  with the changed words inside each changed line highlighted, like GitHub's
+  diff, and a warning when other sessions of the repo ran in that window. The
+  Verdict's own `preflight-checks --diff-html <file>` call writes it, only when
+  something is unreviewed, and preflight opens it in the app's browser pane
+  (else `open`/`xdg-open`); `preflight-checks diff [--html]` prints or writes
+  the same on demand. Any unreviewed bead change, not only a Fix job's, now
+  makes the verdict **changed** (the new `unreviewed-bead-changes` row) — the
+  beads this session wrote with bd, read from its transcript, and the ones a
+  dependency links to them; other sessions' changes only count as "not shown".
+  A SessionStart hook records the session's start mark; `bd-mark review` moves
+  it on "I reviewed" and on a clear verdict.
 - Preflight checks `acceptance-criteria` (the branch's bead criteria against
   the diff) and `findings-leftovers` (open findings block shipping), and
   `preflight-checks start|mark|resolve|findings`: per-session check markers and
@@ -57,6 +63,14 @@ The format is based on
 
 ### Changed
 
+- `kix:close` offers `/kix:next-up` inside the archive question — "Next-up,
+  then archive" · "Archive" · "Leave it open" — instead of asking about next-up
+  first and the archive after it; next-up then leads straight to the archive.
+
+- `kix:preflight`'s Decide and `kix:next-up`'s Step 3 no longer ask "Apply all"
+  first: they always walk the findings (fixes) one by one, starting with the
+  first one's question.
+
 - `kix:preflight`'s compare link is a labeled Markdown link with a literal `^`
   instead of a bare URL with `%5E`.
 
@@ -73,11 +87,11 @@ The format is based on
   `unlanded` → `unlanded-commits`, `rebase` → `behind-default-branch`,
   `before-shipping` → `open-checkboxes`.
 - `kix:next-up` walks instead of briefing: it gathers silently, prints a short
-  fix list, asks each tracker fix in its own question (or "Apply all"), runs
-  the approved commands itself after the last answer, then names the next five
-  pieces of work and starts the first in a new session (own worktree, Remote
-  Control on) with a ready prompt — or prints that prompt in a plain CLI. No
-  `gh` calls in PR-less repos; every bead named by id and title.
+  fix list, asks each tracker fix in its own question, runs the approved
+  commands itself after the last answer, then names the next five pieces of
+  work and starts the first in a new session (own worktree, Remote Control on)
+  with a ready prompt — or prints that prompt in a plain CLI. No `gh` calls in
+  PR-less repos; every bead named by id and title.
 - `kix:close` offers `/kix:next-up` before the archive question, and detaches
   the sessions it started before archiving, so they are not archived with it.
 - `kix:next-up` no longer expects an `epic` label on epics nor flags its

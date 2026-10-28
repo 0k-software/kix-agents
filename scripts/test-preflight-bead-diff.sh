@@ -232,6 +232,9 @@ if have_beads && setup_beads; then
   sleep 1
   touch "$CLAUDE_CONFIG_DIR/projects/$enc/s1.jsonl"
   check "own session: no warning" "$("$BIN" diff | grep -c '^⚠️ Other sessions')" "0"
+  # With its own transcript the diff shows only this session's beads; the
+  # warning is for the unscoped diff, when there is none.
+  rm -f "$CLAUDE_CONFIG_DIR/projects/$enc/s1.jsonl"
   touch "$CLAUDE_CONFIG_DIR/projects/$enc/s2.jsonl"
   check "warning" "$("$BIN" diff | grep -c '^⚠️ Other sessions also touched this repo since .* (1) — some bead changes may be theirs\.$')" "1"
 else
@@ -343,6 +346,147 @@ check "garbage: silent" "$out" ""
 out=$(jq -nc '{session_id: "s9", cwd: "/"}' | CLAUDE_PLUGIN_ROOT="$ROOT/claude-code" bash "$HOOK" 2>&1)
 check "outside git: exit 0" "$?" "0"
 check "outside git: silent" "$out" ""
+teardown
+
+echo "diff --html: bead diff with changed words marked"
+setup
+"$BIN" diff --dolt-json "$FX/dolt-diff.json" --html "$work/d.html" >"$work/d.txt"
+check "text unchanged" "$(cat "$work/d.txt")" "$(cat "$FX/expected.txt")"
+check "a whole page" "$(head -n1 "$work/d.html")" "<!doctype html>"
+check "hunk header" "$(grep -c '<div class="l h">@@ t-qlg · Modified one · modified @@</div>' "$work/d.html")" "1"
+check "old word" "$(grep -c '<div class="l d">-status: <span class=w>open</span></div>' "$work/d.html")" "1"
+check "new word" "$(grep -c '<div class="l a">+status: <span class=w>in_progress</span></div>' "$work/d.html")" "1"
+check "text field words" "$(grep -c '<div class="l a">+  line <span class=w>2 changed</span></div>' "$work/d.html")" "1"
+check "unpaired add, whole line" "$(grep -c '<div class="l a">+  line four</div>' "$work/d.html")" "1"
+check "context" "$(grep -c '<div class="l c">   line one</div>' "$work/d.html")" "1"
+teardown
+
+echo "diff --html: escapes HTML"
+setup
+notes_diff 'a <b>&' 'a <i>&'
+"$BIN" diff --dolt-json "$work/n.json" --html "$work/d.html" >/dev/null
+check "escaped" "$(grep -c '<div class="l d">-  a <span class=w>&lt;b&gt;&amp;</span></div>' "$work/d.html")" "1"
+check "no raw tag" "$(grep -c '<b>' "$work/d.html")" "0"
+teardown
+
+echo "diff --html: code in full, words marked"
+setup
+echo "hello world" >w.txt && git_q add -A && git_q commit -q -m w
+echo "hello there" >w.txt && git_q add -A && git_q commit -q -m there
+first=$(git rev-parse HEAD)
+seq 1 200 >big.txt && git_q add -A && git_q commit -q -m big
+"$BIN" diff --from "$first" --html "$work/d.html" >"$work/d.txt"
+check "code words" "$(grep -c '<div class="l a">+hello <span class=w>there</span></div>' "$work/d.html")" "1"
+check "text still a stat" "$(grep -c '^Too long to show inline (' "$work/d.txt")" "1"
+check "html not cut" "$(grep -c 'Too long' "$work/d.html")" "0"
+check "all lines" "$(grep -c '<div class="l a">+200</div>' "$work/d.html")" "1"
+check "file header is meta" "$(grep -c '<div class="l m">+++ b/big.txt</div>' "$work/d.html")" "1"
+check "section heading" "$(grep -c '<h2>Code (' "$work/d.html")" "1"
+teardown
+
+echo "diff --html: a last line without a newline still gets word marks"
+setup
+printf 'hello world' >n.txt && git_q add -A && git_q commit -q -m n
+printf 'hello there' >n.txt && git_q add -A && git_q commit -q -m n2
+"$BIN" diff --from HEAD --html "$work/d.html" >/dev/null
+check "old word" "$(grep -c '<div class="l d">-hello <span class=w>world</span></div>' "$work/d.html")" "1"
+check "new word" "$(grep -c '<div class="l a">+hello <span class=w>there</span></div>' "$work/d.html")" "1"
+teardown
+
+prow() { awk -F'\t' -v n="$1" '$1 == n { print $2 "/" $3 }' "$work/rows.tsv"; }
+
+echo "status call --diff-html: no page when nothing is unreviewed"
+setup
+"$BIN" --no-fetch --format tsv --diff-html "$work/p.html" >"$work/rows.tsv"
+check "row" "$(prow diff-page)" "fact/-"
+check "no file" "$([ -e "$work/p.html" ] && echo yes || echo no)" "no"
+check "no row without the flag" "$("$BIN" --no-fetch --format tsv | grep -c '^diff-page')" "0"
+teardown
+
+echo "status call --diff-html: a page for the commits under review"
+setup
+echo "hello world" >w.txt && git_q add -A && git_q commit -q -m w
+first=$(git rev-parse HEAD)
+"$BIN" --no-fetch --format tsv --diff-html "$work/p.html" --from "$first" >"$work/rows.tsv"
+check "row" "$(prow diff-page)" "fact/$work/p.html"
+check "code section" "$(grep -c '<h2>Code (' "$work/p.html")" "1"
+check "added line" "$(grep -c '<div class="l a">+hello world</div>' "$work/p.html")" "1"
+teardown
+
+echo "status call --diff-html: a page for unreviewed bead changes"
+setup
+if have_beads && setup_beads; then
+  "$BIN" bd-mark review >/dev/null
+  bd --sandbox update "$A" --notes "changed" >/dev/null 2>&1
+  "$BIN" --no-fetch --format tsv --diff-html "$work/p.html" >"$work/rows.tsv"
+  check "row" "$(prow diff-page)" "fact/$work/p.html"
+  check "bead hunk" "$(grep -c "<div class=\"l h\">@@ $A · A · modified @@</div>" "$work/p.html")" "1"
+  "$BIN" bd-mark review >/dev/null
+  rm -f "$work/p.html"
+  "$BIN" --no-fetch --format tsv --diff-html "$work/p.html" >"$work/rows.tsv"
+  check "reviewed: no page" "$(prow diff-page)/$([ -e "$work/p.html" ] && echo yes || echo no)" "fact/-/no"
+else
+  skip "status call bead page"
+fi
+teardown
+
+# This session's transcript ($CLAUDE_CONFIG_DIR/projects/p/s1.jsonl) with one
+# Bash tool call running command $1, and its result $2.
+transcript() {
+  mkdir -p "$CLAUDE_CONFIG_DIR/projects/p"
+  jq -nc --arg c "$1" '{type: "assistant", message: {content: [{type: "tool_use", id: "tu1", name: "Bash", input: {command: $c}}]}}' \
+    >>"$CLAUDE_CONFIG_DIR/projects/p/s1.jsonl"
+  jq -nc --arg r "$2" '{type: "user", message: {content: [{type: "tool_result", tool_use_id: "tu1", content: $r}]}}' \
+    >>"$CLAUDE_CONFIG_DIR/projects/p/s1.jsonl"
+}
+
+echo "row: only this session's beads and their deps"
+setup
+if have_beads && setup_beads; then
+  C=$(bd --sandbox create --title C --type task --silent 2>/dev/null)
+  "$BIN" bd-mark review >/dev/null
+  h=$(hshort .commit)
+  transcript "bd update $A --notes mine" ""
+  bd --sandbox update "$A" --notes mine -q
+  bd --sandbox update "$B" --notes theirs -q
+  check "mine only" "$(row unreviewed-bead-changes)" "finding/1 bead(s) changed since $h: $A (this session's beads and their deps; 1 other not shown)"
+  "$BIN" diff >"$work/d.txt"
+  check "diff: mine" "$(grep -c "^@@ $A " "$work/d.txt")" "1"
+  check "diff: not theirs" "$(grep -c "^@@ $B " "$work/d.txt")" "0"
+  check "diff: hidden line" "$(grep -c '^1 bead change(s) by other sessions not shown\.$' "$work/d.txt")" "1"
+  bd --sandbox dep add "$C" "$A" -q
+  check "a dep of mine counts" "$(row unreviewed-bead-changes | sed 's/^[^:]*: //; s/ (.*//')" "$(printf '%s\n' "$A" "$C" | sort | paste -sd, - | sed 's/,/, /g')"
+else
+  skip "session scope"
+fi
+teardown
+
+echo "row: a bead this session created counts, --silent or not"
+setup
+if have_beads && setup_beads; then
+  "$BIN" bd-mark review >/dev/null
+  D=$(bd --sandbox create --title D --type task --silent 2>/dev/null)
+  transcript "bd create --title D --type task --silent" "$D"
+  E=$(bd --sandbox create --title E --type task --silent 2>/dev/null)
+  got=$(row unreviewed-bead-changes)
+  check "created: listed" "$(printf '%s' "$got" | grep -c ": $D (")" "1"
+  check "other's create: not" "$(printf '%s' "$got" | grep -c "$E")" "0"
+else
+  skip "session creates"
+fi
+teardown
+
+echo "row: a session that wrote no bead shows none"
+setup
+if have_beads && setup_beads; then
+  "$BIN" bd-mark review >/dev/null
+  h=$(hshort .commit)
+  transcript "bd show $A; grep 'bd update|x' f" ""
+  bd --sandbox update "$A" --notes theirs -q
+  check "pass" "$(row unreviewed-bead-changes)" "pass/no bead changes from this session since $h (1 other not shown)"
+else
+  skip "session none"
+fi
 teardown
 
 if [ "$failures" -gt 0 ]; then
