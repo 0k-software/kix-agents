@@ -9,19 +9,18 @@ The format is based on
 
 ### Added
 
-- `kix:preflight`'s **changed** rerun question offers "Show me what changed":
-  `preflight-checks diff` prints this run's commits and every bead change since
-  the user's last review — fields, deps, labels and comments, git-style, read
-  from the beads DB's `dolt diff` — with a warning when other sessions of the
-  repo ran in that window. Any unreviewed bead change, not only a Fix job's,
-  now makes the verdict **changed** (the new `unreviewed-bead-changes` row). A
+- A **changed** verdict in `kix:preflight` opens a diff page right away: this
+  run's commits in full and every bead change since the user's last review —
+  fields, deps, labels and comments, read from the beads DB's `dolt_diff()` —
+  with the changed words inside each changed line highlighted, like GitHub's
+  diff, and a warning when other sessions of the repo ran in that window. The
+  Verdict's own `preflight-checks --diff-html <file>` call writes it, only when
+  something is unreviewed, and preflight opens it in the app's browser pane
+  (else `open`/`xdg-open`); `preflight-checks diff [--html]` prints or writes
+  the same on demand. Any unreviewed bead change, not only a Fix job's, now
+  makes the verdict **changed** (the new `unreviewed-bead-changes` row). A
   SessionStart hook records the session's start mark; `bd-mark review` moves it
   on "I reviewed" and on a clear verdict.
-- "Show me what changed" also writes the diff as an HTML page
-  (`preflight-checks diff --html <file>`): the commits in full, and the changed
-  words inside each changed line highlighted, like GitHub's diff. Preflight
-  sends the page and links it, so it reaches the user even when the app shrinks
-  the reply before the question card.
 - Preflight checks `acceptance-criteria` (the branch's bead criteria against
   the diff) and `findings-leftovers` (open findings block shipping), and
   `preflight-checks start|mark|resolve|findings`: per-session check markers and

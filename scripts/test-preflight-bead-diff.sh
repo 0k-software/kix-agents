@@ -390,6 +390,43 @@ check "old word" "$(grep -c '<div class="l d">-hello <span class=w>world</span><
 check "new word" "$(grep -c '<div class="l a">+hello <span class=w>there</span></div>' "$work/d.html")" "1"
 teardown
 
+prow() { awk -F'\t' -v n="$1" '$1 == n { print $2 "/" $3 }' "$work/rows.tsv"; }
+
+echo "status call --diff-html: no page when nothing is unreviewed"
+setup
+"$BIN" --no-fetch --format tsv --diff-html "$work/p.html" >"$work/rows.tsv"
+check "row" "$(prow diff-page)" "fact/-"
+check "no file" "$([ -e "$work/p.html" ] && echo yes || echo no)" "no"
+check "no row without the flag" "$("$BIN" --no-fetch --format tsv | grep -c '^diff-page')" "0"
+teardown
+
+echo "status call --diff-html: a page for the commits under review"
+setup
+echo "hello world" >w.txt && git_q add -A && git_q commit -q -m w
+first=$(git rev-parse HEAD)
+"$BIN" --no-fetch --format tsv --diff-html "$work/p.html" --from "$first" >"$work/rows.tsv"
+check "row" "$(prow diff-page)" "fact/$work/p.html"
+check "code section" "$(grep -c '<h2>Code (' "$work/p.html")" "1"
+check "added line" "$(grep -c '<div class="l a">+hello world</div>' "$work/p.html")" "1"
+teardown
+
+echo "status call --diff-html: a page for unreviewed bead changes"
+setup
+if have_beads && setup_beads; then
+  "$BIN" bd-mark review >/dev/null
+  bd --sandbox update "$A" --notes "changed" >/dev/null 2>&1
+  "$BIN" --no-fetch --format tsv --diff-html "$work/p.html" >"$work/rows.tsv"
+  check "row" "$(prow diff-page)" "fact/$work/p.html"
+  check "bead hunk" "$(grep -c "<div class=\"l h\">@@ $A · A · modified @@</div>" "$work/p.html")" "1"
+  "$BIN" bd-mark review >/dev/null
+  rm -f "$work/p.html"
+  "$BIN" --no-fetch --format tsv --diff-html "$work/p.html" >"$work/rows.tsv"
+  check "reviewed: no page" "$(prow diff-page)/$([ -e "$work/p.html" ] && echo yes || echo no)" "fact/-/no"
+else
+  skip "status call bead page"
+fi
+teardown
+
 if [ "$failures" -gt 0 ]; then
   echo "$failures failure(s)"
   exit 1

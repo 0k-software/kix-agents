@@ -46,25 +46,26 @@ one bare tab-separated `<name> <status> <detail>` line each, no table padding
 to spend tokens on (the default, `pretty`, is a table for a person at a
 terminal). Read its lines instead of running the git commands yourself:
 
-| Line                      | Status                                  | What it says                                                               |
-| ------------------------- | --------------------------------------- | -------------------------------------------------------------------------- |
-| `default`                 | fact                                    | `<base>`, e.g. `origin/main` (`-`: no default branch found)                |
-| `from`                    | fact                                    | the HEAD `diff-review`'s marker saw, when an ancestor of HEAD; `-`         |
-| `shortstat`               | fact                                    | diff from `<from>` (else the merge base with `<base>`) to HEAD             |
-| `markdown`                | fact                                    | Markdown files the branch or the dirty tree touches                        |
-| `fetch`                   | fact                                    | `fetched`, `fresh` (cached), `failed` or `skipped`                         |
-| `uncommitted-changes`     | pass · finding                          | uncommitted changes                                                        |
-| `unlanded-commits`        | pass · finding · skip                   | commits not on `<base>`                                                    |
-| `behind-default-branch`   | pass · finding · skip                   | `<base>` is not an ancestor of HEAD                                        |
-| `open-checkboxes`         | fresh · stale · never · unknown · skip  | marker status; the detail ends with ` — <file:line list>`                  |
-| `diff-review`             | fresh · stale · never · unknown · skip  | marker status of the code review                                           |
-| `acceptance-criteria`     | fresh · stale · never · unknown · skip  | marker status; stale too when the branch's bead was updated                |
-| `conversation-leftovers`  | fresh · stale · never · unknown · skip  | marker status; stale on new conversation                                   |
-| `related-tracker-items`   | fresh · stale · never · unknown · skip  | marker status; _(Beads)_ stale too on any bd update                        |
-| `unraised-follow-ups`     | fresh · stale · never · unknown · skip  | marker status                                                              |
-| `post-landing-steps`      | fresh · stale · never · unknown · skip  | marker status                                                              |
-| `findings-leftovers`      | pass · finding                          | open findings on this branch: `none open`, or their ids                    |
-| `unreviewed-bead-changes` | pass · finding · stale · unknown · skip | beads changed since the user's last review (else session start): their ids |
+| Line                      | Status                                  | What it says                                                                               |
+| ------------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `default`                 | fact                                    | `<base>`, e.g. `origin/main` (`-`: no default branch found)                                |
+| `from`                    | fact                                    | the HEAD `diff-review`'s marker saw, when an ancestor of HEAD; `-`                         |
+| `shortstat`               | fact                                    | diff from `<from>` (else the merge base with `<base>`) to HEAD                             |
+| `markdown`                | fact                                    | Markdown files the branch or the dirty tree touches                                        |
+| `fetch`                   | fact                                    | `fetched`, `fresh` (cached), `failed` or `skipped`                                         |
+| `diff-page`               | fact                                    | with `--diff-html <file>` only: `<file>` when it wrote the diff page (_Verdict_), else `-` |
+| `uncommitted-changes`     | pass · finding                          | uncommitted changes                                                                        |
+| `unlanded-commits`        | pass · finding · skip                   | commits not on `<base>`                                                                    |
+| `behind-default-branch`   | pass · finding · skip                   | `<base>` is not an ancestor of HEAD                                                        |
+| `open-checkboxes`         | fresh · stale · never · unknown · skip  | marker status; the detail ends with ` — <file:line list>`                                  |
+| `diff-review`             | fresh · stale · never · unknown · skip  | marker status of the code review                                                           |
+| `acceptance-criteria`     | fresh · stale · never · unknown · skip  | marker status; stale too when the branch's bead was updated                                |
+| `conversation-leftovers`  | fresh · stale · never · unknown · skip  | marker status; stale on new conversation                                                   |
+| `related-tracker-items`   | fresh · stale · never · unknown · skip  | marker status; _(Beads)_ stale too on any bd update                                        |
+| `unraised-follow-ups`     | fresh · stale · never · unknown · skip  | marker status                                                                              |
+| `post-landing-steps`      | fresh · stale · never · unknown · skip  | marker status                                                                              |
+| `findings-leftovers`      | pass · finding                          | open findings on this branch: `none open`, or their ids                                    |
+| `unreviewed-bead-changes` | pass · finding · stale · unknown · skip | beads changed since the user's last review (else session start): their ids                 |
 
 A markable row (the seven between `behind-default-branch` and
 `findings-leftovers`) reads its check's marker (_Markers_ below):
@@ -571,11 +572,18 @@ app's diff pane (`mcp__ccd_view__show_pane`) — it fails more often than not �
 and never tell the user a keyboard shortcut.
 
 Read the store's state again first — step 5 may have resolved findings or
-committed since step 2's call:
+committed since step 2's call. The same call writes the diff page when there is
+anything to review:
 
 ```bash
-preflight-checks --no-fetch --format tsv
+preflight-checks --no-fetch --format tsv --diff-html <file> [--from <first step 5 commit>]
 ```
+
+`<file>` is a new `preflight-diff-<time>.html` in your scratchpad directory
+(else `${TMPDIR:-/tmp}`); `--from` only when step 5 committed anything. The
+`diff-page` row names `<file>` when the call wrote it — step 5's commits in
+full and every unreviewed bead change, the changed words highlighted — else
+`-`.
 
 - **Changed** — step 5 committed anything (fixes, arrivals, checklist edits),
   or `unreviewed-bead-changes` reads `finding` or `stale`: a bead changed that
@@ -583,12 +591,16 @@ preflight-checks --no-fetch --format tsv
   hand; a bd edit commits nothing, but the user has not seen it either — or a
   Fix job edited a tracker item (`bd update`, `bd dep add`), which still counts
   when the row reads `skip` because it can't read the beads DB. The rebase and
-  step 1's commit of a dirty tree do not count: step 2 checked them. Show the
-  diff of the step 5 commits (above) and name the changed beads from the row's
-  detail (else the items the Fix jobs edited) in the reply, then say: "There
-  were changes. Review them yourself — skim the diff — and if they look like
-  what you expect, rerun." Then ask the rerun question (below). Those commits
-  and items are not checked yet; the next run checks them.
+  step 1's commit of a dirty tree do not count: step 2 checked them. Open the
+  `diff-page` file right away, before the reply:
+  `mcp__Claude_Browser__navigate` to `file://<file>` when the browser tools
+  exist, else `open <file>` (macOS) or `xdg-open <file>` (Linux). Print no diff
+  text and no link to the page — the page is the diff. When `diff-page` is `-`
+  (the beads DB can't be read), show the diff of the step 5 commits (above) and
+  name the items the Fix jobs edited instead. Then say: "There were changes.
+  Review them yourself — skim the diff — and if they look like what you expect,
+  rerun." Then ask the rerun question (below). Those commits and items are not
+  checked yet; the next run checks them.
 - **Open** — the `findings-leftovers` row reads `finding`: its detail lists the
   ids still open (left for later, or never decided). List what is still open,
   show the branch diff (above), then ask the rerun question (below) for when
@@ -608,9 +620,9 @@ preflight-checks --no-fetch --format tsv
 option in the reply, then follow _Asking questions_: a command, the ❓ line
 (e.g. `❓ 12/16 Verdict — rerun /kix:ship?`), then the AskUserQuestion card.
 The only link is the compare link the verdict already printed in the reply —
-the step 5 commits for **changed**, the branch diff for **open** — never a
-second link with a different range, and never inside the question. The question
-depends on the verdict:
+the branch diff for **open**, and for **changed** only when no page opened —
+never a second link with a different range, and never inside the question. The
+question depends on the verdict:
 
 - **Changed** — the reply says outright that new commits landed that the user
   has not seen: "`<n>` new commits landed since your last look
@@ -618,27 +630,11 @@ depends on the verdict:
   haven't seen them." — naming the changed beads instead of (or next to) the
   commits when `unreviewed-bead-changes` lists any. The question: "Run
   `<command>` again?" Options:
-  - "I reviewed — run `<command>` again" (Recommended) — "You skimmed the new
-    commits. The rerun checks them again on its own.";
-  - "Show me what changed" — "Prints this run's commits and every bead change
-    since your last review here, then asks again.";
+  - "I reviewed — run `<command>` again" (Recommended) — "You skimmed the diff.
+    The rerun checks it again on its own.";
   - "Run again, skip my review" — "Rerun now without looking. Only the
     automated review checks the new commits.";
   - "Not now" — "Stop. The ⚠️ block stays."
-
-  On "Show me what changed", run
-  `preflight-checks diff --from <first step 5 commit> --html <file>` (no
-  `--from` when step 5 committed nothing), with `<file>` a new
-  `preflight-diff-<time>.html` in your scratchpad directory (else
-  `${TMPDIR:-/tmp}`). The page is what the user reads: send it with
-  SendUserFile (`display: render`) and give a browser link to it in the reply,
-  `[Open the diff in the browser](file://<file>)` — a `file://` URL, not a bare
-  path, which the app opens as source. Don't print the text output then; it
-  would only repeat the page. Without SendUserFile (a plain terminal), print
-  the text output in the reply as it is instead — never a summary of it. Either
-  way, repeat its ⚠️ line about other sessions in the reply when it has one.
-  Never retype the page's HTML. Then ask the same question again, without this
-  option.
 
 - **Open** — nothing new was committed; the reply lists what is still open. The
   question: "Rerun `<command>` to decide them?" Options: "Run `<command>`
@@ -715,12 +711,9 @@ even when that run ships. On "Not now", stop — nothing runs after the answer.
   again" instead of the rerun question.
 - Answering "I reviewed" without `preflight-checks bd-mark review` first, or
   running it on "Run again, skip my review".
-- Summarizing the `preflight-checks diff` output instead of sending its page
-  (or, in a plain terminal, printing it), or dropping its ⚠️ line about other
-  sessions.
-- Showing what changed without `--html`, without sending the page, or with a
-  bare-path link (it opens the HTML source) — or printing the text diff next to
-  the page, or retyping its HTML into a widget.
+- A **changed** verdict that doesn't open the `diff-page` file right away, or
+  that prints the diff as text or a link to the page next to it, or retypes its
+  HTML.
 - A **changed** rerun reply that doesn't say new, unseen commits landed, or
   that offers only "I reviewed" — a user who skips the review on purpose must
   have an honest option — or dropping the "without your review" ⚠️ item after

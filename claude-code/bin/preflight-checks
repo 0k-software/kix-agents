@@ -10,6 +10,7 @@ set -uo pipefail
 usage() {
   cat <<'EOF'
 Usage: preflight-checks [--format pretty|tsv] [--no-fetch] [--session ID]
+                        [--diff-html FILE [--from SHA]]
        preflight-checks start [--session ID]
        preflight-checks mark <check> [--bead ID] [--session ID]   (JSON on stdin)
        preflight-checks resolve <id> fixed|deferred <ref>|discarded <reason...>
@@ -32,6 +33,9 @@ Facts (status "fact"):
   shortstat  git diff --shortstat from the merge base to HEAD
   markdown   Markdown files the branch or the dirty tree touches, ", "-joined
   fetch      fresh | fetched | failed | skipped
+  diff-page  with --diff-html: FILE when it wrote the page `diff --html`
+             writes (--from given, or unreviewed-bead-changes is finding or
+             stale), else "-"
 
 Checkpoints (status pass | finding | fresh | stale | unknown | never | skip):
   uncommitted-changes    uncommitted changes
@@ -126,7 +130,7 @@ while [ $# -gt 0 ]; do
     diff_from=${2-}
     shift
     ;;
-  --html)
+  --html | --diff-html)
     diff_html=${2-}
     shift
     ;;
@@ -1098,8 +1102,18 @@ bead_diff() {
   }
 }
 
+# The page of `diff --html` into file $1: the commits $diff_from^..HEAD in
+# full (no stat fallback: the page has room), then the bead diff.
+write_diff_page() {
+  local full=""
+  if [ -n "$diff_from" ]; then
+    full=$(code_inline_max=-1 code_diff "$diff_from") || return 1
+  fi
+  { [ -z "$full" ] || printf '%s\n\n' "$full"; bead_diff; } | diff_html >"$1"
+}
+
 sub_diff() {
-  local code full="" beads
+  local code beads
   if [ -n "$dolt_json" ]; then
     beads=$(render_bead_diff <"$dolt_json")
     [ -z "$beads" ] || printf '%s\n' "$beads"
@@ -1112,10 +1126,7 @@ sub_diff() {
   fi
   beads=$(bead_diff)
   [ -z "$beads" ] || printf '%s\n' "$beads"
-  [ -n "$diff_html" ] || return 0
-  # The page has room for every line: the commits never fall back to a stat.
-  [ -z "$diff_from" ] || full=$(code_inline_max=-1 code_diff "$diff_from")
-  printf '%s\n\n%s\n' "$full" "$beads" | diff_html >"$diff_html"
+  [ -z "$diff_html" ] || write_diff_page "$diff_html"
 }
 
 cp_unreviewed_bead_changes() {
@@ -1195,6 +1206,20 @@ cp_unraised_follow_ups
 cp_post_landing_steps
 cp_findings_leftovers
 cp_unreviewed_bead_changes
+
+# The Verdict's call writes the page itself, only when there is something to
+# review, so a changed verdict can open it with no second call.
+if [ -n "$diff_html" ]; then
+  if [ -n "$diff_from" ] || printf '%s' "$rows" | grep -qE $'^unreviewed-bead-changes\t(finding|stale)\t'; then
+    if write_diff_page "$diff_html"; then
+      emit diff-page fact "$diff_html"
+    else
+      emit diff-page fact -
+    fi
+  else
+    emit diff-page fact -
+  fi
+fi
 
 case $format in
 tsv) printf '%s' "$rows" ;;
