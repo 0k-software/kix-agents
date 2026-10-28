@@ -9,22 +9,24 @@ where they disagree:
   `--diff-html <file> [--from <first step 5 commit>]` and writes the diff page
   only when something is unreviewed (step 5 commits, or
   `unreviewed-bead-changes` reads finding or stale), naming it in a `diff-page`
-  row. A **changed** verdict sends that page with SendUserFile
-  (`display: render`, with a caption saying what the file is) before its reply,
-  and prints no diff text. Opening it from the session didn't work (demo 1),
-  and a `file://` link in the reply never reaches the user: text holding one is
-  dropped before the transcript and the app (demo 3, kxa-bun). The rerun
+  row. A **changed** verdict publishes that page as a private claude.ai
+  Artifact and links its url, saying what it is, before its reply, and prints
+  no diff text. A SendUserFile card rendered on desktop but showed the HTML
+  source on the phone (kxa-9bm). Opening it from the session didn't work (demo
+  1), and a `file://` link in the reply never reaches the user: text holding
+  one is dropped before the transcript and the app (demo 3, kxa-bun). The rerun
   question keeps I reviewed / skip my review / not now.
 - Question gate (`hooks/diff-link-gate.sh`, PreToolUse on AskUserQuestion, and
   Stop so a turn that asks nothing can't skip it either): two demos skipped the
   Verdict reply, so the link never showed. The status call records the page it
   wrote as `<store>/diff-page`; the gate blocks any question with exit 2 (never
-  a permissionDecision) until the transcript shows a SendUserFile call naming
-  the page with a caption (or, in a terminal, its path in the reply), says what
-  to do, then clears the record; it blocks at most twice per page, so it can
-  never lock a session. The "text, command, ❓, card" Asking questions rule was
-  dropped from the skills and the global CLAUDE.md at kelvin's call, as a
-  suspected cause.
+  a permissionDecision) until the transcript shows an Artifact publish of the
+  page (else a captioned SendUserFile call, or in a terminal its path in the
+  reply), says what to do, then clears the record; it blocks at most twice per
+  page, so it can never lock a session — an interim guard until Kix checkpoints
+  check it. The "text, command, ❓, card" Asking questions rule was dropped
+  from the skills and the global CLAUDE.md at kelvin's call, as a suspected
+  cause.
 - The page (`diff --html`): the commits in full, no stat fallback, and every
   bead change. Inside each changed line, the changed words are highlighted from
   `git diff --word-diff=porcelain`, like GitHub. One self-contained HTML file

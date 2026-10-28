@@ -554,18 +554,22 @@ full and every unreviewed bead change, the changed words highlighted — else
   hand; a bd edit commits nothing, but the user has not seen it either — or a
   Fix job edited a tracker item (`bd update`, `bd dep add`), which still counts
   when the row reads `skip` because it can't read the beads DB. The rebase and
-  step 1's commit of a dirty tree do not count: step 2 checked them. Send the
-  `diff-page` file right after the Verdict call, before any reply text:
-  SendUserFile with `files: ["<file>"]`, `display: "render"`,
-  `status: "normal"` and a `caption` saying what the file is: "Diff page — the
-  commits and bead changes to review before the rerun" (in the user's
-  language). Send it on every changed verdict, reruns included: each writes a
-  new page. The card is how the user opens the page. Never put a `file://` link
-  in the reply: text holding one never reaches the user. Without SendUserFile
-  (a plain terminal), print the page's path instead. Don't read the page
-  (`cat`, Read) — it is for the user — and print no diff text: the page is the
-  diff. A question, or the end of the turn, before the page is sent with its
-  caption is held back by the `diff-link-gate.sh` hook, at most twice. When
+  step 1's commit of a dirty tree do not count: step 2 checked them. Publish
+  the `diff-page` file right after the Verdict call, before any reply text,
+  with the Artifact tool (`file_path: "<file>"`, `icon: "diff"`, `description`:
+  "The commits and bead changes to review before the rerun"): a private
+  claude.ai page, which opens in a browser on the phone too. Then put its `url`
+  on the line right after the `⚠️ <n>/<total> Verdict — changed` line, saying
+  what it is: `[Diff page — the commits and bead changes to review](<url>)`.
+  Publish on every changed verdict, reruns included: each writes a new page.
+  Without the Artifact tool, send the file with SendUserFile
+  (`display: "render"`, `status: "normal"`, a `caption` saying what it is) —
+  desktop renders it, the phone shows its source; without either, print its
+  path. Never put a `file://` link in the reply: text holding one never reaches
+  the user. Don't read the page (`cat`, Read) — it is for the user — and print
+  no diff text: the page is the diff. A question, or the end of the turn,
+  before the page is published is held back by the `diff-link-gate.sh` hook, at
+  most twice — an interim guard until Kix checkpoints check it. When
   `diff-page` is `-` (the beads DB can't be read), show the diff of the step 5
   commits (above) and name the items the Fix jobs edited instead. Then say:
   "There were changes. Review them yourself — skim the diff — and if they look
@@ -591,9 +595,9 @@ full and every unreviewed bead change, the changed words highlighted — else
 option in the reply, then the ❓ line (e.g.
 `❓ 12/16 Verdict — rerun /kix:ship?`), then the AskUserQuestion card. The only
 link is the compare link the verdict already printed in the reply — the branch
-diff for **open**, and for **changed** none when the page was sent (else the
-step 5 commits' compare link) — never a second link with a different range, and
-never inside the question. The question depends on the verdict:
+diff for **open**, and for **changed** the diff page's link (else the step 5
+commits' compare link) — never a second link with a different range, and never
+inside the question. The question depends on the verdict:
 
 - **Changed** — the reply says outright that new commits landed that the user
   has not seen: "`<n>` new commits landed since your last look
@@ -682,10 +686,10 @@ even when that run ships. On "Not now", stop — nothing runs after the answer.
   again" instead of the rerun question.
 - Answering "I reviewed" without `preflight-checks bd-mark review` first, or
   running it on "Run again, skip my review".
-- A **changed** verdict that doesn't send the `diff-page` file with
-  SendUserFile and its caption before its reply, or links it as `file://` (that
-  text never reaches the user), or reads the page, prints the diff as text, or
-  retypes its HTML.
+- A **changed** verdict that doesn't publish the `diff-page` file as an
+  Artifact and link its url, saying what it is, before any question — or that
+  links it as `file://` (that text never reaches the user), reads the page,
+  prints the diff as text, or retypes its HTML.
 - A **changed** rerun reply that doesn't say new, unseen commits landed, or
   that offers only "I reviewed" — a user who skips the review on purpose must
   have an honest option — or dropping the "without your review" ⚠️ item after

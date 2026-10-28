@@ -527,6 +527,18 @@ echo "garbage" | bash "$GATE" >/dev/null 2>&1
 check "bad input: allowed" "$?" "0"
 teardown
 
+echo "gate: an Artifact publish of the page counts"
+setup
+mkdir -p "$store" && echo "$work/p.html" >"$store/diff-page"
+jq -nc --arg f "$work/p.html" '{type: "assistant", message: {content: [{type: "tool_use", id: "tu7", name: "Artifact", input: {action: "read", url: "https://claude.ai/artifact/x", file_path: $f}}]}}' >"$work/t.jsonl"
+gate "$work/t.jsonl"
+check "read only: blocked" "$?" "2"
+check "says to publish" "$(grep -cF "Artifact tool" "$work/gate.err")" "1"
+jq -nc --arg f "$work/p.html" '{type: "assistant", message: {content: [{type: "tool_use", id: "tu8", name: "Artifact", input: {file_path: $f, icon: "diff"}}]}}' >>"$work/t.jsonl"
+gate "$work/t.jsonl"
+check "published: allowed" "$?" "0"
+teardown
+
 echo "gate: the turn can't end before the page is sent"
 setup
 gate "$work/none.jsonl" Stop

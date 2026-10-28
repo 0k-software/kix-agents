@@ -2,20 +2,21 @@
 # PreToolUse hook (matcher: AskUserQuestion) and Stop hook for kix:preflight's
 # diff page (kxa-a9i). A changed verdict's status call
 # (`preflight-checks --diff-html`) records the page it wrote in the session
-# store as `diff-page`; the skill then sends it to the user with SendUserFile.
-# Demos showed the model skipping that step and going straight to the rerun
-# question, so the user reviewed with no diff — and a `file://` link in the
-# reply text is no fix: such text never reaches the transcript, nor the user
-# (kxa-bun). This gate blocks a question, and the end of the turn, until the
-# transcript shows the page was sent (a SendUserFile call naming it, with a
-# caption saying what it is) or its path printed in the reply (a terminal
-# without SendUserFile), and says what to do. Once it sees either, it clears
-# the record. It blocks at most twice per page, then lets questions and the
-# turn's end through: a gate that can never be satisfied must not lock the
-# session. Blocking is exit 2 with the reason on stderr, never a
-# permissionDecision: on AskUserQuestion that reads as the user's answer.
-# Anything it can't read — no jq, bad input, no record — lets the question
-# through.
+# store as `diff-page`; the skill then publishes it as an Artifact and links
+# it. Demos showed the model skipping that step and going straight to the
+# rerun question, so the user reviewed with no diff — and a `file://` link in
+# the reply text is no fix: such text never reaches the transcript, nor the
+# user (kxa-bun). This gate blocks a question, and the end of the turn, until
+# the transcript shows the page was sent — an Artifact publish of it (a
+# claude.ai page, which the phone opens too; kxa-9bm), else a SendUserFile
+# call naming it with a caption, else its path printed in the reply — and says
+# what to do. Once it sees one, it clears the record. It blocks at most twice
+# per page, then lets questions and the turn's end through: a gate that can
+# never be satisfied must not lock the session. Blocking is exit 2 with the
+# reason on stderr, never a permissionDecision: on AskUserQuestion that reads
+# as the user's answer. Anything it can't read — no jq, bad input, no record —
+# lets the question through. An interim guard, until Kix checkpoints check the
+# Verdict.
 
 command -v jq >/dev/null 2>&1 || exit 0
 input=$(cat)
@@ -40,7 +41,9 @@ blocks=$(sed -n 2p "$pending")
 if [ -f "$transcript" ] &&
   grep -F "$page" "$transcript" 2>/dev/null |
   jq -r --arg p "$page" 'select(.type == "assistant") | .message.content[]?
-      | if .type == "tool_use" and .name == "SendUserFile" and ((.input.caption // "") | length > 0)
+      | if .type == "tool_use" and .name == "Artifact" and ((.input.action // "publish") == "publish")
+        then (.input.file_path // "" | tostring)
+        elif .type == "tool_use" and .name == "SendUserFile" and ((.input.caption // "") | length > 0)
         then (.input.files // [] | map(tostring) | .[])
         elif .type == "text" then .text
         else empty end' 2>/dev/null |
@@ -63,10 +66,11 @@ else
   before="asking"
 fi
 cat >&2 <<EOF
-Send the diff page before $before: the user reviews the changes from it.
-Call SendUserFile with files ["$page"], display "render", status "normal",
-and caption "Diff page — the commits and bead changes to review before the
-rerun" (in the user's language); without that tool, print the path in your
-reply. $then_do
+Publish the diff page before $before: the user reviews the changes from it.
+Call the Artifact tool with file_path "$page", icon "diff" and a description
+saying what it is, then link its url in your reply as "[Diff page — the
+commits and bead changes to review](<url>)" (in the user's language). Without
+that tool, send it with SendUserFile (display "render", a caption saying what
+it is); without either, print the path. $then_do
 EOF
 exit 2

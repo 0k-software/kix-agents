@@ -1087,7 +1087,8 @@ diff_html() {
 <title>Preflight diff</title>
 <style>
 :root{--fg:#1f2328;--bg:#fff;--mute:#59636e;--line:#d1d9e0;--hunk:#ddf4ff;--del:#ffebe9;--add:#dafbe1;--delw:#ffb0a8;--addw:#8ee6a0}
-@media(prefers-color-scheme:dark){:root{--fg:#e6edf3;--bg:#0d1117;--mute:#9198a1;--line:#3d444d;--hunk:#121d2f;--del:#3c1618;--add:#12261e;--delw:#7d2a2a;--addw:#1f6f3a}}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--fg:#e6edf3;--bg:#0d1117;--mute:#9198a1;--line:#3d444d;--hunk:#121d2f;--del:#3c1618;--add:#12261e;--delw:#7d2a2a;--addw:#1f6f3a}}
+:root[data-theme="dark"]{--fg:#e6edf3;--bg:#0d1117;--mute:#9198a1;--line:#3d444d;--hunk:#121d2f;--del:#3c1618;--add:#12261e;--delw:#7d2a2a;--addw:#1f6f3a}
 body{margin:16px;background:var(--bg);color:var(--fg);font:14px/1.5 -apple-system,system-ui,sans-serif}
 h2{font-size:15px;margin:20px 0 8px}
 .b{font:12px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;border:1px solid var(--line);border-radius:6px;overflow:hidden;margin:0 0 12px}
