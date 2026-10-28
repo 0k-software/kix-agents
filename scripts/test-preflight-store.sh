@@ -313,6 +313,19 @@ check "unknown bead exit" "$?" "1"
 check "nothing written" "$(lines "$store/markers.jsonl")" "$m"
 teardown
 
+echo "mark without --bead takes the bead in the branch name"
+setup
+stub_bd
+git_q switch -q -c kxa-1-work
+echo '[{"id":"kxa-1","updated_at":"T1"}]' >"$work/bd-show.json"
+echo '[]' | "$BIN" mark acceptance-criteria >/dev/null
+check "mark" "$(tail -n1 "$store/markers.jsonl" | jq -c .bead)" '{"id":"kxa-1","updated":"T1"}'
+echo '{"post-landing-steps": []}' | "$BIN" mark --batch >/dev/null
+check "mark --batch" "$(tail -n1 "$store/markers.jsonl" | jq -c .bead)" '{"id":"kxa-1","updated":"T1"}'
+echo '[]' | "$BIN" mark diff-review >/dev/null
+check "other checks" "$(tail -n1 "$store/markers.jsonl" | jq -c .bead)" "null"
+teardown
+
 echo "open-checkboxes delta"
 setup
 printf -- '- [ ] x\n' >a.md && commit a

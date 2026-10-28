@@ -629,7 +629,11 @@ sub_mark() {
   input=$(cat)
   printf '%s' "$input" | jq -e 'type == "array" and all(.[]; type == "object")' >/dev/null 2>&1 ||
     die "stdin must be a JSON array of finding objects"
-  [ "$check" = acceptance-criteria ] || [ "$check" = post-landing-steps ] || bead=""
+  if [ "$check" = acceptance-criteria ] || [ "$check" = post-landing-steps ]; then
+    [ -n "$bead" ] || bead=$(branch_bead)
+  else
+    bead=""
+  fi
   read_bead_ts
   printf '%s' "$input" | mark_one "$check"
 }
@@ -652,6 +656,8 @@ sub_mark_batch() {
       // empty
     end' 2>/dev/null) || die "stdin must be a JSON object"
   [ -z "$err" ] || die "$err"
+  # As start: without --bead, an id in the branch name.
+  [ -n "$bead" ] || bead=$(branch_bead)
   read_bead_ts
   n=$(printf '%s' "$input" | jq '.resolve // [] | length')
   for ((i = 0; i < n; i++)); do

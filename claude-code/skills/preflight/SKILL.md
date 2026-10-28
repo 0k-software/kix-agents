@@ -57,8 +57,9 @@ every row and subcommand. What preflight uses:
   files, the bead's acceptance, design or notes, candidate findings, bd
   updates, the prompts since the check's marker, and its open findings. `<id>`
   is the branch's bead (an id in the branch name, the issue claimed or worked
-  on in this session, or one the conversation names); without it, an id in the
-  branch name is used. No bead: drop `--bead` here and in `mark --batch`.
+  on in this session, or one the conversation names); without it, both calls
+  use an id in the branch name. No bead: drop `--bead` here and in
+  `mark --batch`.
 - `preflight-checks mark --batch [--bead <id>] <<'JSON' … JSON` — records that
   the checks ran, all at once:
   `{"<check>": [<new findings>], …, "resolve": [["<id>", "fixed"], ["<id>", "discarded", "obsolete: <why>"]]}`.
