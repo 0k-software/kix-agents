@@ -123,24 +123,6 @@ user's "Ship" answer in `kix:ship`. A finding stays open until something
 resolves it — `mark` takes only new ones, so nothing needs passing back to
 carry it to the next run.
 
-## Asking questions
-
-Every AskUserQuestion, in this skill and in every kix skill that points here
-(`kix:ship`, `kix:close`, `kix:next-up`), goes out in this order:
-
-1. the text the user needs to answer it — a finding block, the options
-   explained, the compare link — in the reply;
-2. a real command of its own (a `grep`, a `bd show`, a `git` call that the
-   question is about);
-3. the ❓ line;
-4. the AskUserQuestion call.
-
-The app summarizes the reply text that comes right before a question card, and
-on mobile the user then gets a one-line summary instead of the block. A tool
-call between the text and the card keeps the text whole (checked on mobile,
-2026-10-24). Links never go inside the question: a link in a card cannot be
-opened on mobile.
-
 ## Progress
 
 The user wants to see where a run is while it runs. When each step ends, print
@@ -378,9 +360,9 @@ after the last finding (and its discard reason) is answered, so the user
 answers in one sitting and walks away while the queue runs. Before each
 question, print the finding in the reply as a short block the user can read and
 scroll back to — the card collapses to the chosen label once answered — then
-run a command and print the ❓ line, as _Asking questions_ says. Print it as
-Markdown, not in a code block, with exactly this shape — a bold heading, then
-one labelled bullet per line, never a prose paragraph:
+print the ❓ line. Print it as Markdown, not in a code block, with exactly this
+shape — a bold heading, then one labelled bullet per line, never a prose
+paragraph:
 
 ```
 **Finding 6/9 — `<file>:<line>`**
@@ -607,13 +589,13 @@ full and every unreviewed bead change, the changed words highlighted — else
 
 **Rerun.** A link can't run a slash command, but an answer can. After a
 **changed** or **open** verdict's ⚠️ block, write what is being asked and each
-option in the reply, then follow _Asking questions_: a command, the ❓ line
-(e.g. `❓ 12/16 Verdict — rerun /kix:ship?`), then the AskUserQuestion card.
-The only link is the compare link the verdict already printed in the reply —
-the branch diff for **open**, and for **changed** the diff page's link (or,
-when there is no page, the step 5 commits' compare link) — never a second link
-with a different range, and never inside the question. The question depends on
-the verdict:
+option in the reply, then the ❓ line (e.g.
+`❓ 12/16 Verdict — rerun /kix:ship?`), then the AskUserQuestion card. The only
+link is the compare link the verdict already printed in the reply — the branch
+diff for **open**, and for **changed** the diff page's link (or, when there is
+no page, the step 5 commits' compare link) — never a second link with a
+different range, and never inside the question. The question depends on the
+verdict:
 
 - **Changed** — the reply says outright that new commits landed that the user
   has not seen: "`<n>` new commits landed since your last look

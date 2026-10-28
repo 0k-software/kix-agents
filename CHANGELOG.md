@@ -65,11 +65,6 @@ The format is based on
 - `kix:preflight`'s compare link is a labeled Markdown link with a literal `^`
   instead of a bare URL with `%5E`.
 
-- Every question in `kix:preflight`, `kix:ship`, `kix:close` and `kix:next-up`
-  goes out as text, then a command, then the ❓ line, then the card
-  (`kix:preflight` _Asking questions_): the app summarizes the text right
-  before a question card, and on mobile only the summary reached the user.
-
 - `kix:preflight` runs its checks from a check library
   (`claude-code/skills/preflight/checks/`, one instruction file per check) with
   a marker per check, so a rerun reviews only what changed since each marker.
