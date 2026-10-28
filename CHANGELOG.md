@@ -54,6 +54,10 @@ The format is based on
 
 ### Changed
 
+- `kix:close` offers `/kix:next-up` inside the archive question — "Next-up,
+  then archive" · "Archive" · "Leave it open" — instead of asking about next-up
+  first and the archive after it; next-up then leads straight to the archive.
+
 - `kix:preflight`'s Decide and `kix:next-up`'s Step 3 no longer ask "Apply all"
   first: they always walk the findings (fixes) one by one, starting with the
   first one's question.
