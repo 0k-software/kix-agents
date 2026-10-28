@@ -48,8 +48,9 @@ harness notes.
   sha; a commit range whose every commit is a stored fix commit is "fix commits
   only".
 - **Conversation.** Only new prompts and queued commands stale; an
-  AskUserQuestion answer does not (after a marker, it is preflight's own Decide
-  or Verdict question).
+  AskUserQuestion answer that picks offered options does not (after a marker,
+  it is preflight's own Decide or Verdict question). A typed answer (Other) or
+  one with notes counts as a prompt.
 - **Auto-marks (items 7, 12).** `start` marks with `[]` itself:
   `open-checkboxes` stale with no unchecked item left; `acceptance-criteria`
   with no bead, or a bead without design and acceptance.

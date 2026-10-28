@@ -192,6 +192,15 @@ tx_result() {
   jq -nc --arg u "$1" --arg t "$2" --arg i "$3" \
     '{type: "user", uuid: $u, timestamp: $t, message: {role: "user", content: [{type: "tool_result", tool_use_id: $i, content: "ok"}]}}' >>"$tx"
 }
+# An answered question: $4 is the answer, $5 optional notes.
+tx_answer() {
+  jq -nc --arg u "$1" --arg t "$2" --arg i "$3" --arg a "$4" --arg n "${5:-}" '
+    {type: "user", uuid: $u, timestamp: $t,
+     message: {role: "user", content: [{type: "tool_result", tool_use_id: $i, content: "answered"}]},
+     toolUseResult: ({questions: [{question: "Fix?", options: [{label: "Fix"}, {label: "Skip, later"}, {label: "Defer"}]}],
+                      answers: {"Fix?": $a}}
+                     + (if $n == "" then {} else {annotations: {"Fix?": {notes: $n}}} end))}' >>"$tx"
+}
 T1=2026-10-22T11:00:00.100Z
 T2=2026-10-22T11:05:00.200Z
 T3=2026-10-22T11:10:00.300Z
@@ -351,6 +360,25 @@ tx_ask a1 $T2 q1
 check "asked, unanswered" "$(row conversation-leftovers | cut -d/ -f1)" "fresh"
 tx_result r1 $T3 q1
 check "answered" "$(row conversation-leftovers | cut -d/ -f1)" "fresh"
+tx_answer r2 $T3 q1 "Fix"
+check "picked an option" "$(row conversation-leftovers | cut -d/ -f1)" "fresh"
+tx_answer r3 $T3 q1 "Skip, later, Defer"
+check "picked several" "$(row conversation-leftovers | cut -d/ -f1)" "fresh"
+tx_answer r4 $T3 q1 "[User did not answer this question — they sent a message instead.]"
+check "message instead" "$(row conversation-leftovers | cut -d/ -f1)" "fresh"
+teardown
+
+echo "conversation: a typed answer or notes stale"
+setup
+tx_init
+tx_turn u1 $T1 "hello"
+echo '[]' | "$BIN" mark conversation-leftovers >/dev/null
+tx_answer r1 $T2 q1 "what if I answer with a question?"
+check "typed" "$(row conversation-leftovers)" "stale/conversation since $T2"
+check "excerpt" "$("$BIN" start --no-fetch --format tsv | grep -c "    $T2 · what if I answer with a question?")" "1"
+echo '[]' | "$BIN" mark conversation-leftovers >/dev/null
+tx_answer r2 $T3 q1 "Fix" "and rename it too"
+check "notes" "$(row conversation-leftovers)" "stale/conversation since $T3"
 teardown
 
 echo "conversation: meta lines do not"

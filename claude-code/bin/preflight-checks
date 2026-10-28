@@ -465,15 +465,19 @@ transcript_path() {
 #   u <line> <uuid> <ts>       every entry with a uuid
 #   p <line> <ts> <excerpt>    every entry that starts a turn: a prompt that is
 #                              not injected meta text, or a queued command
-# An AskUserQuestion answer starts nothing: after a marker it answers
-# preflight's own Decide or Verdict question. Unparseable lines (Claude Code
-# writing) are skipped.
+# An AskUserQuestion answer that picks offered options starts nothing: after a
+# marker it answers preflight's own Decide or Verdict question. One typed
+# instead (Other) or with notes is a prompt: it can ask or add anything.
+# Unparseable lines (Claude Code writing) are skipped.
 tx_index() { cached txindex tx_index_read; }
 tx_index_read() {
   local t
   t=$(transcript)
   [ -n "$t" ] || return 0
   jq -rR '
+    # The answer is offered labels joined by ", " (multiSelect); a label may
+    # hold ", " itself.
+    def tiled($ls): . as $s | any($ls[] as $l | $s == $l or (($s | startswith($l + ", ")) and ($s[($l | length + 2):] | tiled($ls))); .);
     fromjson? | select(type == "object") | input_line_number as $n
     | (if (.uuid | type) == "string" then "u\t\($n)\t\(.uuid)\t\(.timestamp // "" | tostring)" else empty end),
       (select((.timestamp | type) == "string") | . as $e | (.message.content?) as $c
@@ -484,6 +488,14 @@ tx_index_read() {
            elif ($c | type) == "string" then $c
            else ([$c[]? | select(.type? == "text") | .text] | first // "") end)
         | gsub("(?s)<system-reminder>.*?</system-reminder>"; "") | gsub("\\s+"; " ") | ltrimstr(" ") | .[0:100]
+        | "p\t\($n)\t\($e.timestamp)\t\(.)"),
+      (select((.timestamp | type) == "string" and (.toolUseResult.answers? | type) == "object")
+        | . as $e | [.toolUseResult.questions[]? | .options[]?.label] as $labels
+        | [(.toolUseResult.answers | to_entries[] | .value | tostring
+             | select((startswith("[User did not answer") or tiled($labels)) | not)),
+           (.toolUseResult.annotations? // {} | to_entries[]? | .value.notes? // empty | tostring)]
+        | map(select(. != "")) | select(length > 0) | join(" · ")
+        | gsub("\\s+"; " ") | ltrimstr(" ") | .[0:100]
         | "p\t\($n)\t\($e.timestamp)\t\(.)")
   ' "$t" 2>/dev/null
 }

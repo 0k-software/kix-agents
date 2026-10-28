@@ -115,6 +115,9 @@ def build_fixture(root):
     sh(f"git clone -q --bare --no-local --branch main {REPO} {origin}", root, env=env)
     sh(f"git clone -q {origin} {repo}", root, env=env)
     sh("rm -rf .beads && bd init -q --non-interactive -p fx", repo, env=env)
+    # The repo's own suites take minutes; `make test` runs only what the
+    # branch adds.
+    sh("git rm -q $(ls scripts/test-*.sh | grep -v test-git-env.sh)", repo, env=env)
     # bd init commits on its own; commit whatever it left.
     sh("git add -A && { git diff --cached --quiet || git commit -q -m 'fixture: fresh beads'; }"
        " && git push -q origin HEAD:main", repo, env=env)
@@ -204,6 +207,16 @@ async def phase(client, prompt, log):
     return {"error": "no result"}
 
 
+def run_path(plugin):
+    """PATH with the plugin's bin first and no copy of this repo's bin."""
+    keep = [
+        d
+        for d in os.environ.get("PATH", "").split(os.pathsep)
+        if not d.startswith((str(REPO), str(MAIN)))
+    ]
+    return os.pathsep.join([str(plugin / "bin")] + keep)
+
+
 async def run(name, plugin, workdir, model):
     os.environ.pop("CLAUDE_CODE_SESSION_ID", None)
     options = ClaudeAgentOptions(
@@ -214,7 +227,7 @@ async def run(name, plugin, workdir, model):
         permission_mode="default",
         can_use_tool=answer_questions,
         hooks={"PreToolUse": [HookMatcher(matcher=None, hooks=[guard])]},
-        env={"KIX_FETCH_TTL": "5"},
+        env={"KIX_FETCH_TTL": "5", "PATH": run_path(plugin)},
         model=model,
     )
     result = {"run": name}
