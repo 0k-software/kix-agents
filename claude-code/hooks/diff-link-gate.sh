@@ -1,19 +1,21 @@
 #!/bin/bash
 # PreToolUse hook (matcher: AskUserQuestion) and Stop hook for kix:preflight's
-# diff page (kxa-a9i). A changed verdict's status call (`preflight-checks --diff-html`)
-# records the page it wrote in the session store as `diff-page`; the skill then
-# sends it to the user with SendUserFile. Demos showed the model skipping that
-# step and going straight to the rerun question, so the user reviewed with no
-# diff — and a `file://` link in the reply text is no fix: such text never
-# reaches the transcript, nor the user (kxa-bun). This gate blocks a question,
-# and the end of the turn, until the transcript shows the page was sent (a
-# SendUserFile call naming it, with a caption saying what it is) or its path
-# printed in the reply (a terminal without SendUserFile), and says what to do. Once it sees either, it clears the record. It blocks at most
-# twice per page, then lets questions through: a gate that can never be
-# satisfied must not lock the session. Blocking is exit 2 with the reason on
-# stderr, never a permissionDecision: on AskUserQuestion that reads as the
-# user's answer. Anything it can't read — no jq, bad input, no record — lets
-# the question through.
+# diff page (kxa-a9i). A changed verdict's status call
+# (`preflight-checks --diff-html`) records the page it wrote in the session
+# store as `diff-page`; the skill then sends it to the user with SendUserFile.
+# Demos showed the model skipping that step and going straight to the rerun
+# question, so the user reviewed with no diff — and a `file://` link in the
+# reply text is no fix: such text never reaches the transcript, nor the user
+# (kxa-bun). This gate blocks a question, and the end of the turn, until the
+# transcript shows the page was sent (a SendUserFile call naming it, with a
+# caption saying what it is) or its path printed in the reply (a terminal
+# without SendUserFile), and says what to do. Once it sees either, it clears
+# the record. It blocks at most twice per page, then lets questions and the
+# turn's end through: a gate that can never be satisfied must not lock the
+# session. Blocking is exit 2 with the reason on stderr, never a
+# permissionDecision: on AskUserQuestion that reads as the user's answer.
+# Anything it can't read — no jq, bad input, no record — lets the question
+# through.
 
 command -v jq >/dev/null 2>&1 || exit 0
 input=$(cat)
