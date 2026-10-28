@@ -1291,15 +1291,18 @@ cp_unreviewed_bead_changes
 
 # The Verdict's call writes the page itself, only when there is something to
 # review, so a changed verdict can open it with no second call.
+# The page is also recorded in the store as `diff-page`, until the user has
+# seen its link: hooks/diff-link-gate.sh holds back questions till then.
 if [ -n "$diff_html" ]; then
+  page=-
   if [ -n "$diff_from" ] || printf '%s' "$rows" | grep -qE $'^unreviewed-bead-changes\t(finding|stale)\t'; then
-    if write_diff_page "$diff_html"; then
-      emit diff-page fact "$diff_html"
-    else
-      emit diff-page fact -
-    fi
+    write_diff_page "$diff_html" && page=$diff_html
+  fi
+  emit diff-page fact "$page"
+  if [ "$page" = - ]; then
+    rm -f "$(store_dir)/diff-page"
   else
-    emit diff-page fact -
+    mkdir -p "$(store_dir)" && printf '%s\n' "$page" >"$(store_dir)/diff-page"
   fi
 fi
 

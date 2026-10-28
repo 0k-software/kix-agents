@@ -49,7 +49,7 @@ make check
 # rebase in this repo slower for no reason. Run it only when the files it covers
 # are staged. Names come from the index, after the autofix above re-staged.
 if git diff --cached --name-only \
-  | grep -qE '^(claude-code/skills/rebase/time-hook\.sh|claude-code/bin/project-code|claude-code/bin/preflight-checks|claude-code/hooks/title-first-prompt\.sh|claude-code/hooks/bead-session-mark\.sh|claude-code/hooks/autocommit\.sh|scripts/test-[a-z-]+\.sh|Makefile)$'; then
+  | grep -qE '^(claude-code/skills/rebase/time-hook\.sh|claude-code/bin/project-code|claude-code/bin/preflight-checks|claude-code/hooks/title-first-prompt\.sh|claude-code/hooks/bead-session-mark\.sh|claude-code/hooks/autocommit\.sh|claude-code/hooks/diff-link-gate\.sh|scripts/test-[a-z-]+\.sh|Makefile)$'; then
   echo "pre-commit: tested shell files changed — running make test"
   # git exports GIT_DIR, GIT_INDEX_FILE and friends to this hook; a suite that
   # inherits them runs its throwaway git commands against this repo (kxa-6df).

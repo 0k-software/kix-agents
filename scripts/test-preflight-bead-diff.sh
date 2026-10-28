@@ -489,6 +489,41 @@ else
 fi
 teardown
 
+GATE="$ROOT/claude-code/hooks/diff-link-gate.sh"
+# Run the question gate as Claude Code would, for session s1 in the current
+# repo, with transcript $1.
+gate() {
+  jq -nc --arg c "$PWD" --arg t "$1" '{session_id: "s1", cwd: $c, transcript_path: $t, tool_name: "AskUserQuestion"}' |
+    bash "$GATE" 2>"$work/gate.err"
+}
+
+echo "status call --diff-html: records the unshown page, clears it when none"
+setup
+echo "hello" >w.txt && git_q add -A && git_q commit -q -m w
+"$BIN" --no-fetch --format tsv --diff-html "$work/p.html" --from HEAD >/dev/null
+check "pending" "$(cat "$store/diff-page" 2>/dev/null)" "$work/p.html"
+"$BIN" --no-fetch --format tsv --diff-html "$work/p.html" >/dev/null
+check "cleared" "$([ -e "$store/diff-page" ] && echo yes || echo no)" "no"
+teardown
+
+echo "gate: a question waits until the page link is printed"
+setup
+gate "$work/none.jsonl"
+check "no page: allowed" "$?/$(cat "$work/gate.err")" "0/"
+mkdir -p "$store" && echo "$work/p.html" >"$store/diff-page"
+jq -nc '{type: "assistant", message: {content: [{type: "text", text: "❓ 12/12 Verdict — rerun?"}]}}' >"$work/t.jsonl"
+gate "$work/t.jsonl"
+check "no link: blocked" "$?" "2"
+check "says what to print" "$(grep -cF "[Open the diff page](file://$work/p.html)" "$work/gate.err")" "1"
+jq -nc --arg l "⚠️ 12/12 Verdict — changed
+[Open the diff page](file://$work/p.html)" '{type: "assistant", message: {content: [{type: "text", text: $l}]}}' >>"$work/t.jsonl"
+gate "$work/t.jsonl"
+check "link printed: allowed" "$?" "0"
+check "page cleared" "$([ -e "$store/diff-page" ] && echo yes || echo no)" "no"
+echo "garbage" | bash "$GATE" >/dev/null 2>&1
+check "bad input: allowed" "$?" "0"
+teardown
+
 if [ "$failures" -gt 0 ]; then
   echo "$failures failure(s)"
   exit 1
