@@ -13,6 +13,13 @@ where they disagree:
   (the app opens it in its browser; a bare path shows the HTML source). It
   doesn't open the page itself, which didn't work in the demo, and prints no
   diff text. The rerun question keeps I reviewed / skip my review / not now.
+- Question gate (`hooks/diff-link-gate.sh`, PreToolUse on AskUserQuestion): two
+  demos skipped the Verdict reply, so the link never showed. The status call
+  records the page it wrote as `<store>/diff-page`; the gate blocks any
+  question with exit 2 (never a permissionDecision) until the page's file://
+  link is in the session's own reply text, says what to print, then clears the
+  record. The "text, command, ❓, card" Asking questions rule was dropped from
+  the skills and the global CLAUDE.md at kelvin's call, as a suspected cause.
 - The page (`diff --html`): the commits in full, no stat fallback, and every
   bead change. Inside each changed line, the changed words are highlighted from
   `git diff --word-diff=porcelain`, like GitHub. One self-contained HTML file
