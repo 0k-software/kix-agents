@@ -87,8 +87,7 @@ harness notes.
       fixes only (once in a row). Check files trimmed (shared Moot rule moves
       to SKILL.md). ship/close lose their progress paragraphs. CLAUDE.md and
       CHANGELOG.
-- [ ] **6. Bench.** `scripts/bench-preflight` (SDK host with auto-answer,
+- [x] **6. Bench.** `scripts/bench-preflight` (SDK host with auto-answer,
       PreToolUse guard, fixture builder, old vs new in parallel, JSONL logs,
       no-change rerun case). Record results on the bead. Built as
-      `scripts/bench-preflight.py`, fixture verified; the paid run waits for
-      kelvin's go-ahead.
+      `scripts/bench-preflight.py`; results vs main (3 repeats) on the bead.
