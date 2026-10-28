@@ -356,10 +356,10 @@ N/T. `<file>:<line>` — <problem> [id: <id>]
    If left: <failure scenario>
 ```
 
-`<file>:<line>` only as far as the finding has them — leave the location out
-when it has no `file`. The problem and fix come from `summary` (the fix inside
-its `SUGGESTED FIX` fence), the failure scenario from `failure_scenario`; the
-id is what step 5 names in `resolve`.
+`<file>:<line>` only as far as the finding has them; with no `file`, the line
+reads `N/T. <problem> [id: <id>]`. The problem and fix come from `summary` (the
+fix inside its `SUGGESTED FIX` fence), the failure scenario from
+`failure_scenario`; the id is what step 5 names in `resolve`.
 
 Wherever a finding is named — the chat list, a question, a ❓ line, a job's ⏳
 or ✅ line — give its number out of the total: `finding 6/9`, `6/9.`.
