@@ -20,4 +20,6 @@ Leave the rest open. `mark` takes only the new findings.
 
 Run the `code-review` skill at level `medium` on the range above. It reports
 through its own ReportFindings call; take the findings from that call's input
-for `mark`, and from there for preflight's report.
+for `mark`, and from there for preflight's report. When a Fixes job later fixes
+one of them, code-review's own rule calls ReportFindings again with outcomes:
+let it — that call is code-review's; preflight only makes no card of its own.
