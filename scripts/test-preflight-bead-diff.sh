@@ -506,22 +506,42 @@ check "pending" "$(cat "$store/diff-page" 2>/dev/null)" "$work/p.html"
 check "cleared" "$([ -e "$store/diff-page" ] && echo yes || echo no)" "no"
 teardown
 
-echo "gate: a question waits until the page link is printed"
+echo "gate: a question waits until the page is sent"
 setup
 gate "$work/none.jsonl"
 check "no page: allowed" "$?/$(cat "$work/gate.err")" "0/"
 mkdir -p "$store" && echo "$work/p.html" >"$store/diff-page"
 jq -nc '{type: "assistant", message: {content: [{type: "text", text: "❓ 12/12 Verdict — rerun?"}]}}' >"$work/t.jsonl"
 gate "$work/t.jsonl"
-check "no link: blocked" "$?" "2"
-check "says what to print" "$(grep -cF "[Open the diff page](file://$work/p.html)" "$work/gate.err")" "1"
-jq -nc --arg l "⚠️ 12/12 Verdict — changed
-[Open the diff page](file://$work/p.html)" '{type: "assistant", message: {content: [{type: "text", text: $l}]}}' >>"$work/t.jsonl"
+check "not sent: blocked" "$?" "2"
+check "says what to send" "$(grep -cF "SendUserFile" "$work/gate.err")/$(grep -cF "$work/p.html" "$work/gate.err")" "1/1"
+jq -nc --arg f "$work/p.html" '{type: "assistant", message: {content: [{type: "tool_use", id: "tu9", name: "SendUserFile", input: {files: [$f], display: "render", status: "normal"}}]}}' >>"$work/t.jsonl"
 gate "$work/t.jsonl"
-check "link printed: allowed" "$?" "0"
+check "sent: allowed" "$?" "0"
 check "page cleared" "$([ -e "$store/diff-page" ] && echo yes || echo no)" "no"
 echo "garbage" | bash "$GATE" >/dev/null 2>&1
 check "bad input: allowed" "$?" "0"
+teardown
+
+echo "gate: a path in the reply text also counts (a terminal without SendUserFile)"
+setup
+mkdir -p "$store" && echo "$work/p.html" >"$store/diff-page"
+jq -nc --arg l "Diff page: $work/p.html" '{type: "assistant", message: {content: [{type: "text", text: $l}]}}' >"$work/t.jsonl"
+gate "$work/t.jsonl"
+check "path printed: allowed" "$?" "0"
+teardown
+
+echo "gate: never blocks more than twice"
+setup
+mkdir -p "$store" && echo "$work/p.html" >"$store/diff-page"
+: >"$work/t.jsonl"
+gate "$work/t.jsonl"
+first=$?
+gate "$work/t.jsonl"
+second=$?
+gate "$work/t.jsonl"
+check "blocks, blocks, lets through" "$first/$second/$?" "2/2/0"
+check "record cleared" "$([ -e "$store/diff-page" ] && echo yes || echo no)" "no"
 teardown
 
 if [ "$failures" -gt 0 ]; then

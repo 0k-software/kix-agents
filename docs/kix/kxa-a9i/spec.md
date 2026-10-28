@@ -9,17 +9,21 @@ where they disagree:
   `--diff-html <file> [--from <first step 5 commit>]` and writes the diff page
   only when something is unreviewed (step 5 commits, or
   `unreviewed-bead-changes` reads finding or stale), naming it in a `diff-page`
-  row. A **changed** verdict links that page in the reply as a `file://` URL
-  (the app opens it in its browser; a bare path shows the HTML source). It
-  doesn't open the page itself, which didn't work in the demo, and prints no
-  diff text. The rerun question keeps I reviewed / skip my review / not now.
+  row. A **changed** verdict sends that page with SendUserFile
+  (`display: render`) before its reply, and prints no diff text. Opening it
+  from the session didn't work (demo 1), and a `file://` link in the reply
+  never reaches the user: text holding one is dropped before the transcript and
+  the app (demo 3, kxa-bun). The rerun question keeps I reviewed / skip my
+  review / not now.
 - Question gate (`hooks/diff-link-gate.sh`, PreToolUse on AskUserQuestion): two
   demos skipped the Verdict reply, so the link never showed. The status call
   records the page it wrote as `<store>/diff-page`; the gate blocks any
-  question with exit 2 (never a permissionDecision) until the page's file://
-  link is in the session's own reply text, says what to print, then clears the
-  record. The "text, command, ❓, card" Asking questions rule was dropped from
-  the skills and the global CLAUDE.md at kelvin's call, as a suspected cause.
+  question with exit 2 (never a permissionDecision) until the transcript shows
+  a SendUserFile call naming the page (or, in a terminal, its path in the
+  reply), says what to do, then clears the record; it blocks at most twice per
+  page, so it can never lock a session. The "text, command, ❓, card" Asking
+  questions rule was dropped from the skills and the global CLAUDE.md at
+  kelvin's call, as a suspected cause.
 - The page (`diff --html`): the commits in full, no stat fallback, and every
   bead change. Inside each changed line, the changed words are highlighted from
   `git diff --word-diff=porcelain`, like GitHub. One self-contained HTML file

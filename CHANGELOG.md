@@ -15,14 +15,15 @@ The format is based on
   changed words inside each changed line highlighted, like GitHub's diff, and a
   warning when other sessions of the repo ran in that window. The Verdict's own
   `preflight-checks --diff-html <file>` call writes it, only when something is
-  unreviewed, and preflight links it as a `file://` URL the app opens in its
-  browser; `preflight-checks diff [--html]` prints or writes the same on
-  demand. Any unreviewed bead change, not only a Fix job's, now makes the
-  verdict **changed** (the new `unreviewed-bead-changes` row) — the beads this
-  session wrote with bd, read from its transcript, and the ones a dependency
-  links to them; other sessions' changes only count as "not shown". A
-  SessionStart hook records the session's start mark; `bd-mark review` moves it
-  on "I reviewed" and on a clear verdict.
+  unreviewed, and preflight sends it as a rendered file card (a hook holds back
+  the rerun question until it does, at most twice);
+  `preflight-checks diff [--html]` prints or writes the same on demand. Any
+  unreviewed bead change, not only a Fix job's, now makes the verdict
+  **changed** (the new `unreviewed-bead-changes` row) — the beads this session
+  wrote with bd, read from its transcript, and the ones a dependency links to
+  them; other sessions' changes only count as "not shown". A SessionStart hook
+  records the session's start mark; `bd-mark review` moves it on "I reviewed"
+  and on a clear verdict.
 - Preflight checks `acceptance-criteria` (the branch's bead criteria against
   the diff) and `findings-leftovers` (open findings block shipping), and
   `preflight-checks start|mark|resolve|findings`: per-session check markers and
