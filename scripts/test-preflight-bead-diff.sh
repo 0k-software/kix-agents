@@ -492,8 +492,9 @@ teardown
 GATE="$ROOT/claude-code/hooks/diff-link-gate.sh"
 # Run the question gate as Claude Code would, for session s1 in the current
 # repo, with transcript $1.
+# $2 is the hook event, PreToolUse when left out.
 gate() {
-  jq -nc --arg c "$PWD" --arg t "$1" '{session_id: "s1", cwd: $c, transcript_path: $t, tool_name: "AskUserQuestion"}' |
+  jq -nc --arg c "$PWD" --arg t "$1" --arg e "${2:-PreToolUse}" '{session_id: "s1", cwd: $c, transcript_path: $t, hook_event_name: $e, tool_name: "AskUserQuestion"}' |
     bash "$GATE" 2>"$work/gate.err"
 }
 
@@ -514,13 +515,30 @@ mkdir -p "$store" && echo "$work/p.html" >"$store/diff-page"
 jq -nc '{type: "assistant", message: {content: [{type: "text", text: "❓ 12/12 Verdict — rerun?"}]}}' >"$work/t.jsonl"
 gate "$work/t.jsonl"
 check "not sent: blocked" "$?" "2"
-check "says what to send" "$(grep -cF "SendUserFile" "$work/gate.err")/$(grep -cF "$work/p.html" "$work/gate.err")" "1/1"
-jq -nc --arg f "$work/p.html" '{type: "assistant", message: {content: [{type: "tool_use", id: "tu9", name: "SendUserFile", input: {files: [$f], display: "render", status: "normal"}}]}}' >>"$work/t.jsonl"
+check "says what to send" "$(grep -cF "SendUserFile" "$work/gate.err")/$(grep -cF "$work/p.html" "$work/gate.err")/$(grep -cF "caption" "$work/gate.err")" "1/1/1"
+jq -nc --arg f "$work/p.html" '{type: "assistant", message: {content: [{type: "tool_use", id: "tu8", name: "SendUserFile", input: {files: [$f], display: "render", status: "normal"}}]}}' >>"$work/t.jsonl"
 gate "$work/t.jsonl"
-check "sent: allowed" "$?" "0"
+check "sent without a caption: blocked" "$?" "2"
+jq -nc --arg f "$work/p.html" '{type: "assistant", message: {content: [{type: "tool_use", id: "tu9", name: "SendUserFile", input: {files: [$f], display: "render", status: "normal", caption: "Diff page"}}]}}' >>"$work/t.jsonl"
+gate "$work/t.jsonl"
+check "sent with a caption: allowed" "$?" "0"
 check "page cleared" "$([ -e "$store/diff-page" ] && echo yes || echo no)" "no"
 echo "garbage" | bash "$GATE" >/dev/null 2>&1
 check "bad input: allowed" "$?" "0"
+teardown
+
+echo "gate: the turn can't end before the page is sent"
+setup
+gate "$work/none.jsonl" Stop
+check "no page: ends" "$?" "0"
+mkdir -p "$store" && echo "$work/p.html" >"$store/diff-page"
+: >"$work/t.jsonl"
+gate "$work/t.jsonl" Stop
+check "not sent: blocked" "$?" "2"
+check "says it's the turn's end" "$(grep -cF "ending the turn" "$work/gate.err")" "1"
+jq -nc --arg f "$work/p.html" '{type: "assistant", message: {content: [{type: "tool_use", id: "tu9", name: "SendUserFile", input: {files: [$f], caption: "Diff page"}}]}}' >"$work/t.jsonl"
+gate "$work/t.jsonl" Stop
+check "sent: ends" "$?" "0"
 teardown
 
 echo "gate: a path in the reply text also counts (a terminal without SendUserFile)"

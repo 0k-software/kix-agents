@@ -20,6 +20,16 @@
         ]
       }
     ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/diff-link-gate.sh\""
+          }
+        ]
+      }
+    ],
     "SessionStart": [
       {
         "matcher": "startup",

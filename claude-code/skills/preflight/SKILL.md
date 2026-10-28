@@ -557,17 +557,20 @@ full and every unreviewed bead change, the changed words highlighted — else
   step 1's commit of a dirty tree do not count: step 2 checked them. Send the
   `diff-page` file right after the Verdict call, before any reply text:
   SendUserFile with `files: ["<file>"]`, `display: "render"`,
-  `status: "normal"`. The card is how the user opens the page. Never put a
-  `file://` link in the reply: text holding one never reaches the user. Without
-  SendUserFile (a plain terminal), print the page's path instead. Don't read
-  the page (`cat`, Read) — it is for the user — and print no diff text: the
-  page is the diff. A question before the page is sent is held back by the
-  `diff-link-gate.sh` hook, at most twice. When `diff-page` is `-` (the beads
-  DB can't be read), show the diff of the step 5 commits (above) and name the
-  items the Fix jobs edited instead. Then say: "There were changes. Review them
-  yourself — skim the diff — and if they look like what you expect, rerun."
-  Then ask the rerun question (below). Those commits and items are not checked
-  yet; the next run checks them.
+  `status: "normal"` and a `caption` saying what the file is: "Diff page — the
+  commits and bead changes to review before the rerun" (in the user's
+  language). Send it on every changed verdict, reruns included: each writes a
+  new page. The card is how the user opens the page. Never put a `file://` link
+  in the reply: text holding one never reaches the user. Without SendUserFile
+  (a plain terminal), print the page's path instead. Don't read the page
+  (`cat`, Read) — it is for the user — and print no diff text: the page is the
+  diff. A question, or the end of the turn, before the page is sent with its
+  caption is held back by the `diff-link-gate.sh` hook, at most twice. When
+  `diff-page` is `-` (the beads DB can't be read), show the diff of the step 5
+  commits (above) and name the items the Fix jobs edited instead. Then say:
+  "There were changes. Review them yourself — skim the diff — and if they look
+  like what you expect, rerun." Then ask the rerun question (below). Those
+  commits and items are not checked yet; the next run checks them.
 
 - **Open** — the `findings-leftovers` row reads `finding`: its detail lists the
   ids still open (left for later, or never decided). List what is still open,
@@ -680,9 +683,9 @@ even when that run ships. On "Not now", stop — nothing runs after the answer.
 - Answering "I reviewed" without `preflight-checks bd-mark review` first, or
   running it on "Run again, skip my review".
 - A **changed** verdict that doesn't send the `diff-page` file with
-  SendUserFile before its reply, or links it as `file://` (that text never
-  reaches the user), or reads the page, prints the diff as text, or retypes its
-  HTML.
+  SendUserFile and its caption before its reply, or links it as `file://` (that
+  text never reaches the user), or reads the page, prints the diff as text, or
+  retypes its HTML.
 - A **changed** rerun reply that doesn't say new, unseen commits landed, or
   that offers only "I reviewed" — a user who skips the review on purpose must
   have an honest option — or dropping the "without your review" ⚠️ item after
