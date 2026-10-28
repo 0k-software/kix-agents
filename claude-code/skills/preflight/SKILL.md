@@ -630,12 +630,15 @@ depends on the verdict:
   `preflight-checks diff --from <first step 5 commit> --html <file>` (no
   `--from` when step 5 committed nothing), with `<file>` a new
   `preflight-diff-<time>.html` in your scratchpad directory (else
-  `${TMPDIR:-/tmp}`). Print its output in the reply as it is — never a summary
-  of it — and end the reply with a link to the page, `[Open the diff](<file>)`
-  (the absolute path). Then send the page with SendUserFile (`display: render`,
-  when the tool exists): the app may shrink the reply before a question card to
-  one line, and the page still reaches the user. Never retype the page's HTML.
-  Then ask the same question again, without this option.
+  `${TMPDIR:-/tmp}`). The page is what the user reads: send it with
+  SendUserFile (`display: render`) and give a browser link to it in the reply,
+  `[Open the diff in the browser](file://<file>)` — a `file://` URL, not a bare
+  path, which the app opens as source. Don't print the text output then; it
+  would only repeat the page. Without SendUserFile (a plain terminal), print
+  the text output in the reply as it is instead — never a summary of it. Either
+  way, repeat its ⚠️ line about other sessions in the reply when it has one.
+  Never retype the page's HTML. Then ask the same question again, without this
+  option.
 
 - **Open** — nothing new was committed; the reply lists what is still open. The
   question: "Rerun `<command>` to decide them?" Options: "Run `<command>`
@@ -712,10 +715,12 @@ even when that run ships. On "Not now", stop — nothing runs after the answer.
   again" instead of the rerun question.
 - Answering "I reviewed" without `preflight-checks bd-mark review` first, or
   running it on "Run again, skip my review".
-- Summarizing the `preflight-checks diff` output instead of printing it, or
-  dropping its ⚠️ line about other sessions.
-- Showing what changed without `--html`, or without sending the page and its
-  link — or retyping its HTML into a widget instead.
+- Summarizing the `preflight-checks diff` output instead of sending its page
+  (or, in a plain terminal, printing it), or dropping its ⚠️ line about other
+  sessions.
+- Showing what changed without `--html`, without sending the page, or with a
+  bare-path link (it opens the HTML source) — or printing the text diff next to
+  the page, or retyping its HTML into a widget.
 - A **changed** rerun reply that doesn't say new, unseen commits landed, or
   that offers only "I reviewed" — a user who skips the review on purpose must
   have an honest option — or dropping the "without your review" ⚠️ item after
