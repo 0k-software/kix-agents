@@ -79,9 +79,10 @@ name without `origin/`.
 4. **Push and check**, in one call:
 
    ```bash
-   git push origin HEAD:<default> && git push --force-with-lease origin HEAD \
+   old=$(git rev-parse <base>) \
+     && git push origin HEAD:<default> && git push --force-with-lease origin HEAD \
      && git fetch origin && git merge-base --is-ancestor HEAD <base> && echo IN_DEFAULT \
-     && git log --oneline <old base>..HEAD
+     && git log --oneline "$old..HEAD"
    ```
 
    The push to `<default>` is a fast-forward. If it is rejected, `<default>`
