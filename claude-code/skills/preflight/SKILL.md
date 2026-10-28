@@ -180,6 +180,10 @@ its data names — an earlier run's line, not this run's (no such line, the
 context was compacted: the whole session, and say so). Gather what the data
 doesn't give in parallel calls.
 
+`diff-review`'s section is a Skill call: load `code-review` at level `medium`
+on its range, and take its findings as they come. Reading the diff yourself is
+not the review — a short diff included.
+
 **Moot findings.** A section's data lists the check's open findings
 (`- open: <id> — …`). When the delta settled one — fixed by hand, or the user
 said "never mind" — resolve it in the batch: `["<id>", "fixed"]`, or
@@ -542,6 +546,8 @@ even when that run ships. On "Not now", stop — nothing runs after the answer.
 - Rerunning without asking after a fix the user typed under "Other", or twice
   in a row.
 - Sending a check or a Fix job to an agent.
+- Reviewing the diff yourself instead of loading `code-review` for
+  `diff-review`.
 - Reviewing before the rebase, or rebasing when `behind-default-branch` reads
   `pass`.
 - Hardcoding `main` instead of the detected default branch.
