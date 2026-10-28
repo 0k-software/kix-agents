@@ -16,10 +16,9 @@ only place a review happens: `kix:ship` and `kix:close` run it, and never
 review on their own.
 
 **Language.** This skill is written in English; everything you produce follows
-the language the user is speaking: replies, the findings list, ReportFindings
-text, AskUserQuestion questions and option labels, and the content of every
-note, task or commit body you write (labels included — a Portuguese arrival
-says `Sessão do Claude:`).
+the language the user is speaking: replies, the findings list, AskUserQuestion
+questions and option labels, and the content of every note, task or commit body
+you write (labels included — a Portuguese arrival says `Sessão do Claude:`).
 
 ## Repo type
 
@@ -347,34 +346,20 @@ preflight-checks findings
 
 That is the new findings step 2 just marked plus every one still open from
 earlier runs — a `fresh` check's carried findings included, and those left for
-later. Make **one** ReportFindings call with all of them, `diff-review` first.
-It replaces any call the code-review skill made. Per finding, straight from its
-JSON:
-
-- `file` / `line`: where it lives — the code, the file with the checklist, or
-  the file the conversation item is about. ReportFindings requires `file`, so a
-  finding stored without one still gets one here: the branch's spec or plan,
-  else the touched file closest to the item. `line` only when it points at one;
-- `category`: as the check file gives it — for `diff-review`, the category the
-  code review gave; `acceptance`, `conversation`, `checklist`, `tracker`;
-  `related`, `idea`, `next-step` or `pitfall` for `unraised-follow-ups`;
-  `after-ship` for `post-landing-steps`;
-- `summary`: the problem, then the fix, fenced
-  (`… |—| SUGGESTED FIX: <fix> |—|`, as step 2 wrote it), then the finding's id
-  as metadata at the very end: `… |—| [id: diff-review-1]`. ReportFindings has
-  no id field and rejects unknown ones, so the id rides in the summary; step 5
-  names it in `resolve`;
-- `failure_scenario`: what is lost or goes wrong if the branch lands now.
-
-Then print the same list in chat, complete: the ReportFindings card renders
-poorly on mobile (Remote Control), so the chat list must stand on its own —
-nothing only the card shows. Per finding:
+later. Print them in chat, `diff-review` first, straight from their JSON — the
+chat list is the only view; no ReportFindings call (it renders poorly on
+mobile, and the store already holds everything). Per finding:
 
 ```
 N/T. `<file>:<line>` — <problem> [id: <id>]
    Fix: <suggested fix>
    If left: <failure scenario>
 ```
+
+`<file>:<line>` only as far as the finding has them — leave the location out
+when it has no `file`. The problem and fix come from `summary` (the fix inside
+its `SUGGESTED FIX` fence), the failure scenario from `failure_scenario`; the
+id is what step 5 names in `resolve`.
 
 Wherever a finding is named — the chat list, a question, a ❓ line, a job's ⏳
 or ✅ line — give its number out of the total: `finding 6/9`, `6/9.`.
@@ -542,14 +527,10 @@ Each job follows these rules, and ends by closing its finding in the store with
 - **Leave for later:** nothing at all — the finding stays open in the store,
   and the next run reports it again.
 
-After the queue, call ReportFindings again with step 3's list, each finding's
-`outcome` read from the `resolve` each job ran, and what is still open from
-`preflight-checks findings`: a finding it still returns is open and gets no
-`outcome`; one it no longer returns was resolved — `fixed` for a `fixed`,
-`skipped` for a `deferred` or `discarded` (after-ship ones included). A
-discarded finding's `summary` ends with `|—| DISCARDED: <reason> |—|`. Reprint
-the chat list with each finding's result — fixed (with its commit), deferred
-(arrival link or task id), discarded — <reason>, or still open.
+After the queue, reprint step 3's chat list with each finding's result, read
+from the `resolve` each job ran and from `preflight-checks findings` (a finding
+it still returns is still open) — fixed (with its commit), deferred (arrival
+link or task id), discarded — <reason>, or still open.
 
 ## 6. Verdict
 
@@ -651,8 +632,8 @@ even when that run ships. On "Not now", stop — nothing runs after the answer.
 
 ## Common mistakes
 
-- Two ReportFindings lists (one from code-review, one of yours) instead of one.
-- A chat list that leaves out what the ReportFindings card shows.
+- A ReportFindings call of your own — the chat list is the only view.
+- A chat list that leaves out a finding's fix, failure scenario or id.
 - A one-by-one question with no finding block printed right before it, or with
   the whole finding stuffed into the question text instead.
 - A finding block written as a paragraph, or missing its **Problem**, **If

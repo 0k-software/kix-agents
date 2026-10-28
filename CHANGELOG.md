@@ -114,6 +114,10 @@ The format is based on
   common dir instead.
 - The caveman plugin from the repo dev setup: `.claude/settings.json` no longer
   enables `caveman@caveman` or registers the `caveman` marketplace.
+- `kix:preflight`'s own ReportFindings cards (the report and the after-queue
+  outcomes): the chat list, read from `preflight-checks findings`, is the only
+  view. `diff-review` still takes the code-review skill's findings from its
+  ReportFindings call.
 
 ## [0.4.1] — 2026-10-02
 

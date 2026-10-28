@@ -18,5 +18,6 @@ start. When the delta settled one of them — fixed by hand, or the user said
 `preflight-checks resolve <id> discarded "obsolete: <why>"`. No other outcome.
 Leave the rest open. `mark` takes only the new findings.
 
-Run the `code-review` skill at level `medium` on the range above. Keep its
-findings for `mark`, and from there for preflight's report.
+Run the `code-review` skill at level `medium` on the range above. It reports
+through its own ReportFindings call; take the findings from that call's input
+for `mark`, and from there for preflight's report.
