@@ -164,7 +164,9 @@ kix-agents ships a Claude Code marketplace + plugin — no application code:
 - `claude-code/hooks/hooks.json` — plugin hooks, active in every session with
   the plugin enabled: `title-first-prompt.sh` (SessionStart, asks for
   `kix:title` after the first message), `bead-session-mark.sh` (SessionStart,
-  records the beads DB's start mark for `preflight-checks diff`) and
+  records the beads DB's start mark for `preflight-checks diff`),
+  `diff-link-gate.sh` (PreToolUse on AskUserQuestion, holds back questions
+  until a changed verdict's diff page link is printed) and
   `allow-remote-control-off.sh` (PreToolUse, lets `kix:close` turn Remote
   Control off without a prompt). `autocommit.sh` sits beside them but is not in
   `hooks.json`: a per-project Stop hook that blocks the turn's end until the
@@ -217,18 +219,19 @@ kix-agents ships a Claude Code marketplace + plugin — no application code:
   `claude-code/bin/preflight-checks`,
   `claude-code/hooks/title-first-prompt.sh`,
   `claude-code/hooks/bead-session-mark.sh`, `claude-code/hooks/autocommit.sh`,
-  a `scripts/test-*.sh` or the `Makefile` is staged. The condition matters: the
-  suite runs real rebases, and this hook runs once per commit during a rebase,
-  so gating every commit on it would slow every rebase in this repo. CI runs
-  `make test` unconditionally, which covers both an unrelated commit that
-  breaks it and a `--no-verify` bypass. This gate is local to kix-agents and
-  deliberately absent from `claude-code/skills/setup/assets/pre-commit`, the
-  hook shipped to other repos — they have no such tests. Git exports
-  `GIT_DIR`/`GIT_INDEX_FILE` to the hook, so a suite's throwaway `git init`
-  would hit the real repo (kxa-6df: it re-inited kix-agents as bare); the hook
-  unsets them before `make test`, each suite that runs git unsets them too, and
-  `scripts/test-git-env.sh` (what `make test` runs) runs every other
-  `scripts/test-*.sh` with them pointed at a sentinel repo and fails if that
-  repo changes — a new suite is picked up by its name alone. `make setup` wires
-  it up by pointing `core.hooksPath` at `.beads/hooks/`; run setup once after
-  cloning. Don't add a `.git-hooks/` dir — it's gone.
+  `claude-code/hooks/diff-link-gate.sh`, a `scripts/test-*.sh` or the
+  `Makefile` is staged. The condition matters: the suite runs real rebases, and
+  this hook runs once per commit during a rebase, so gating every commit on it
+  would slow every rebase in this repo. CI runs `make test` unconditionally,
+  which covers both an unrelated commit that breaks it and a `--no-verify`
+  bypass. This gate is local to kix-agents and deliberately absent from
+  `claude-code/skills/setup/assets/pre-commit`, the hook shipped to other repos
+  — they have no such tests. Git exports `GIT_DIR`/`GIT_INDEX_FILE` to the
+  hook, so a suite's throwaway `git init` would hit the real repo (kxa-6df: it
+  re-inited kix-agents as bare); the hook unsets them before `make test`, each
+  suite that runs git unsets them too, and `scripts/test-git-env.sh` (what
+  `make test` runs) runs every other `scripts/test-*.sh` with them pointed at a
+  sentinel repo and fails if that repo changes — a new suite is picked up by
+  its name alone. `make setup` wires it up by pointing `core.hooksPath` at
+  `.beads/hooks/`; run setup once after cloning. Don't add a `.git-hooks/` dir
+  — it's gone.
