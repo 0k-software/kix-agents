@@ -572,16 +572,25 @@ full and every unreviewed bead change, the changed words highlighted — else
   hand; a bd edit commits nothing, but the user has not seen it either — or a
   Fix job edited a tracker item (`bd update`, `bd dep add`), which still counts
   when the row reads `skip` because it can't read the beads DB. The rebase and
-  step 1's commit of a dirty tree do not count: step 2 checked them. Don't open
-  the page yourself; end the reply's changes part with a link to it on a line
-  of its own, `[Open the diff page](file://<file>)` — a `file://` URL, which
-  the app opens in its browser; a bare path opens the HTML source instead.
-  Print no diff text — the page is the diff. When `diff-page` is `-` (the beads
-  DB can't be read), show the diff of the step 5 commits (above) and name the
-  items the Fix jobs edited instead. Then say: "There were changes. Review them
-  yourself — skim the diff — and if they look like what you expect, rerun."
-  Then ask the rerun question (below). Those commits and items are not checked
-  yet; the next run checks them.
+  step 1's commit of a dirty tree do not count: step 2 checked them. The link
+  to the page goes on the line right after the step's own
+  `⚠️ <n>/<total> Verdict — changed` line, in the same message, so it shows
+  even when nothing else does:
+
+  ```
+  ⚠️ 12/16 Verdict — changed: 2 commits, 3 beads not reviewed
+  [Open the diff page](file://<file>)
+  ```
+
+  A `file://` URL: the app opens it in its browser; a bare path opens the HTML
+  source instead. Don't open the page yourself, don't read it (`cat`, Read) —
+  it is for the user — and print no diff text: the page is the diff. When
+  `diff-page` is `-` (the beads DB can't be read), show the diff of the step 5
+  commits (above) and name the items the Fix jobs edited instead. Then say:
+  "There were changes. Review them yourself — skim the diff — and if they look
+  like what you expect, rerun." Then ask the rerun question (below). Those
+  commits and items are not checked yet; the next run checks them.
+
 - **Open** — the `findings-leftovers` row reads `finding`: its detail lists the
   ids still open (left for later, or never decided). List what is still open,
   show the branch diff (above), then ask the rerun question (below) for when
@@ -693,9 +702,9 @@ even when that run ships. On "Not now", stop — nothing runs after the answer.
   again" instead of the rerun question.
 - Answering "I reviewed" without `preflight-checks bd-mark review` first, or
   running it on "Run again, skip my review".
-- A **changed** verdict without the `file://` link to the `diff-page` file, or
-  with a bare-path link, or that opens the page itself, prints the diff as text
-  next to it, or retypes its HTML.
+- A **changed** verdict without the `file://` link to the `diff-page` file
+  right under its ⚠️ Verdict line, or with a bare-path link, or that opens or
+  reads the page, prints the diff as text next to it, or retypes its HTML.
 - A **changed** rerun reply that doesn't say new, unseen commits landed, or
   that offers only "I reviewed" — a user who skips the review on purpose must
   have an honest option — or dropping the "without your review" ⚠️ item after
