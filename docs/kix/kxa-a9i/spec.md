@@ -9,9 +9,10 @@ where they disagree:
   `--diff-html <file> [--from <first step 5 commit>]` and writes the diff page
   only when something is unreviewed (step 5 commits, or
   `unreviewed-bead-changes` reads finding or stale), naming it in a `diff-page`
-  row. A **changed** verdict opens that page right away: the app's browser
-  pane, else `open` / `xdg-open`. No diff text and no link in the reply. The
-  rerun question keeps I reviewed / skip my review / not now.
+  row. A **changed** verdict links that page in the reply as a `file://` URL
+  (the app opens it in its browser; a bare path shows the HTML source). It
+  doesn't open the page itself, which didn't work in the demo, and prints no
+  diff text. The rerun question keeps I reviewed / skip my review / not now.
 - The page (`diff --html`): the commits in full, no stat fallback, and every
   bead change. Inside each changed line, the changed words are highlighted from
   `git diff --word-diff=porcelain`, like GitHub. One self-contained HTML file

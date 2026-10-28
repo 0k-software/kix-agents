@@ -572,16 +572,16 @@ full and every unreviewed bead change, the changed words highlighted — else
   hand; a bd edit commits nothing, but the user has not seen it either — or a
   Fix job edited a tracker item (`bd update`, `bd dep add`), which still counts
   when the row reads `skip` because it can't read the beads DB. The rebase and
-  step 1's commit of a dirty tree do not count: step 2 checked them. Open the
-  `diff-page` file right away, before the reply:
-  `mcp__Claude_Browser__navigate` to `file://<file>` when the browser tools
-  exist, else `open <file>` (macOS) or `xdg-open <file>` (Linux). Print no diff
-  text and no link to the page — the page is the diff. When `diff-page` is `-`
-  (the beads DB can't be read), show the diff of the step 5 commits (above) and
-  name the items the Fix jobs edited instead. Then say: "There were changes.
-  Review them yourself — skim the diff — and if they look like what you expect,
-  rerun." Then ask the rerun question (below). Those commits and items are not
-  checked yet; the next run checks them.
+  step 1's commit of a dirty tree do not count: step 2 checked them. Don't open
+  the page yourself; end the reply's changes part with a link to it on a line
+  of its own, `[Open the diff page](file://<file>)` — a `file://` URL, which
+  the app opens in its browser; a bare path opens the HTML source instead.
+  Print no diff text — the page is the diff. When `diff-page` is `-` (the beads
+  DB can't be read), show the diff of the step 5 commits (above) and name the
+  items the Fix jobs edited instead. Then say: "There were changes. Review them
+  yourself — skim the diff — and if they look like what you expect, rerun."
+  Then ask the rerun question (below). Those commits and items are not checked
+  yet; the next run checks them.
 - **Open** — the `findings-leftovers` row reads `finding`: its detail lists the
   ids still open (left for later, or never decided). List what is still open,
   show the branch diff (above), then ask the rerun question (below) for when
@@ -601,9 +601,10 @@ full and every unreviewed bead change, the changed words highlighted — else
 option in the reply, then follow _Asking questions_: a command, the ❓ line
 (e.g. `❓ 12/16 Verdict — rerun /kix:ship?`), then the AskUserQuestion card.
 The only link is the compare link the verdict already printed in the reply —
-the branch diff for **open**, and for **changed** only when no page opened —
-never a second link with a different range, and never inside the question. The
-question depends on the verdict:
+the branch diff for **open**, and for **changed** the diff page's link (or,
+when there is no page, the step 5 commits' compare link) — never a second link
+with a different range, and never inside the question. The question depends on
+the verdict:
 
 - **Changed** — the reply says outright that new commits landed that the user
   has not seen: "`<n>` new commits landed since your last look
@@ -692,9 +693,9 @@ even when that run ships. On "Not now", stop — nothing runs after the answer.
   again" instead of the rerun question.
 - Answering "I reviewed" without `preflight-checks bd-mark review` first, or
   running it on "Run again, skip my review".
-- A **changed** verdict that doesn't open the `diff-page` file right away, or
-  that prints the diff as text or a link to the page next to it, or retypes its
-  HTML.
+- A **changed** verdict without the `file://` link to the `diff-page` file, or
+  with a bare-path link, or that opens the page itself, prints the diff as text
+  next to it, or retypes its HTML.
 - A **changed** rerun reply that doesn't say new, unseen commits landed, or
   that offers only "I reviewed" — a user who skips the review on purpose must
   have an honest option — or dropping the "without your review" ⚠️ item after
