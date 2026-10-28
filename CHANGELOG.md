@@ -18,9 +18,11 @@ The format is based on
   something is unreviewed, and preflight opens it in the app's browser pane
   (else `open`/`xdg-open`); `preflight-checks diff [--html]` prints or writes
   the same on demand. Any unreviewed bead change, not only a Fix job's, now
-  makes the verdict **changed** (the new `unreviewed-bead-changes` row). A
-  SessionStart hook records the session's start mark; `bd-mark review` moves it
-  on "I reviewed" and on a clear verdict.
+  makes the verdict **changed** (the new `unreviewed-bead-changes` row) — the
+  beads this session wrote with bd, read from its transcript, and the ones a
+  dependency links to them; other sessions' changes only count as "not shown".
+  A SessionStart hook records the session's start mark; `bd-mark review` moves
+  it on "I reviewed" and on a clear verdict.
 - Preflight checks `acceptance-criteria` (the branch's bead criteria against
   the diff) and `findings-leftovers` (open findings block shipping), and
   `preflight-checks start|mark|resolve|findings`: per-session check markers and

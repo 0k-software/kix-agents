@@ -157,8 +157,10 @@ kix-agents ships a Claude Code marketplace + plugin — no application code:
   checkpoints — a table row per fact and per checkpoint, `--format tsv` for
   scripts; it also keeps each check's per-session markers and findings, the
   bead review marks (`bd-mark`), and prints `diff` — the commits and the
-  `dolt diff` of the beads DB since the last review, git-style; `--html` also
-  writes them as a page with the changed words highlighted).
+  `dolt diff` of the beads DB since the last review, git-style — the beads this
+  session wrote with bd, from its transcript, and their deps; `--html` also
+  writes them as a page with the changed words highlighted, and the status
+  call's `--diff-html` writes that page when anything is unreviewed).
 - `claude-code/hooks/hooks.json` — plugin hooks, active in every session with
   the plugin enabled: `title-first-prompt.sh` (SessionStart, asks for
   `kix:title` after the first message), `bead-session-mark.sh` (SessionStart,

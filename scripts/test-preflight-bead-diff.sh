@@ -232,6 +232,9 @@ if have_beads && setup_beads; then
   sleep 1
   touch "$CLAUDE_CONFIG_DIR/projects/$enc/s1.jsonl"
   check "own session: no warning" "$("$BIN" diff | grep -c '^⚠️ Other sessions')" "0"
+  # With its own transcript the diff shows only this session's beads; the
+  # warning is for the unscoped diff, when there is none.
+  rm -f "$CLAUDE_CONFIG_DIR/projects/$enc/s1.jsonl"
   touch "$CLAUDE_CONFIG_DIR/projects/$enc/s2.jsonl"
   check "warning" "$("$BIN" diff | grep -c '^⚠️ Other sessions also touched this repo since .* (1) — some bead changes may be theirs\.$')" "1"
 else
@@ -424,6 +427,65 @@ if have_beads && setup_beads; then
   check "reviewed: no page" "$(prow diff-page)/$([ -e "$work/p.html" ] && echo yes || echo no)" "fact/-/no"
 else
   skip "status call bead page"
+fi
+teardown
+
+# This session's transcript ($CLAUDE_CONFIG_DIR/projects/p/s1.jsonl) with one
+# Bash tool call running command $1, and its result $2.
+transcript() {
+  mkdir -p "$CLAUDE_CONFIG_DIR/projects/p"
+  jq -nc --arg c "$1" '{type: "assistant", message: {content: [{type: "tool_use", id: "tu1", name: "Bash", input: {command: $c}}]}}' \
+    >>"$CLAUDE_CONFIG_DIR/projects/p/s1.jsonl"
+  jq -nc --arg r "$2" '{type: "user", message: {content: [{type: "tool_result", tool_use_id: "tu1", content: $r}]}}' \
+    >>"$CLAUDE_CONFIG_DIR/projects/p/s1.jsonl"
+}
+
+echo "row: only this session's beads and their deps"
+setup
+if have_beads && setup_beads; then
+  C=$(bd --sandbox create --title C --type task --silent 2>/dev/null)
+  "$BIN" bd-mark review >/dev/null
+  h=$(hshort .commit)
+  transcript "bd update $A --notes mine" ""
+  bd --sandbox update "$A" --notes mine -q
+  bd --sandbox update "$B" --notes theirs -q
+  check "mine only" "$(row unreviewed-bead-changes)" "finding/1 bead(s) changed since $h: $A (this session's beads and their deps; 1 other not shown)"
+  "$BIN" diff >"$work/d.txt"
+  check "diff: mine" "$(grep -c "^@@ $A " "$work/d.txt")" "1"
+  check "diff: not theirs" "$(grep -c "^@@ $B " "$work/d.txt")" "0"
+  check "diff: hidden line" "$(grep -c '^1 bead change(s) by other sessions not shown\.$' "$work/d.txt")" "1"
+  bd --sandbox dep add "$C" "$A" -q
+  check "a dep of mine counts" "$(row unreviewed-bead-changes | sed 's/^[^:]*: //; s/ (.*//')" "$(printf '%s\n' "$A" "$C" | sort | paste -sd, - | sed 's/,/, /g')"
+else
+  skip "session scope"
+fi
+teardown
+
+echo "row: a bead this session created counts, --silent or not"
+setup
+if have_beads && setup_beads; then
+  "$BIN" bd-mark review >/dev/null
+  D=$(bd --sandbox create --title D --type task --silent 2>/dev/null)
+  transcript "bd create --title D --type task --silent" "$D"
+  E=$(bd --sandbox create --title E --type task --silent 2>/dev/null)
+  got=$(row unreviewed-bead-changes)
+  check "created: listed" "$(printf '%s' "$got" | grep -c ": $D (")" "1"
+  check "other's create: not" "$(printf '%s' "$got" | grep -c "$E")" "0"
+else
+  skip "session creates"
+fi
+teardown
+
+echo "row: a session that wrote no bead shows none"
+setup
+if have_beads && setup_beads; then
+  "$BIN" bd-mark review >/dev/null
+  h=$(hshort .commit)
+  transcript "bd show $A; grep 'bd update|x' f" ""
+  bd --sandbox update "$A" --notes theirs -q
+  check "pass" "$(row unreviewed-bead-changes)" "pass/no bead changes from this session since $h (1 other not shown)"
+else
+  skip "session none"
 fi
 teardown
 
