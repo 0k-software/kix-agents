@@ -521,9 +521,9 @@ teardown
 GATE="$ROOT/claude-code/hooks/diff-link-gate.sh"
 # Run the question gate as Claude Code would, for session s1 in the current
 # repo, with transcript $1.
-# $2 is the hook event, PreToolUse when left out.
+# $2 is the hook event, PreToolUse when left out; $3 the question's text.
 gate() {
-  jq -nc --arg c "$PWD" --arg t "$1" --arg e "${2:-PreToolUse}" '{session_id: "s1", cwd: $c, transcript_path: $t, hook_event_name: $e, tool_name: "AskUserQuestion"}' |
+  jq -nc --arg c "$PWD" --arg t "$1" --arg e "${2:-PreToolUse}" --arg q "${3:-Rerun?}" '{session_id: "s1", cwd: $c, transcript_path: $t, hook_event_name: $e, tool_name: "AskUserQuestion", tool_input: {questions: [{question: $q, header: "Rerun", options: []}]}}' |
     bash "$GATE" 2>"$work/gate.err"
 }
 
@@ -597,9 +597,21 @@ jq -nc --arg f "$work/p.html" '{type: "assistant", message: {content: [{type: "t
 gate "$work/t.jsonl"
 check "says to link the url" "$?/$(grep -cF "(https://box.ts.net/d/p.html)" "$work/gate.err")/$(grep -cF "Artifact" "$work/gate.err")" "2/1/0"
 check "keeps the url" "$(sed -n 3p "$store/diff-page")" "https://box.ts.net/d/p.html"
+check "says to put it in the question" "$(grep -cF "in the question text" "$work/gate.err")" "1"
 jq -nc '{type: "assistant", message: {content: [{type: "text", text: "[Diff page](https://box.ts.net/d/p.html)"}]}}' >>"$work/t.jsonl"
 gate "$work/t.jsonl"
-check "linked: allowed" "$?" "0"
+check "in the reply only: question blocked" "$?" "2"
+gate "$work/t.jsonl" PreToolUse "Rerun? Diff page: https://box.ts.net/d/p.html"
+check "in the question: allowed" "$?" "0"
+check "record cleared" "$([ -e "$store/diff-page" ] && echo yes || echo no)" "no"
+teardown
+
+echo "gate: a shared page's url in the reply lets the turn end"
+setup
+mkdir -p "$store" && printf '%s\n\n%s\n' "$work/p.html" "https://box.ts.net/d/p.html" >"$store/diff-page"
+jq -nc '{type: "assistant", message: {content: [{type: "text", text: "[Diff page](https://box.ts.net/d/p.html)"}]}}' >"$work/t.jsonl"
+gate "$work/t.jsonl" Stop
+check "linked: ends" "$?" "0"
 teardown
 
 echo "gate: never blocks more than twice"

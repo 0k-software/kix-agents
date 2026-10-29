@@ -17,7 +17,9 @@
 # as the user's answer. Anything it can't read — no jq, bad input, no record —
 # lets the question through. An interim guard, until Kix checkpoints check the
 # Verdict. When the page went to the user's shared folder (KIX_SHARE_DIR), the
-# record's third line is its url, and only that url in the reply counts.
+# record's third line is its url, which must be in the question itself (the
+# app can fold the reply text above the card out of sight), or for the turn's
+# end in the reply.
 
 command -v jq >/dev/null 2>&1 || exit 0
 input=$(cat)
@@ -37,12 +39,14 @@ url=$(sed -n 3p "$pending")
   exit 0
 }
 
-# A shared page: the reply text must hold its url.
+# A shared page: the question must hold its url; the turn's end, the reply.
 if [ -n "$url" ]; then
-  if [ -f "$transcript" ] &&
-    grep -F "$url" "$transcript" 2>/dev/null |
-    jq -r 'select(.type == "assistant") | .message.content[]? | select(.type == "text") | .text' 2>/dev/null |
-      grep -qF "$url"; then
+  if { [ "$event" != Stop ] &&
+    printf '%s' "$input" | jq -r '.tool_input | tostring' 2>/dev/null | grep -qF "$url"; } ||
+    { [ "$event" = Stop ] && [ -f "$transcript" ] &&
+      grep -F "$url" "$transcript" 2>/dev/null |
+      jq -r 'select(.type == "assistant") | .message.content[]? | select(.type == "text") | .text' 2>/dev/null |
+        grep -qF "$url"; }; then
     rm -f "$pending"
     exit 0
   fi
@@ -80,7 +84,8 @@ if [ -n "$url" ]; then
   cat >&2 <<EOF
 Link the diff page before $before: the user reviews the changes from it. Put
 "[Diff page — the commits and bead changes to review]($url)" in your reply (in
-the user's language). $then_do
+the user's language), and the bare url in the question text itself as "Diff
+page: $url": the card is what the user always sees. $then_do
 EOF
   exit 2
 fi

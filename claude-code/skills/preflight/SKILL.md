@@ -605,14 +605,18 @@ option in the reply, then the ❓ line (e.g.
 link is the compare link the verdict already printed in the reply — the branch
 diff for **open**, and for **changed** the diff page's link (else the step 5
 commits' compare link) — never a second link with a different range, and never
-inside the question. The question depends on the verdict:
+inside the question, with one exception: a **changed** verdict's `diff-url`
+also goes in the question text, as a bare url. The app may fold the reply text
+above a question card out of sight, and the card is what the user always sees.
+The question depends on the verdict:
 
 - **Changed** — the reply says outright that new commits landed that the user
   has not seen: "`<n>` new commits landed since your last look
   (`<first short sha>..<HEAD short sha>`). The next run checks them, but you
   haven't seen them." — naming the changed beads instead of (or next to) the
   commits when `unreviewed-bead-changes` lists any. The question: "Run
-  `<command>` again?" Options:
+  `<command>` again?", and, when `diff-url` is not `-`, "Diff page:
+  `<diff-url>`" after it on the same line. Options:
   - "I reviewed — run `<command>` again" (Recommended) — "You skimmed the diff.
     The rerun checks it again on its own.";
   - "Run again, skip my review" — "Rerun now without looking. Only the
@@ -696,9 +700,10 @@ even when that run ships. On "Not now", stop — nothing runs after the answer.
   running it on "Run again, skip my review".
 - A **changed** verdict that doesn't link the `diff-url`, else publish the
   `diff-page` file as an Artifact and link its url, saying what it is, before
-  any question — or that publishes it when `diff-url` is set, or that links it
-  as `file://` (that text never reaches the user), reads the page, prints the
-  diff as text, or retypes its HTML.
+  any question, or that leaves the `diff-url` out of the rerun question — or
+  that publishes it when `diff-url` is set, or that links it as `file://` (that
+  text never reaches the user), reads the page, prints the diff as text, or
+  retypes its HTML.
 - A **changed** rerun reply that doesn't say new, unseen commits landed, or
   that offers only "I reviewed" — a user who skips the review on purpose must
   have an honest option — or dropping the "without your review" ⚠️ item after
