@@ -12,7 +12,8 @@ set -uo pipefail
 # for the real repo (kxa-6df). Drop them, and anything that would point bd at
 # a real DB.
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_OBJECT_DIRECTORY GIT_COMMON_DIR \
-  GIT_PREFIX GIT_ALTERNATE_OBJECT_DIRECTORIES BEADS_DIR BEADS_DB
+  GIT_PREFIX GIT_ALTERNATE_OBJECT_DIRECTORIES BEADS_DIR BEADS_DB \
+  KIX_SHARE_DIR KIX_SHARE_URL
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BIN=${PREFLIGHT_CHECKS_BIN:-"$ROOT/claude-code/bin/preflight-checks"}
@@ -24,6 +25,7 @@ setup() {
   work=$(mktemp -d)
   export CLAUDE_CONFIG_DIR="$work/claude-config"
   export CLAUDE_CODE_SESSION_ID=s1
+  export XDG_CONFIG_HOME="$work/xdg"
   git_q init -q --bare -b main "$work/origin.git"
   git_q clone -q "$work/origin.git" "$work/repo"
   cd "$work/repo" || exit 1
@@ -413,6 +415,29 @@ check "code section" "$(grep -c '<h2>Code (' "$work/p.html")" "1"
 check "added line" "$(grep -c '<div class="l a">+hello world</div>' "$work/p.html")" "1"
 teardown
 
+echo "status call --diff-html: the shared folder, from the env or kix's config"
+setup
+echo "hello" >w.txt && git_q add -A && git_q commit -q -m w
+"$BIN" --no-fetch --format tsv --diff-html "$work/p.html" --from HEAD >"$work/rows.tsv"
+check "unset: no url row" "$(prow diff-url)" "fact/-"
+KIX_SHARE_DIR="$work/share" KIX_SHARE_URL="https://box.ts.net/shared/" \
+  "$BIN" --no-fetch --format tsv --diff-html "$work/p.html" --from HEAD >"$work/rows.tsv"
+check "env: page in the folder" "$(prow diff-page)" "fact/$work/share/preflight-diff/p.html"
+check "env: written there" "$(grep -c '<h2>Code (' "$work/share/preflight-diff/p.html")" "1"
+check "env: url" "$(prow diff-url)" "fact/https://box.ts.net/shared/preflight-diff/p.html"
+check "env: recorded" "$(sed -n 1p "$store/diff-page")|$(sed -n 3p "$store/diff-page")" \
+  "$work/share/preflight-diff/p.html|https://box.ts.net/shared/preflight-diff/p.html"
+mkdir -p "$work/xdg/kix" && printf '# mine\nKIX_SHARE_DIR=%s\nKIX_SHARE_URL=https://cfg.ts.net/s\n' "$work/cfg" >"$work/xdg/kix/config"
+"$BIN" --no-fetch --format tsv --diff-html "$work/p.html" --from HEAD >"$work/rows.tsv"
+check "config: url" "$(prow diff-url)" "fact/https://cfg.ts.net/s/preflight-diff/p.html"
+check "config: page" "$(prow diff-page)" "fact/$work/cfg/preflight-diff/p.html"
+KIX_SHARE_URL=https://env.ts.net "$BIN" --no-fetch --format tsv --diff-html "$work/p.html" --from HEAD >"$work/rows.tsv"
+check "env beats config" "$(prow diff-url)" "fact/https://env.ts.net/preflight-diff/p.html"
+printf 'KIX_SHARE_DIR=%s\n' "$work/cfg" >"$work/xdg/kix/config"
+"$BIN" --no-fetch --format tsv --diff-html "$work/p.html" --from HEAD >"$work/rows.tsv"
+check "dir without url: unused" "$(prow diff-page)|$(prow diff-url)" "fact/$work/p.html|fact/-"
+teardown
+
 echo "status call --diff-html: a page for unreviewed bead changes"
 setup
 if have_beads && setup_beads; then
@@ -559,6 +584,18 @@ mkdir -p "$store" && echo "$work/p.html" >"$store/diff-page"
 jq -nc --arg l "Diff page: $work/p.html" '{type: "assistant", message: {content: [{type: "text", text: $l}]}}' >"$work/t.jsonl"
 gate "$work/t.jsonl"
 check "path printed: allowed" "$?" "0"
+teardown
+
+echo "gate: a shared page counts once its url is in the reply"
+setup
+mkdir -p "$store" && printf '%s\n\n%s\n' "$work/p.html" "https://box.ts.net/d/p.html" >"$store/diff-page"
+jq -nc --arg f "$work/p.html" '{type: "assistant", message: {content: [{type: "tool_use", id: "tu8", name: "Artifact", input: {file_path: $f, icon: "diff"}}]}}' >"$work/t.jsonl"
+gate "$work/t.jsonl"
+check "says to link the url" "$?/$(grep -cF "(https://box.ts.net/d/p.html)" "$work/gate.err")/$(grep -cF "Artifact" "$work/gate.err")" "2/1/0"
+check "keeps the url" "$(sed -n 3p "$store/diff-page")" "https://box.ts.net/d/p.html"
+jq -nc '{type: "assistant", message: {content: [{type: "text", text: "[Diff page](https://box.ts.net/d/p.html)"}]}}' >>"$work/t.jsonl"
+gate "$work/t.jsonl"
+check "linked: allowed" "$?" "0"
 teardown
 
 echo "gate: never blocks more than twice"

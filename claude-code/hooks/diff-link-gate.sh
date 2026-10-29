@@ -16,7 +16,8 @@
 # reason on stderr, never a permissionDecision: on AskUserQuestion that reads
 # as the user's answer. Anything it can't read — no jq, bad input, no record —
 # lets the question through. An interim guard, until Kix checkpoints check the
-# Verdict.
+# Verdict. When the page went to the user's shared folder (KIX_SHARE_DIR), the
+# record's third line is its url, and only that url in the reply counts.
 
 command -v jq >/dev/null 2>&1 || exit 0
 input=$(cat)
@@ -30,15 +31,25 @@ pending="$common/kix/checks/$session/diff-page"
 [ -f "$pending" ] || exit 0
 page=$(sed -n 1p "$pending")
 blocks=$(sed -n 2p "$pending")
+url=$(sed -n 3p "$pending")
 [ -n "$page" ] || {
   rm -f "$pending"
   exit 0
 }
 
+# A shared page: the reply text must hold its url.
+if [ -n "$url" ]; then
+  if [ -f "$transcript" ] &&
+    grep -F "$url" "$transcript" 2>/dev/null |
+    jq -r 'select(.type == "assistant") | .message.content[]? | select(.type == "text") | .text' 2>/dev/null |
+      grep -qF "$url"; then
+    rm -f "$pending"
+    exit 0
+  fi
 # grep narrows the transcript to the lines that mention the page; jq keeps a
 # SendUserFile call that names it and carries a caption, or the model's own
 # text that does.
-if [ -f "$transcript" ] &&
+elif [ -f "$transcript" ] &&
   grep -F "$page" "$transcript" 2>/dev/null |
   jq -r --arg p "$page" 'select(.type == "assistant") | .message.content[]?
       | if .type == "tool_use" and .name == "Artifact" and ((.input.action // "publish") == "publish")
@@ -56,7 +67,7 @@ if [ "${blocks:-0}" -ge 2 ]; then
   rm -f "$pending"
   exit 0
 fi
-printf '%s\n%s\n' "$page" $((${blocks:-0} + 1)) >"$pending"
+printf '%s\n%s\n%s\n' "$page" $((${blocks:-0} + 1)) "$url" >"$pending"
 
 if [ "$event" = Stop ]; then
   then_do="Then end the turn as you meant to."
@@ -64,6 +75,14 @@ if [ "$event" = Stop ]; then
 else
   then_do="Then ask the same question again."
   before="asking"
+fi
+if [ -n "$url" ]; then
+  cat >&2 <<EOF
+Link the diff page before $before: the user reviews the changes from it. Put
+"[Diff page — the commits and bead changes to review]($url)" in your reply (in
+the user's language). $then_do
+EOF
+  exit 2
 fi
 cat >&2 <<EOF
 Publish the diff page before $before: the user reviews the changes from it.

@@ -24,9 +24,11 @@ where they disagree:
   page (else a captioned SendUserFile call, or in a terminal its path in the
   reply), says what to do, then clears the record; it blocks at most twice per
   page, so it can never lock a session — an interim guard until Kix checkpoints
-  check it. The "text, command, ❓, card" Asking questions rule was dropped
-  from the skills and the global CLAUDE.md at kelvin's call, as a suspected
-  cause.
+  check it. With a shared folder (`KIX_SHARE_DIR` + `KIX_SHARE_URL`, from the
+  environment or `~/.config/kix/config`, 2026-10-29), the page goes there, the
+  reply links its url and publishes nothing, and the gate waits for that url.
+  The "text, command, ❓, card" Asking questions rule was dropped from the
+  skills and the global CLAUDE.md at kelvin's call, as a suspected cause.
 - The page (`diff --html`): the commits in full, no stat fallback, and every
   bead change. Inside each changed line, the changed words are highlighted from
   `git diff --word-diff=porcelain`, like GitHub. One self-contained HTML file

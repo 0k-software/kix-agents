@@ -35,7 +35,9 @@ Facts (status "fact"):
   fetch      fresh | fetched | failed | skipped
   diff-page  with --diff-html: FILE when it wrote the page `diff --html`
              writes (--from given, or unreviewed-bead-changes is finding or
-             stale), else "-"
+             stale), else "-". With a shared folder (below), the page goes in
+             its preflight-diff/ instead, under FILE's name
+  diff-url   with --diff-html: the page's url in the shared folder, else "-"
 
 Checkpoints (status pass | finding | fresh | stale | unknown | never | skip):
   uncommitted-changes    uncommitted changes
@@ -80,6 +82,11 @@ Subcommands (the session store, kxa-102; JSON lines under
 
   --no-fetch    never fetch; the default fetches origin only when the last
                 fetch is older than KIX_FETCH_TTL minutes (default 5)
+
+Shared folder: KIX_SHARE_DIR, a folder something serves to the user's devices
+(e.g. Tailscale Serve), and KIX_SHARE_URL, the url it is served at. Both come
+from the environment, else from KEY=value lines in
+${XDG_CONFIG_HOME:-~/.config}/kix/config; both must be set to use it.
   --session ID  the session whose store is used (default
                 $CLAUDE_CODE_SESSION_ID, else "unknown")
 
@@ -1174,6 +1181,22 @@ bead_diff() {
   }
 }
 
+# The shared folder: share_dir and share_url, each from the environment, else
+# from kix's config file (KEY=value lines, read, never sourced; a leading ~ is
+# the home dir).
+share_config() {
+  local conf=${XDG_CONFIG_HOME:-$HOME/.config}/kix/config key value
+  share_dir=${KIX_SHARE_DIR-} share_url=${KIX_SHARE_URL-}
+  [ -f "$conf" ] || return 0
+  while IFS='=' read -r key value; do
+    case $key in
+    KIX_SHARE_DIR) [ -n "$share_dir" ] || share_dir=$value ;;
+    KIX_SHARE_URL) [ -n "$share_url" ] || share_url=$value ;;
+    esac
+  done <"$conf"
+  case $share_dir in "~"/*) share_dir=$HOME/${share_dir#"~/"} ;; esac
+}
+
 # The page of `diff --html` into file $1: the commits $diff_from^..HEAD in
 # full (no stat fallback: the page has room), then the bead diff.
 write_diff_page() {
@@ -1294,16 +1317,28 @@ cp_unreviewed_bead_changes
 # review, so a changed verdict can open it with no second call.
 # The page is also recorded in the store as `diff-page`, until the user has
 # seen its link: hooks/diff-link-gate.sh holds back questions till then.
+# With a shared folder the page goes there, and its url is what the user gets
+# (any device that reaches the folder opens it, the phone too).
 if [ -n "$diff_html" ]; then
-  page=-
+  page=- url=-
+  share_config
+  if [ -n "$share_dir" ] && [ -n "$share_url" ]; then
+    name=${diff_html##*/}
+    diff_html="$share_dir/preflight-diff/$name"
+    url="${share_url%/}/preflight-diff/$name"
+    mkdir -p "$share_dir/preflight-diff" || url=-
+  fi
   if [ -n "$diff_from" ] || printf '%s' "$rows" | grep -qE $'^unreviewed-bead-changes\t(finding|stale)\t'; then
     write_diff_page "$diff_html" && page=$diff_html
   fi
+  [ "$page" != - ] || url=-
   emit diff-page fact "$page"
+  emit diff-url fact "$url"
   if [ "$page" = - ]; then
     rm -f "$(store_dir)/diff-page"
   else
-    mkdir -p "$(store_dir)" && printf '%s\n' "$page" >"$(store_dir)/diff-page"
+    mkdir -p "$(store_dir)" &&
+      printf '%s\n\n%s\n' "$page" "${url#-}" >"$(store_dir)/diff-page"
   fi
 fi
 

@@ -53,6 +53,7 @@ terminal). Read its lines instead of running the git commands yourself:
 | `markdown`                | fact                                    | Markdown files the branch or the dirty tree touches                                                                                                                                                                 |
 | `fetch`                   | fact                                    | `fetched`, `fresh` (cached), `failed` or `skipped`                                                                                                                                                                  |
 | `diff-page`               | fact                                    | with `--diff-html <file>` only: `<file>` when it wrote the diff page (_Verdict_), else `-`                                                                                                                          |
+| `diff-url`                | fact                                    | with `--diff-html <file>` only: the page's url in the user's shared folder (_Verdict_), else `-`                                                                                                                    |
 | `uncommitted-changes`     | pass · finding                          | uncommitted changes                                                                                                                                                                                                 |
 | `unlanded-commits`        | pass · finding · skip                   | commits not on `<base>`                                                                                                                                                                                             |
 | `behind-default-branch`   | pass · finding · skip                   | `<base>` is not an ancestor of HEAD                                                                                                                                                                                 |
@@ -544,8 +545,11 @@ preflight-checks --no-fetch --format tsv --diff-html <file> [--from <first step 
 
 `<file>` is a new `preflight-diff-<time>.html` in your scratchpad directory
 (else `${TMPDIR:-/tmp}`); `--from` only when step 5 committed anything. The
-`diff-page` row names `<file>` when the call wrote it — step 5's commits in
+`diff-page` row names the file when the call wrote it — step 5's commits in
 full and every unreviewed bead change, the changed words highlighted — else
+`-`. When the user has a shared folder (`KIX_SHARE_DIR` and `KIX_SHARE_URL`,
+from the environment or `~/.config/kix/config`: a folder served to their own
+devices), the page goes there instead and the `diff-url` row is its url, else
 `-`.
 
 - **Changed** — step 5 committed anything (fixes, arrivals, checklist edits),
@@ -554,27 +558,31 @@ full and every unreviewed bead change, the changed words highlighted — else
   hand; a bd edit commits nothing, but the user has not seen it either — or a
   Fix job edited a tracker item (`bd update`, `bd dep add`), which still counts
   when the row reads `skip` because it can't read the beads DB. The rebase and
-  step 1's commit of a dirty tree do not count: step 2 checked them. Publish
-  the `diff-page` file right after the Verdict call, before any reply text,
-  with the Artifact tool (`file_path: "<file>"`, `icon: "diff"`, `description`:
-  "The commits and bead changes to review before the rerun"): a private
-  claude.ai page, which opens in a browser on the phone too. Then put its `url`
-  on the line right after the `⚠️ <n>/<total> Verdict — changed` line, saying
-  what it is: `[Diff page — the commits and bead changes to review](<url>)`.
-  Publish on every changed verdict, reruns included: each writes a new page.
-  Without the Artifact tool, send the file with SendUserFile
-  (`display: "render"`, `status: "normal"`, a `caption` saying what it is) —
-  desktop renders it, the phone shows its source; without either, print its
-  path. Never put a `file://` link in the reply: text holding one never reaches
-  the user. Don't read the page (`cat`, Read) — it is for the user — and print
-  no diff text: the page is the diff. A question, or the end of the turn,
-  before the page is published is held back by the `diff-link-gate.sh` hook, at
-  most twice — an interim guard until Kix checkpoints check it. When
-  `diff-page` is `-` (the beads DB can't be read), show the diff of the step 5
-  commits (above) and name the items the Fix jobs edited instead. Then say:
-  "There were changes. Review them yourself — skim the diff — and if they look
-  like what you expect, rerun." Then ask the rerun question (below). Those
-  commits and items are not checked yet; the next run checks them.
+  step 1's commit of a dirty tree do not count: step 2 checked them. When
+  `diff-url` is not `-`, put that url on the line right after the
+  `⚠️ <n>/<total> Verdict — changed` line, saying what it is:
+  `[Diff page — the commits and bead changes to review](<diff-url>)` — it opens
+  on every device of theirs, so publish nothing. Otherwise publish the
+  `diff-page` file right after the Verdict call, before any reply text, with
+  the Artifact tool (`file_path: "<file>"`, `icon: "diff"`, `description`: "The
+  commits and bead changes to review before the rerun"): a private claude.ai
+  page, which opens in a browser on the phone too. Then put its `url` on the
+  line right after the `⚠️ <n>/<total> Verdict — changed` line, saying what it
+  is: `[Diff page — the commits and bead changes to review](<url>)`. Publish on
+  every changed verdict, reruns included: each writes a new page. Without the
+  Artifact tool, send the file with SendUserFile (`display: "render"`,
+  `status: "normal"`, a `caption` saying what it is) — desktop renders it, the
+  phone shows its source; without either, print its path. Never put a `file://`
+  link in the reply: text holding one never reaches the user. Don't read the
+  page (`cat`, Read) — it is for the user — and print no diff text: the page is
+  the diff. A question, or the end of the turn, before the page is published is
+  held back by the `diff-link-gate.sh` hook, at most twice — an interim guard
+  until Kix checkpoints check it. When `diff-page` is `-` (the beads DB can't
+  be read), show the diff of the step 5 commits (above) and name the items the
+  Fix jobs edited instead. Then say: "There were changes. Review them yourself
+  — skim the diff — and if they look like what you expect, rerun." Then ask the
+  rerun question (below). Those commits and items are not checked yet; the next
+  run checks them.
 
 - **Open** — the `findings-leftovers` row reads `finding`: its detail lists the
   ids still open (left for later, or never decided). List what is still open,
@@ -686,10 +694,11 @@ even when that run ships. On "Not now", stop — nothing runs after the answer.
   again" instead of the rerun question.
 - Answering "I reviewed" without `preflight-checks bd-mark review` first, or
   running it on "Run again, skip my review".
-- A **changed** verdict that doesn't publish the `diff-page` file as an
-  Artifact and link its url, saying what it is, before any question — or that
-  links it as `file://` (that text never reaches the user), reads the page,
-  prints the diff as text, or retypes its HTML.
+- A **changed** verdict that doesn't link the `diff-url`, else publish the
+  `diff-page` file as an Artifact and link its url, saying what it is, before
+  any question — or that publishes it when `diff-url` is set, or that links it
+  as `file://` (that text never reaches the user), reads the page, prints the
+  diff as text, or retypes its HTML.
 - A **changed** rerun reply that doesn't say new, unseen commits landed, or
   that offers only "I reviewed" — a user who skips the review on purpose must
   have an honest option — or dropping the "without your review" ⚠️ item after
