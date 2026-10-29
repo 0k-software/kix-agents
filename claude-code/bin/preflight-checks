@@ -82,13 +82,13 @@ Subcommands (the session store, kxa-102; JSON lines under
 
   --no-fetch    never fetch; the default fetches origin only when the last
                 fetch is older than KIX_FETCH_TTL minutes (default 5)
+  --session ID  the session whose store is used (default
+                $CLAUDE_CODE_SESSION_ID, else "unknown")
 
 Shared folder: KIX_SHARE_DIR, a folder something serves to the user's devices
 (e.g. Tailscale Serve), and KIX_SHARE_URL, the url it is served at. Both come
 from the environment, else from KEY=value lines in
 ${XDG_CONFIG_HOME:-~/.config}/kix/config; both must be set to use it.
-  --session ID  the session whose store is used (default
-                $CLAUDE_CODE_SESSION_ID, else "unknown")
 
 Exit 1 outside a git work tree, 0 otherwise — findings are output, not errors.
 EOF
