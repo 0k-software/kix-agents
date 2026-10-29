@@ -436,6 +436,10 @@ check "env beats config" "$(prow diff-url)" "fact/https://env.ts.net/preflight-d
 printf 'KIX_SHARE_DIR=%s\n' "$work/cfg" >"$work/xdg/kix/config"
 "$BIN" --no-fetch --format tsv --diff-html "$work/p.html" --from HEAD >"$work/rows.tsv"
 check "dir without url: unused" "$(prow diff-page)|$(prow diff-url)" "fact/$work/p.html|fact/-"
+: >"$work/blocker"
+KIX_SHARE_DIR="$work/blocker/x" KIX_SHARE_URL=https://box.ts.net \
+  "$BIN" --no-fetch --format tsv --diff-html "$work/p.html" --from HEAD >"$work/rows.tsv" 2>/dev/null
+check "folder can't be made: scratchpad page" "$(prow diff-page)|$(prow diff-url)" "fact/$work/p.html|fact/-"
 teardown
 
 echo "status call --diff-html: a page for unreviewed bead changes"
