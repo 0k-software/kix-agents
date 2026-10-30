@@ -486,8 +486,11 @@ Fix jobs — each one a fix the user picked from the offered options, not text
 they typed under "Other", and no bead changed but by those jobs — reruns
 `<command>` right away, without the rerun question: link the diff page as
 **Changed** says, say in one line that it reruns to review the fix commits, and
-go. Only once in a row: when that rerun ends **changed** again, ask. No
-`bd-mark review` here — the user has not looked.
+go. When `diff-url` is not `-`, the rerun's first question (a Decide batch, or
+ship's Confirm) also carries "Diff page: `<diff-url>`" in its text: the
+`diff-link-gate.sh` hook holds questions until one does. Only once in a row:
+when that rerun ends **changed** again, ask. No `bd-mark review` here — the
+user has not looked.
 
 **Rerun.** A link can't run a slash command, but an answer can. After a
 **changed** or **open** verdict's ⚠️ block, write what is being asked and each
