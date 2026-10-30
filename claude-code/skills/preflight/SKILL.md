@@ -258,8 +258,9 @@ paragraph:
 them into a paragraph.
 
 Each question is one short line pointing at its block — "Finding 6/9 — take the
-recommended fix?" — never the finding itself; its `header` is `Finding 6/9`.
-Options, in this order, each with its description:
+recommended fix?" — never the finding itself; its `header` is `6/9` (a header
+holds at most 12 characters). Options, in this order, each with its
+description:
 
 - the suggested fix (Recommended);
 - each other real fix, when there is more than one — list them, keep your pick
