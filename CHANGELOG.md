@@ -18,6 +18,10 @@ The format is based on
   the transcript, the store and bd once per call (~3 s → ~0.8 s on a 9 MB
   transcript). No more progress lines in preflight, ship and close; a rerun
   after approved fixes goes without asking.
+- `kix:preflight`'s Decide asks in batches: every finding of a batch printed as
+  its block, then one card of up to four questions — one per finding — so the
+  blocks keep their shape on mobile and the answers go quicker. Discard reasons
+  follow each batch in one card.
 - A **changed** verdict in `kix:preflight` opens a diff page right away: this
   run's commits in full and every bead change since the user's last review —
   fields, deps, labels and comments, read from the beads DB's `dolt_diff()` —

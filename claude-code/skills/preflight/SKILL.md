@@ -247,18 +247,22 @@ Zero findings → go to step 6 (Verdict).
 ## 4. Decide
 
 Walk **every** finding from the report — every check's, `diff-review` and
-`post-landing-steps` alike, and those carried from earlier runs — one
-AskUserQuestion per finding, one question per call. There is no "apply all"
-question first: the first question is finding 1's. Ask **all** of them first,
-back to back: an answer only records the decision, nothing runs yet. No fix,
-commit, task or `bd update` happens between two questions — step 5 starts only
-after the last finding (and its discard reason) is answered, so the user
-answers in one sitting and walks away while the queue runs. Before each
-question, print the finding in the reply as a short block the user can read and
-scroll back to — the card collapses to the chosen label once answered — then
-run a command, as _Asking questions_ says. Print it as Markdown, not in a code
-block, with exactly this shape — a bold heading, then one labelled bullet per
-line, never a prose paragraph:
+`post-landing-steps` alike, and those carried from earlier runs — one question
+per finding, asked in batches: one AskUserQuestion call holds up to four
+questions, one per finding (findings 1–4, then 5–8, …). There is no "apply all"
+question first: the first card holds finding 1's question. Ask **all** batches
+first, back to back: an answer only records the decision, nothing runs yet. No
+fix, commit, task or `bd update` happens between two batches — step 5 starts
+only after the last batch (and its discard reasons) is answered, so the user
+answers in one sitting and walks away while the queue runs.
+
+Before each batch, print every finding of that batch in the reply, one block
+after another, in one message — the card collapses to the chosen labels once
+answered, and the blocks stay to scroll back to — then run a command, as
+_Asking questions_ says, then the card. Nothing else goes between the blocks
+and the card: one batch is one text, one command, one card. Print each block as
+Markdown, not in a code block, with exactly this shape — a bold heading, then
+one labelled bullet per line, never a prose paragraph:
 
 ```
 **Finding 6/9 — `<file>:<line>`**
@@ -274,9 +278,9 @@ line, never a prose paragraph:
 — caveman shortens each bullet to fragments, it never drops a bullet or merges
 them into a paragraph.
 
-The question is one short line pointing at that block — "Finding 6/9 — take the
-recommended fix?" — never the finding itself. Options, in this order, each with
-its description:
+Each question is one short line pointing at its block — "Finding 6/9 — take the
+recommended fix?" — never the finding itself; its `header` is `Finding 6/9`.
+Options, in this order, each with its description:
 
 - the suggested fix (Recommended);
 - each other real fix, when there is more than one — list them, keep your pick
@@ -301,13 +305,14 @@ AskUserQuestion takes at most four options: when the fixes, the defer option,
 mention it in the block above. "Other" is always there; follow whatever the
 user types.
 
-When the user picks "Discard", ask right away, in its own AskUserQuestion, why
-— the reason is required. The question is short ("Why discard finding 6/9?");
-the finding is already in the block above. Offer 2–3 likely reasons for this
-specific finding as options (e.g. "Not a real problem", "Intended behavior",
-"Not worth the cost"); "Other" takes free text. Only a discard with a reason
-counts: a skipped or empty answer leaves the finding undecided — ask again, or
-treat it as "Leave for later".
+When the user picks "Discard" for any finding of a batch, ask why right after
+that batch, before the next one — the reason is required. One AskUserQuestion
+holds every discard of the batch, one question each, short ("Why discard
+finding 6/9?"); the findings are already in the blocks above. Offer 2–3 likely
+reasons for each specific finding as options (e.g. "Not a real problem",
+"Intended behavior", "Not worth the cost"); "Other" takes free text. Only a
+discard with a reason counts: a skipped or empty answer leaves the finding
+undecided — ask again, or treat it as "Leave for later".
 
 ## 5. Run the queue
 
@@ -534,14 +539,17 @@ even when that run ships. On "Not now", stop — nothing runs after the answer.
 - Printing progress lines.
 - Two ReportFindings lists (one from code-review, one of yours) instead of one,
   or a chat list that leaves out what the card shows.
-- A one-by-one question with no finding block printed right before it, or with
-  the whole finding stuffed into the question text; a block written as a
-  paragraph, or missing its **Problem**, **If left** or **Fix** bullet.
-- Asking "Apply all" or any other batch question before the first finding —
-  Decide always walks the findings one by one.
-- One-by-one that skips the `diff-review` findings or the carried ones, or that
-  applies each fix right after its answer instead of asking every question
-  first.
+- A Decide card whose findings' blocks were not all printed right before it,
+  with a command in between, or with a finding stuffed into the question text;
+  a block written as a paragraph, or missing its **Problem**, **If left** or
+  **Fix** bullet.
+- One finding per card, or text and cards interleaved within a batch, instead
+  of all of a batch's blocks, one command, then one card of up to four
+  questions.
+- Asking "Apply all" or any other question that decides several findings at
+  once — every finding gets its own question.
+- A Decide that skips the `diff-review` findings or the carried ones, or that
+  applies each fix right after its answer instead of asking every batch first.
 - Doing an after-ship item before the ship, or creating a task, arrival, label
   or heading for it instead of writing it in the current task.
 - Answering a finding on a bd issue with a code change instead of a
