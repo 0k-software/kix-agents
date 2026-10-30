@@ -22,20 +22,30 @@ The format is based on
   its block, then one card of up to four questions — one per finding — so the
   blocks keep their shape on mobile and the answers go quicker. Discard reasons
   follow each batch in one card.
-- A **changed** verdict in `kix:preflight` opens a diff page right away: this
-  run's commits in full and every bead change since the user's last review —
-  fields, deps, labels and comments, read from the beads DB's `dolt_diff()` —
-  with the changed words inside each changed line highlighted, like GitHub's
-  diff, and a warning when other sessions of the repo ran in that window. The
-  Verdict's own `preflight-checks --diff-html <file>` call writes it, only when
-  something is unreviewed, and preflight opens it in the app's browser pane
-  (else `open`/`xdg-open`); `preflight-checks diff [--html]` prints or writes
-  the same on demand. Any unreviewed bead change, not only a Fix job's, now
-  makes the verdict **changed** (the new `unreviewed-bead-changes` row) — the
-  beads this session wrote with bd, read from its transcript, and the ones a
-  dependency links to them; other sessions' changes only count as "not shown".
-  A SessionStart hook records the session's start mark; `bd-mark review` moves
-  it on "I reviewed" and on a clear verdict.
+- A shared folder for preflight's diff page: set `KIX_SHARE_DIR` (a folder
+  served to your own devices, e.g. by Tailscale Serve) and `KIX_SHARE_URL`
+  (where it is served), in the environment or in `~/.config/kix/config`, and a
+  **changed** verdict writes the page there and links its url instead of
+  publishing an Artifact. The url goes in the reply and in the rerun question's
+  text; the diff link gate holds the question until it carries the url. With
+  the built-in browser, the page also opens in a background tab, which shows a
+  preview card of it in the desktop app's transcript.
+- A **changed** verdict in `kix:preflight` links a diff page: this run's
+  commits in full and every bead change since the user's last review — fields,
+  deps, labels and comments, read from the beads DB's `dolt_diff()` — with the
+  changed words inside each changed line highlighted, like GitHub's diff, and a
+  warning when other sessions of the repo ran in that window. The Verdict's own
+  `preflight-checks --diff-html <file>` call writes it, only when something is
+  unreviewed, and preflight publishes it as a private claude.ai Artifact and
+  links it, saying what it is, so it opens on the phone too (a hook holds back
+  the rerun question, and the turn's end, until it does, at most twice);
+  `preflight-checks diff [--html]` prints or writes the same on demand. Any
+  unreviewed bead change, not only a Fix job's, now makes the verdict
+  **changed** (the new `unreviewed-bead-changes` row) — the beads this session
+  wrote with bd, read from its transcript, and the ones a dependency links to
+  them; other sessions' changes only count as "not shown". A SessionStart hook
+  records the session's start mark; `bd-mark review` moves it on "I reviewed"
+  and on a clear verdict.
 - Preflight checks `acceptance-criteria` (the branch's bead criteria against
   the diff) and `findings-leftovers` (open findings block shipping), and
   `preflight-checks start|mark|resolve|findings`: per-session check markers and
@@ -77,11 +87,6 @@ The format is based on
 
 - `kix:preflight`'s compare link is a labeled Markdown link with a literal `^`
   instead of a bare URL with `%5E`.
-
-- Every question in `kix:preflight`, `kix:ship`, `kix:close` and `kix:next-up`
-  goes out as text, then a command, then the ❓ line, then the card
-  (`kix:preflight` _Asking questions_): the app summarizes the text right
-  before a question card, and on mobile only the summary reached the user.
 
 - `kix:preflight` runs its checks from a check library
   (`claude-code/skills/preflight/checks/`, one instruction file per check) with
@@ -127,6 +132,10 @@ The format is based on
   common dir instead.
 - The caveman plugin from the repo dev setup: `.claude/settings.json` no longer
   enables `caveman@caveman` or registers the `caveman` marketplace.
+- `kix:preflight`'s own ReportFindings cards (the report and the after-queue
+  outcomes): the chat list, read from `preflight-checks findings`, is the only
+  view. `diff-review` still takes the code-review skill's findings from its
+  ReportFindings call.
 
 ## [0.4.1] — 2026-10-02
 

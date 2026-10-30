@@ -16,10 +16,9 @@ only place a review happens: `kix:ship` and `kix:close` run it, and never
 review on their own.
 
 **Language.** This skill is written in English; everything you produce follows
-the language the user is speaking: replies, the findings list, ReportFindings
-text, AskUserQuestion questions and option labels, and the content of every
-note, task or commit body you write (labels included — a Portuguese arrival
-says `Sessão do Claude:`).
+the language the user is speaking: replies, the findings list, AskUserQuestion
+questions and option labels, and the content of every note, task or commit body
+you write (labels included — a Portuguese arrival says `Sessão do Claude:`).
 
 **Speed.** Every tool call costs a model turn. Send independent calls together
 in one message — the diff and the files around its hunks, caller greps, test
@@ -71,7 +70,8 @@ every row and subcommand. What preflight uses:
 - `preflight-checks findings` — the branch's open findings, as JSON.
 - `preflight-checks --no-fetch --format tsv [--diff-html <file> [--from <sha>]]`
   — the rows alone; with `--diff-html`, it also writes the diff page
-  (_Verdict_) and adds a `diff-page` row: `<file>`, else `-`.
+  (_Verdict_) and adds a `diff-page` row (the file, else `-`) and a `diff-url`
+  row (its url in the user's shared folder, else `-`).
 - `preflight-checks bd-mark review` and
   `preflight-checks diff [--from <sha>] [--html <file>]` — _Verdict_. `--html`
   writes the same as a page: the commits in full, and the changed words inside
@@ -102,22 +102,8 @@ A marker records only that the check ran and what it saw; the approval is the
 user's "Ship" answer in `kix:ship`. A finding stays open until something
 resolves it, so nothing needs passing back to carry it to the next run.
 
-## Asking questions
-
-Every AskUserQuestion, in this skill and in every kix skill that points here
-(`kix:ship`, `kix:close`, `kix:next-up`), goes out in this order:
-
-1. the text the user needs to answer it — a finding block, the options
-   explained, the compare link — in the reply;
-2. a real command of its own (a `grep`, a `bd show`, a `git` call that the
-   question is about);
-3. the AskUserQuestion call.
-
-The app summarizes the reply text that comes right before a question card, and
-on mobile the user then gets a one-line summary instead of the block. A tool
-call between the text and the card keeps the text whole (checked on mobile,
-2026-10-24). Links never go inside the question: a link in a card cannot be
-opened on mobile.
+**Links** never go inside a question card: a link there cannot be opened on
+mobile — with one exception, the **changed** verdict's `diff-url` (_Verdict_).
 
 **Pending items.** A run that leaves the user anything to do — a deferred task
 to pick up, an item to close after the ship, a range that went through without
@@ -217,27 +203,20 @@ ones, fill in their fix and failure, drop the rest.
 
 The list is the JSON `mark --batch` printed: every open finding on this branch,
 new and carried. When the brief had no section (nothing to mark), read it with
-`preflight-checks findings`. Make **one** ReportFindings call with all of them,
-`diff-review` first. It replaces any call the code-review skill made. Per
-finding, straight from its JSON:
-
-- `file` / `line`: where it lives. ReportFindings requires `file`, so a finding
-  stored without one gets the branch's spec or plan, else the touched file
-  closest to the item;
-- `category`: as stored;
-- `summary`: as stored, then the id at the very end:
-  `… |—| [id: diff-review-1]` (ReportFindings has no id field; step 5 names it
-  in `resolve`);
-- `failure_scenario`: as stored.
-
-Then print the same list in chat, complete — the card renders poorly on mobile,
-so the chat list must stand on its own:
+`preflight-checks findings`. Print them in chat, `diff-review` first, straight
+from their JSON — the chat list is the only view; no ReportFindings call of
+your own (it renders poorly on mobile, and the store already holds everything):
 
 ```
 N/T. `<file>:<line>` — <problem> [id: <id>]
    Fix: <suggested fix>
    If left: <failure scenario>
 ```
+
+`<file>:<line>` only as far as the finding has them; with no `file`, the line
+reads `N/T. <problem> [id: <id>]`. The problem and fix come from `summary` (the
+fix inside its `SUGGESTED FIX` fence), the failure scenario from
+`failure_scenario`; the id is what step 5 names in `resolve`.
 
 Wherever a finding is named — the chat list, a question, a job — give its
 number out of the total: `finding 6/9`, `6/9.`.
@@ -258,11 +237,11 @@ answers in one sitting and walks away while the queue runs.
 
 Before each batch, print every finding of that batch in the reply, one block
 after another, in one message — the card collapses to the chosen labels once
-answered, and the blocks stay to scroll back to — then run a command, as
-_Asking questions_ says, then the card. Nothing else goes between the blocks
-and the card: one batch is one text, one command, one card. Print each block as
-Markdown, not in a code block, with exactly this shape — a bold heading, then
-one labelled bullet per line, never a prose paragraph:
+answered, and the blocks stay to scroll back to — then the card, right after
+it. Nothing goes between the blocks and the card: one batch is one text, one
+card. Print each block as Markdown, not in a code block, with exactly this
+shape — a bold heading, then one labelled bullet per line, never a prose
+paragraph:
 
 ```
 **Finding 6/9 — `<file>:<line>`**
@@ -421,15 +400,14 @@ git push --force-with-lease origin HEAD; bd dolt push; preflight-checks --no-fet
 remote; no branch push on `<default>` itself. `<file>` is a new
 `preflight-diff-<time>.html` in your scratchpad directory, else
 `${TMPDIR:-/tmp}`; `--from` only when a job committed. The `diff-page` row
-names `<file>` when the call wrote it — the step 5 commits in full and every
-unreviewed bead change, the changed words highlighted — else `-`.) Then call
-ReportFindings again with step 3's list, each finding's `outcome` read from
-that `findings` output: a finding it still returns is open and gets no
-`outcome`; one it no longer returns was resolved — `fixed` for a `fixed`,
-`skipped` for a `deferred` or `discarded`. A discarded finding's `summary` ends
-with `|—| DISCARDED: <reason> |—|`. Reprint the chat list with each finding's
-result — fixed (with its commit), deferred (arrival link or task id), discarded
-— <reason>, or still open.
+names the file when the call wrote it — the step 5 commits in full and every
+unreviewed bead change, the changed words highlighted — else `-`. When the user
+has a shared folder (`KIX_SHARE_DIR` and `KIX_SHARE_URL`, from the environment
+or `~/.config/kix/config`: a folder served to their own devices), the page goes
+there instead and the `diff-url` row is its url, else `-`.) Then reprint step
+3's chat list with each finding's result, read from that `findings` output (a
+finding it still returns is still open) — fixed (with its commit), deferred
+(arrival link or task id), discarded — <reason>, or still open.
 
 ## 6. Verdict
 
@@ -463,16 +441,32 @@ page when a bead is unreviewed.
   hand; a bd edit commits nothing, but the user has not seen it either — or a
   Fix job edited a tracker item (`bd update`, `bd dep add`), which still counts
   when the row reads `skip` because it can't read the beads DB. The rebase and
-  step 1's commit of a dirty tree do not count: step 2 checked them. Open the
-  `diff-page` file right away, before the reply:
-  `mcp__Claude_Browser__navigate` to `file://<file>` when the browser tools
-  exist, else `open <file>` (macOS) or `xdg-open <file>` (Linux). Print no diff
-  text and no link to the page — the page is the diff. When `diff-page` is `-`
-  (the beads DB can't be read), show the diff of the step 5 commits (above) and
-  name the items the Fix jobs edited instead. Then say: "There were changes.
-  Review them yourself — skim the diff — and if they look like what you expect,
-  rerun." Then ask the rerun question (below). Those commits and items are not
-  checked yet; the next run checks them.
+  step 1's commit of a dirty tree do not count: step 2 checked them. Link the
+  diff page right away, on the reply's first line, saying what it is:
+  `[Diff page — the commits and bead changes to review](<url>)`. When
+  `diff-url` is not `-`, `<url>` is that url — it opens on every device of
+  theirs, so publish nothing; with the built-in browser
+  (`mcp__Claude_Browser__*`), also open it in a background tab: `tabs_create`,
+  then `navigate` with its `tabId` (when `tabs_create` fails because the pane
+  is not open, `navigate` alone opens it without bringing it to the front). The
+  desktop app then shows a preview card of the page, which never replaces the
+  link — the phone has no card. Otherwise publish the `diff-page` file first,
+  before any reply text, with the Artifact tool (`file_path: "<file>"`,
+  `icon: "diff"`, `description`: "The commits and bead changes to review before
+  the rerun"), and `<url>` is its `url`: a private claude.ai page, which opens
+  on the phone too. Publish on every changed verdict, reruns included: each
+  writes a new page. Without the Artifact tool, send the file with SendUserFile
+  (`display: "render"`, `status: "normal"`, a `caption` saying what it is);
+  without either, print its path. Never put a `file://` link in the reply: text
+  holding one never reaches the user. Don't read the page (`cat`, Read) — it is
+  for the user — and print no diff text: the page is the diff. A question, or
+  the end of the turn, before the page is linked is held back by the
+  `diff-link-gate.sh` hook, at most twice. When `diff-page` is `-` (the beads
+  DB can't be read), show the diff of the step 5 commits (above) and name the
+  items the Fix jobs edited instead. Then say: "There were changes. Review them
+  yourself — skim the diff — and if they look like what you expect, rerun."
+  Then ask the rerun question (below). Those commits and items are not checked
+  yet; the next run checks them.
 - **Open** — the `findings-leftovers` row reads `finding`: its detail lists the
   ids still open (left for later, or never decided). List what is still open,
   show the branch diff (above), then ask the rerun question (below) for when
@@ -490,25 +484,29 @@ page when a bead is unreviewed.
 **Rerun without asking.** A **changed** verdict whose only changes are step 5's
 Fix jobs — each one a fix the user picked from the offered options, not text
 they typed under "Other", and no bead changed but by those jobs — reruns
-`<command>` right away, without the rerun question: open the `diff-page` file
-as **Changed** says, say in one line that it reruns to review the fix commits,
-and go. Only once in a row: when that rerun ends **changed** again, ask. No
+`<command>` right away, without the rerun question: link the diff page as
+**Changed** says, say in one line that it reruns to review the fix commits, and
+go. Only once in a row: when that rerun ends **changed** again, ask. No
 `bd-mark review` here — the user has not looked.
 
 **Rerun.** A link can't run a slash command, but an answer can. After a
 **changed** or **open** verdict's ⚠️ block, write what is being asked and each
-option in the reply, then follow _Asking questions_: a command, then the
-AskUserQuestion card. The only link is the compare link the verdict already
-printed in the reply — the branch diff for **open**, and for **changed** only
-when no page opened — never a second link with a different range, and never
-inside the question. The question depends on the verdict:
+option in the reply, then the AskUserQuestion card. The only link is the one
+the verdict already printed in the reply — the branch diff for **open**, and
+for **changed** the diff page's link (else the step 5 commits' compare link) —
+never a second link with a different range, and never inside the question, with
+one exception: a **changed** verdict's `diff-url` also goes in the question
+text, as a bare url. The app may fold the reply text above a question card out
+of sight, and the card is what the user always sees. The question depends on
+the verdict:
 
 - **Changed** — the reply says outright that new commits landed that the user
   has not seen: "`<n>` new commits landed since your last look
   (`<first short sha>..<HEAD short sha>`). The next run checks them, but you
   haven't seen them." — naming the changed beads instead of (or next to) the
   commits when `unreviewed-bead-changes` lists any. The question: "Run
-  `<command>` again?" Options:
+  `<command>` again?", and, when `diff-url` is not `-`, "Diff page:
+  `<diff-url>`" after it on the same line. Options:
   - "I reviewed — run `<command>` again" (Recommended) — "You skimmed the diff.
     The rerun checks it again on its own.";
   - "Run again, skip my review" — "Rerun now without looking. Only the
@@ -537,15 +535,13 @@ even when that run ships. On "Not now", stop — nothing runs after the answer.
 - One tool call per lookup when they could go out together; a Fix job split
   into edit, test, commit and resolve calls; a push after every job.
 - Printing progress lines.
-- Two ReportFindings lists (one from code-review, one of yours) instead of one,
-  or a chat list that leaves out what the card shows.
-- A Decide card whose findings' blocks were not all printed right before it,
-  with a command in between, or with a finding stuffed into the question text;
-  a block written as a paragraph, or missing its **Problem**, **If left** or
-  **Fix** bullet.
-- One finding per card, or text and cards interleaved within a batch, instead
-  of all of a batch's blocks, one command, then one card of up to four
-  questions.
+- A ReportFindings call of your own — the chat list is the only view — or a
+  chat list that leaves out a finding's fix, failure scenario or id.
+- A Decide card whose findings' blocks were not all printed right before it, or
+  with a finding stuffed into the question text; a block written as a
+  paragraph, or missing its **Problem**, **If left** or **Fix** bullet.
+- One finding per card, or text, commands and cards interleaved within a batch,
+  instead of all of a batch's blocks, then one card of up to four questions.
 - Asking "Apply all" or any other question that decides several findings at
   once — every finding gets its own question.
 - A Decide that skips the `diff-review` findings or the carried ones, or that
@@ -573,9 +569,12 @@ even when that run ships. On "Not now", stop — nothing runs after the answer.
   again" instead of the rerun question.
 - Answering "I reviewed" without `preflight-checks bd-mark review` first, or
   running it on "Run again, skip my review" or a rerun without asking.
-- A **changed** verdict that doesn't open the `diff-page` file right away, or
-  that prints the diff as text or a link to the page next to it, or retypes its
-  HTML.
+- A **changed** verdict that doesn't link the `diff-url`, else publish the
+  `diff-page` file as an Artifact and link its url, saying what it is, before
+  any question, or that leaves the `diff-url` out of the rerun question — or
+  that publishes it when `diff-url` is set, or that links it as `file://` (that
+  text never reaches the user), reads the page, prints the diff as text, or
+  retypes its HTML.
 - A **changed** rerun reply that doesn't say new, unseen commits landed, or
   that offers only "I reviewed", or dropping the "without your review" ⚠️ item
   after "Run again, skip my review".

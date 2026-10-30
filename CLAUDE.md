@@ -100,7 +100,7 @@ make autofix   # prettier --write .
 make check     # prettier --check .  (the formatting gate)
 make test      # scripts/test-*.sh — rebase hook recorder, project-code,
                # preflight-checks, bead diff + session mark hook,
-               # title hook,
+               # title hook, autocommit hook guards,
                # each run under a sentinel GIT_DIR by scripts/test-git-env.sh
 make all       # autofix && check
 make bump PART=patch|minor|major   # bump claude-code/.claude-plugin/plugin.json
@@ -167,9 +167,15 @@ kix-agents ships a Claude Code marketplace + plugin — no application code:
 - `claude-code/hooks/hooks.json` — plugin hooks, active in every session with
   the plugin enabled: `title-first-prompt.sh` (SessionStart, asks for
   `kix:title` after the first message), `bead-session-mark.sh` (SessionStart,
-  records the beads DB's start mark for `preflight-checks diff`) and
+  records the beads DB's start mark for `preflight-checks diff`),
+  `diff-link-gate.sh` (PreToolUse on AskUserQuestion and Stop, holds back
+  questions and the turn's end until a changed verdict's diff page is linked
+  (its shared-folder url, else an Artifact), at most twice) and
   `allow-remote-control-off.sh` (PreToolUse, lets `kix:close` turn Remote
-  Control off without a prompt).
+  Control off without a prompt). `autocommit.sh` sits beside them but is not in
+  `hooks.json`: a per-project Stop hook that blocks the turn's end until the
+  agent commits its work in one Bash call (`git add -A && git commit`), wired
+  per repo (kxa-6ei.4).
 - `claude-code/templates/*.md` — orphaned body templates from removed creation
   skills; not consumed by anything today
 - `docs/kix/<bd-id>/spec.md` — long-form specs for non-trivial epics tracked in
@@ -216,7 +222,8 @@ kix-agents ships a Claude Code marketplace + plugin — no application code:
   `claude-code/skills/rebase/time-hook.sh`, `claude-code/bin/project-code`,
   `claude-code/bin/preflight-checks`,
   `claude-code/hooks/title-first-prompt.sh`,
-  `claude-code/hooks/bead-session-mark.sh`, a `scripts/test-*.sh` or the
+  `claude-code/hooks/bead-session-mark.sh`, `claude-code/hooks/autocommit.sh`,
+  `claude-code/hooks/diff-link-gate.sh`, a `scripts/test-*.sh` or the
   `Makefile` is staged. The condition matters: the suite runs real rebases, and
   this hook runs once per commit during a rebase, so gating every commit on it
   would slow every rebase in this repo. CI runs `make test` unconditionally,

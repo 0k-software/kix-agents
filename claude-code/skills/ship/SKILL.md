@@ -17,8 +17,7 @@ runs `kix:preflight` for both.
 
 **Language.** Reply in the language the user is speaking.
 
-**Questions.** Every AskUserQuestion follows `kix:preflight`'s _Asking
-questions_ order: the text, then a command, then the card. No progress lines.
+**No progress lines.**
 
 **Default branch.** Never assume `main`:
 
