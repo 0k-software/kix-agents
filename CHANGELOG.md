@@ -14,7 +14,9 @@ The format is based on
   (where it is served), in the environment or in `~/.config/kix/config`, and a
   **changed** verdict writes the page there and links its url instead of
   publishing an Artifact. The url goes in the reply and in the rerun question's
-  text; the diff link gate holds the question until it carries the url.
+  text; the diff link gate holds the question until it carries the url. With
+  the built-in browser, the page also opens in a background tab, which shows a
+  preview card of it in the desktop app's transcript.
 - A **changed** verdict in `kix:preflight` links a diff page: this run's
   commits in full and every bead change since the user's last review — fields,
   deps, labels and comments, read from the beads DB's `dolt_diff()` — with the

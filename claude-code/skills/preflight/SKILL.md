@@ -562,7 +562,11 @@ devices), the page goes there instead and the `diff-url` row is its url, else
   `diff-url` is not `-`, put that url on the line right after the
   `⚠️ <n>/<total> Verdict — changed` line, saying what it is:
   `[Diff page — the commits and bead changes to review](<diff-url>)` — it opens
-  on every device of theirs, so publish nothing. Otherwise publish the
+  on every device of theirs, so publish nothing. With the built-in browser
+  (`mcp__Claude_Browser__*`), also open it in a background tab (`tabs_create`,
+  then `navigate` with that `tabId`): the desktop app shows a preview card of
+  the page in the transcript, and the pane stays where it is. The link stays in
+  the reply either way — the phone has no card. Otherwise publish the
   `diff-page` file right after the Verdict call, before any reply text, with
   the Artifact tool (`file_path: "<file>"`, `icon: "diff"`, `description`: "The
   commits and bead changes to review before the rerun"): a private claude.ai
