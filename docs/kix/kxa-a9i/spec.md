@@ -26,9 +26,10 @@ where they disagree:
   page, so it can never lock a session — an interim guard until Kix checkpoints
   check it. With a shared folder (`KIX_SHARE_DIR` + `KIX_SHARE_URL`, from the
   environment or `~/.config/kix/config`, 2026-10-29), the page goes there, the
-  reply links its url and publishes nothing, and the gate waits for that url.
-  The "text, command, ❓, card" Asking questions rule was dropped from the
-  skills and the global CLAUDE.md at kelvin's call, as a suspected cause.
+  reply and the rerun question carry its url and nothing is published, and the
+  gate holds the question until it carries that url. The "text, command, ❓,
+  card" Asking questions rule was dropped from the skills and the global
+  CLAUDE.md at kelvin's call, as a suspected cause.
 - The page (`diff --html`): the commits in full, no stat fallback, and every
   bead change. Inside each changed line, the changed words are highlighted from
   `git diff --word-diff=porcelain`, like GitHub. One self-contained HTML file

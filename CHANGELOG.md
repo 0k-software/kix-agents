@@ -13,7 +13,8 @@ The format is based on
   served to your own devices, e.g. by Tailscale Serve) and `KIX_SHARE_URL`
   (where it is served), in the environment or in `~/.config/kix/config`, and a
   **changed** verdict writes the page there and links its url instead of
-  publishing an Artifact; the diff link gate waits for that url in the reply.
+  publishing an Artifact. The url goes in the reply and in the rerun question's
+  text; the diff link gate holds the question until it carries the url.
 - A **changed** verdict in `kix:preflight` links a diff page: this run's
   commits in full and every bead change since the user's last review — fields,
   deps, labels and comments, read from the beads DB's `dolt_diff()` — with the
