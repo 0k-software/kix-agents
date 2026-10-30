@@ -562,17 +562,19 @@ devices), the page goes there instead and the `diff-url` row is its url, else
   `diff-url` is not `-`, put that url on the line right after the
   `⚠️ <n>/<total> Verdict — changed` line, saying what it is:
   `[Diff page — the commits and bead changes to review](<diff-url>)` — it opens
-  on every device of theirs, so publish nothing. With the built-in browser
-  (`mcp__Claude_Browser__*`), also open it in a background tab (`tabs_create`,
-  then `navigate` with that `tabId`): the desktop app shows a preview card of
-  the page in the transcript, and the pane stays where it is. The link stays in
-  the reply either way — the phone has no card. Otherwise publish the
-  `diff-page` file right after the Verdict call, before any reply text, with
-  the Artifact tool (`file_path: "<file>"`, `icon: "diff"`, `description`: "The
-  commits and bead changes to review before the rerun"): a private claude.ai
-  page, which opens in a browser on the phone too. Then put its `url` on the
-  line right after the `⚠️ <n>/<total> Verdict — changed` line, saying what it
-  is: `[Diff page — the commits and bead changes to review](<url>)`. Publish on
+  on every device of theirs, so publish nothing. Print that link first, then,
+  with the built-in browser (`mcp__Claude_Browser__*`), also open the url in a
+  background tab: `tabs_create`, then `navigate` with its `tabId`; when
+  `tabs_create` fails because the pane is not open, `navigate` alone opens it
+  without bringing it to the front. The desktop app shows a preview card of the
+  page in the transcript. The card never replaces the link — the phone has no
+  card. Otherwise publish the `diff-page` file right after the Verdict call,
+  before any reply text, with the Artifact tool (`file_path: "<file>"`,
+  `icon: "diff"`, `description`: "The commits and bead changes to review before
+  the rerun"): a private claude.ai page, which opens in a browser on the phone
+  too. Then put its `url` on the line right after the
+  `⚠️ <n>/<total> Verdict — changed` line, saying what it is:
+  `[Diff page — the commits and bead changes to review](<url>)`. Publish on
   every changed verdict, reruns included: each writes a new page. Without the
   Artifact tool, send the file with SendUserFile (`display: "render"`,
   `status: "normal"`, a `caption` saying what it is) — desktop renders it, the
