@@ -31,7 +31,7 @@ for scripts.
 Facts (status "fact"):
   default    the default branch's remote ref (origin/main), or "-"
   from       the commit diff-review's marker covers, when it is an ancestor of
-             HEAD, else "-"
+             HEAD or a clean rebase carried it over, else "-"
   shortstat  git diff --shortstat from the merge base to HEAD
   markdown   Markdown files the branch or the dirty tree touches, ", "-joined
   fetch      fresh | fetched | failed | skipped
@@ -58,6 +58,9 @@ Checkpoints (status pass | finding | fresh | stale | unknown | never | skip):
                          related-tracker-items bd updates only;
                          open-checkboxes unchecked "- [ ]" lines in Markdown
                          changed since its marker, listed as file:line.
+                         A rebase that carried every marked commit over
+                         with its patch unchanged is no change: only the
+                         commits after its copy count (kxa-xsh).
   findings-leftovers     findings recorded with `mark` and still open
   unreviewed-bead-changes
                          beads changed since the latest bd-mark review, else
@@ -819,12 +822,35 @@ marker_of() { last_markers | jq -c --arg c "$1" '.[$c] // empty'; }
 
 short_sha() { echo "${1:0:7}"; }
 
-# Where a check's review range starts: its marker head when that is an ancestor
-# of HEAD, else the merge base (empty when there is none).
+# The commit of HEAD that holds what commit $1 held (kxa-xsh): $1 itself when
+# it is an ancestor of HEAD. After a rebase, when every commit of $1 past HEAD
+# has a patch-id equivalent in HEAD (git cherry), the newest of HEAD's commits
+# that matches one of them — the merge base when $1 held none of its own.
+# Fails when a patch changed on the way (a conflict resolved, an amend): main
+# moving on is not a change to review, a rewritten commit is.
+head_equiv() { cached "equiv-$1" head_equiv_read "$1"; }
+head_equiv_read() {
+  local out eq
+  if git merge-base --is-ancestor "$1" HEAD 2>/dev/null; then
+    echo "$1"
+    return
+  fi
+  out=$(git cherry HEAD "$1" 2>/dev/null) || return 1
+  ! printf '%s\n' "$out" | grep -q '^+' || return 1
+  eq=$(git cherry "$1" HEAD 2>/dev/null | sed -n 's/^- //p' | tail -n1)
+  if [ -n "$eq" ]; then
+    echo "$eq"
+  else
+    git merge-base HEAD "$1"
+  fi
+}
+
+# Where a check's review range starts: its marker head, or its equivalent
+# after a clean rebase, else the merge base (empty when there is none).
 marker_from() {
   local h
   h=$(marker_of "$1" | jq -r '.head // empty')
-  if [ -n "$h" ] && git merge-base --is-ancestor "$h" HEAD 2>/dev/null; then
+  if [ -n "$h" ] && h=$(head_equiv "$h"); then
     echo "$h"
   else
     echo "$base"
@@ -835,7 +861,7 @@ marker_from() {
 # never, from the triggers it watches. The skip cases belong to the callers,
 # who know what there is to check.
 marker_status() {
-  local check=$1 m reasons=() h clean b id upd tu tts runat at now_upd out n since unknown=""
+  local check=$1 m reasons=() h eq clean b id upd tu tts runat at now_upd out n since unknown=""
   m=$(marker_of "$check")
   if [ -z "$m" ]; then
     printf 'never\tno marker\n'
@@ -846,9 +872,9 @@ marker_status() {
      .bead.id // "", .bead.updated // "", .turn.uuid // "", .turn.ts // "",
      .run // .at // "", .at // ""] | join("\u001f")')
   if [ -n "$h" ] && [ "$h" != "$(head_sha)" ] && watches_head "$check"; then
-    if git merge-base --is-ancestor "$h" HEAD 2>/dev/null; then
-      has_trigger "$check" work-commits && only_fix_commits "$h" ||
-        reasons+=("new commits since $(short_sha "$h")")
+    if eq=$(head_equiv "$h"); then
+      [ "$eq" = "$(head_sha)" ] || { has_trigger "$check" work-commits && only_fix_commits "$eq"; } ||
+        reasons+=("new commits since $(short_sha "$eq")")
     else
       reasons+=("rebased since $(short_sha "$h")")
     fi
@@ -1711,7 +1737,7 @@ status_rows() {
     stat=""
   fi
   from=$(marker_of diff-review | jq -r '.head // empty')
-  if [ -n "$from" ] && git merge-base --is-ancestor "$from" HEAD 2>/dev/null; then
+  if [ -n "$from" ] && from=$(head_equiv "$from"); then
     stat=$(git diff --shortstat "$from...HEAD" | sed 's/^ *//')
   else
     from=""

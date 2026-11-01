@@ -135,19 +135,23 @@ procedure) — a rebase needs a clean tree. On a `behind-default-branch` finding
 rebase onto `<base>` with the `kix:rebase` skill when it is available — it
 re-runs the pre-commit hook on every commit; slow, but worth the wait. Invoke
 it with a leading `?` (`kix:rebase ? <base>`) to force its interactive mode
-whatever the user's configured default: the abort-on-conflict step below needs
-the rebase to stop on a conflict, not auto-resolve it. An older `kix:rebase`
-(its _Invocation modes_ list no `?` marker) would read the `?` as part of the
-branch name: invoke it with just `<default>` then. Without it,
-`git rebase <base>`. Then `git push --force-with-lease origin HEAD` (on
-`<default>` itself there is no branch push). Never rebase when
-`behind-default-branch` reads `pass` — the commit of a dirty tree only adds on
-top of HEAD.
+whatever the user's configured default: a conflict is the user's call, so the
+rebase asks them about each one (keep mine, keep theirs, keep both) instead of
+resolving it on its own. An older `kix:rebase` (its _Invocation modes_ list no
+`?` marker) would read the `?` as part of the branch name: invoke it with just
+`<default>` then. Without it, `git rebase <base>`. Then
+`git push --force-with-lease origin HEAD` (on `<default>` itself there is no
+branch push). Never rebase when `behind-default-branch` reads `pass` — the
+commit of a dirty tree only adds on top of HEAD.
 
-If the rebase stops on a conflict, abort it (`git rebase --abort`) and stop
+A rebase that went through on its own (no conflict) needs no word to the user:
+`<default>`'s new commits are not theirs to review, and the checks don't count
+them — a commit whose patch came through unchanged keeps its marker (kxa-xsh).
+Only a commit a conflict resolution rewrote stales them. If the user stops the
+rebase at a conflict question, abort it (`git rebase --abort`) and stop
 everything: "Before anything else, this branch needs a rebase onto `<default>`,
-and it conflicts. Nothing lands until the branch sits on `<default>`."
-Resolving the conflict is the user's call.
+and it conflicts. Nothing lands until the branch sits on `<default>`." Without
+`kix:rebase`, a plain `git rebase` that stops on a conflict ends the same way.
 
 After a commit or a rebase, print a new brief — the first one saw the old HEAD:
 

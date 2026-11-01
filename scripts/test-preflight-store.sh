@@ -266,9 +266,40 @@ setup
 echo a >a.txt && commit one
 echo '[]' | "$BIN" mark diff-review >/dev/null
 old=$(short)
-git_q commit --amend -m x
+echo b >a.txt && git_q commit -q -a --amend -m x
 check "rebased" "$(row diff-review)" "stale/rebased since $old"
 check "from" "$(fact from)" "-"
+teardown
+
+# kxa-xsh: main moved and the branch rebased without a conflict. The same
+# patches sit on top of the new main, so the review still holds.
+echo "a clean rebase keeps the marker"
+setup
+git_q checkout -q -b feat
+echo a >a.txt && commit one
+echo b >b.txt && commit two
+echo '[]' | "$BIN" mark diff-review >/dev/null
+(cd "$work/seed" && git_q pull -q && echo m >m.txt && git_q add -A && git_q commit -q -m main2 && git_q push -q origin HEAD:main)
+git_q fetch -q origin
+git_q rebase -q origin/main
+check "fresh" "$(row diff-review | cut -d/ -f1)" "fresh"
+check "from maps" "$(fact from)" "$(git rev-parse HEAD)"
+echo c >c.txt && commit three
+check "new commit after" "$(row diff-review)" "stale/new commits since $(git rev-parse HEAD~1 | cut -c1-7)"
+check "from maps after" "$(fact from)" "$(git rev-parse HEAD~1)"
+teardown
+
+echo "a rebase that changed a patch stales"
+setup
+git_q checkout -q -b feat
+echo a >a.txt && commit one
+echo '[]' | "$BIN" mark diff-review >/dev/null
+old=$(short)
+(cd "$work/seed" && git_q pull -q && echo m >m.txt && git_q add -A && git_q commit -q -m main2 && git_q push -q origin HEAD:main)
+git_q fetch -q origin
+git_q rebase -q origin/main
+echo z >a.txt && git_q commit -q -a --amend -m one
+check "stale" "$(row diff-review)" "stale/rebased since $old"
 teardown
 
 echo "fresh wins over skip"

@@ -77,6 +77,11 @@ The format is based on
 
 ### Changed
 
+- Main moving on no longer asks for a review (kxa-xsh). A rebase that carries
+  every commit over with its patch unchanged keeps preflight's checks fresh;
+  only a commit a conflict resolution rewrote stales them. Ship's gate and a
+  rejected push rebase with `kix:rebase ?` and recheck instead of stopping, and
+  preflight's rebase asks about each conflict instead of aborting.
 - `kix:close` offers `/kix:next-up` inside the archive question — "Next-up,
   then archive" · "Archive" · "Leave it open" — instead of asking about next-up
   first and the archive after it; next-up then leads straight to the archive.

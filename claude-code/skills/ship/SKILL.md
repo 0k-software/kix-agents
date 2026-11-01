@@ -12,8 +12,9 @@ description:
 "Merge into main" means GitHub's **rebase and merge**, done in two parts: the
 `kix:preflight` skill rebases the branch onto the default branch and reviews
 it, and ship only fast-forwards the default branch to the checked branch — no
-merge commit, flat history. Ship never rebases and never reviews on its own; it
-runs `kix:preflight` for both.
+merge commit, flat history. Ship never reviews on its own; it runs
+`kix:preflight` for that. The one rebase it does itself is when `<default>`
+moves after the preflight (steps 3 and 4).
 
 **Language.** Reply in the language the user is speaking.
 
@@ -62,18 +63,26 @@ name without `origin/`.
    KIX_FETCH_TTL=0 preflight-checks --format tsv
    ```
 
+   When `behind-default-branch` reads `finding`, `<default>` moved since the
+   preflight: the user doesn't review `<default>`'s commits, so don't ask.
+   Rebase with `kix:rebase ? <default>` (the way `kix:preflight`'s step 1 does,
+   conflicts included: the user answers each one, and stopping at one ends the
+   ship), push the branch with `git push --force-with-lease origin HEAD`, say
+   nothing about it when it went through, and run the recheck again. A clean
+   rebase keeps every check fresh (kxa-xsh); a commit a conflict rewrote stales
+   `diff-review`, and the gate below stops on it.
+
    Stop unless `uncommitted-changes` is `pass`, `behind-default-branch` is
    `pass`, `diff-review` is `fresh` or `skip`, `findings-leftovers` is `pass`,
    and `unreviewed-bead-changes` is `pass` or `skip`. The stop message lists
    which of them failed. After the ⚠️ block, say in the reply what changed
-   since the preflight (uncommitted changes / `<default>` moved / diff not
-   reviewed / open findings / bead changes not reviewed) with the branch diff
-   from `<base>` as its link, then ask "Run `<command>` again?" with
-   `kix:preflight`'s _Verdict_ **changed** rerun options (reviewed · skip my
-   review · not now) — this stop opens no diff page; on "skip my review", the
-   ⚠️ item names the branch range `<base>..HEAD`. `<command>` as _Verdict_
-   defines it (`/kix:close` when close called ship). Never rebase or review
-   here to fix it.
+   since the preflight (uncommitted changes / diff not reviewed / open findings
+   / bead changes not reviewed) with the branch diff from `<base>` as its link,
+   then ask "Run `<command>` again?" with `kix:preflight`'s _Verdict_
+   **changed** rerun options (reviewed · skip my review · not now) — this stop
+   opens no diff page; on "skip my review", the ⚠️ item names the branch range
+   `<base>..HEAD`. `<command>` as _Verdict_ defines it (`/kix:close` when close
+   called ship). Never review here to fix it.
 
 4. **Push and check**, in one call:
 
@@ -85,15 +94,18 @@ name without `origin/`.
    ```
 
    The push to `<default>` is a fast-forward. If it is rejected, `<default>`
-   moved: stop with the step 3 message. On `<default>` itself (no branch), the
-   push is just `git push`. Report the commits that landed.
+   moved: back to step 3, which rebases and rechecks without asking. On
+   `<default>` itself (no branch), the push is just `git push`. Report the
+   commits that landed.
 
 ## Common mistakes
 
 - Skipping preflight because every check is already fresh.
 - Going past a **changed** or **open** verdict.
-- Rebasing, merging the default branch, or reviewing from ship itself instead
-  of through preflight.
+- Reviewing from ship itself instead of through preflight, or merging the
+  default branch.
+- Asking the user to review `<default>`'s new commits instead of rebasing onto
+  them.
 - Pushing without the "Ship" answer.
 - Shipping with a stale `diff-review` or open findings.
 - Hardcoding `main` instead of the detected default branch.
