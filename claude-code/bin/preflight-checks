@@ -840,7 +840,9 @@ short_sha() { echo "${1:0:7}"; }
 # has a patch-id equivalent in HEAD (git cherry), the newest of HEAD's commits
 # that matches one of them. Fails when a patch changed on the way (a conflict
 # resolved, an amend): main moving on is not a change to review, a rewritten
-# commit is.
+# commit is. The trade-off: an unchanged patch can still clash with main's new
+# code (a call into something main renamed); the tests kix:rebase runs on each
+# commit catch that, the review doesn't look again.
 head_equiv() { cached "equiv-$1" head_equiv_read "$1"; }
 head_equiv_read() {
   local out eq
