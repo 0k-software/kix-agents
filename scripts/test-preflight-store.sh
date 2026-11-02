@@ -614,6 +614,26 @@ check "work commit leaves tracker" "$(row related-tracker-items | cut -d/ -f1)" 
 check "bad commit exit" "$?" "1"
 teardown
 
+echo "a Fix commit carried over by a rebase is still a Fix commit"
+setup
+stub_bd
+tx_init
+tx_turn u1 $T1 "hello"
+echo '{"id":"kxa-1","updated_at":"T1"}' >"$work/bd-show.json"
+git_q checkout -q -b feat
+echo a >a.txt && commit one
+echo '{"diff-review": [{"category":"x","summary":"a"}], "acceptance-criteria": [], "unraised-follow-ups": []}' |
+  "$BIN" mark --batch --bead kxa-1 >/dev/null
+echo b >a.txt && commit fix
+"$BIN" resolve diff-review-1 fixed HEAD
+(cd "$work/seed" && git_q pull -q && echo m >m.txt && git_q add -A && git_q commit -q -m main2 && git_q push -q origin HEAD:main)
+git_q fetch -q origin
+git_q rebase -q origin/main
+check "acceptance" "$(row acceptance-criteria | cut -d/ -f1)" "fresh"
+check "unraised" "$(row unraised-follow-ups | cut -d/ -f1)" "fresh"
+check "diff-review" "$(row diff-review | cut -d/ -f1)" "stale"
+teardown
+
 echo "bd updates stale only related-tracker-items"
 setup
 stub_bd

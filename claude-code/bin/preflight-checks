@@ -458,14 +458,27 @@ watches_head() { has_trigger "$1" commits || has_trigger "$1" work-commits || ha
 fix_commits() { cached fixcommits fix_commits_read; }
 fix_commits_read() { store_lines findings.jsonl | jq -r '.commit // empty' | sort -u; }
 
-# True when $1..HEAD holds at least one commit and all are Fix commits.
+# The patch-ids of the Fix commits, one per line: a rebase rewrites a Fix
+# commit's sha but keeps its patch (kxa-xsh).
+fix_patch_ids() { cached fixpatches fix_patch_ids_read; }
+fix_patch_ids_read() {
+  local c
+  for c in $(fix_commits); do
+    git show "$c" 2>/dev/null
+  done | git patch-id --stable | cut -d' ' -f1 | sort -u
+}
+
+# True when $1..HEAD holds at least one commit and all are Fix commits, by sha
+# or, after a rebase, by patch-id.
 only_fix_commits() {
-  local c fixes list
+  local c fixes list ids
   fixes=$(fix_commits)
   list=$(git rev-list "$1..HEAD")
   [ -n "$fixes" ] && [ -n "$list" ] || return 1
   for c in $list; do
-    printf '%s\n' "$fixes" | grep -qx "$c" || return 1
+    printf '%s\n' "$fixes" | grep -qx "$c" && continue
+    [ -n "${ids+x}" ] || ids=$(fix_patch_ids)
+    printf '%s\n' "$ids" | grep -qx "$(git show "$c" | git patch-id --stable | cut -d' ' -f1)" || return 1
   done
 }
 
