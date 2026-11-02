@@ -471,14 +471,16 @@ fix_patch_ids_read() {
 # True when $1..HEAD holds at least one commit and all are Fix commits, by sha
 # or, after a rebase, by patch-id.
 only_fix_commits() {
-  local c fixes list ids
+  local c fixes list ids p
   fixes=$(fix_commits)
   list=$(git rev-list "$1..HEAD")
   [ -n "$fixes" ] && [ -n "$list" ] || return 1
   for c in $list; do
     printf '%s\n' "$fixes" | grep -qx "$c" && continue
     [ -n "${ids+x}" ] || ids=$(fix_patch_ids)
-    printf '%s\n' "$ids" | grep -qx "$(git show "$c" | git patch-id --stable | cut -d' ' -f1)" || return 1
+    # An empty commit has no patch-id: never a Fix commit by patch.
+    p=$(git show "$c" | git patch-id --stable | cut -d' ' -f1)
+    [ -n "$p" ] && printf '%s\n' "$ids" | grep -qx "$p" || return 1
   done
 }
 
