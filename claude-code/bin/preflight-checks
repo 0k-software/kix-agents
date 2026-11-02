@@ -838,9 +838,9 @@ short_sha() { echo "${1:0:7}"; }
 # The commit of HEAD that holds what commit $1 held (kxa-xsh): $1 itself when
 # it is an ancestor of HEAD. After a rebase, when every commit of $1 past HEAD
 # has a patch-id equivalent in HEAD (git cherry), the newest of HEAD's commits
-# that matches one of them — the merge base when $1 held none of its own.
-# Fails when a patch changed on the way (a conflict resolved, an amend): main
-# moving on is not a change to review, a rewritten commit is.
+# that matches one of them. Fails when a patch changed on the way (a conflict
+# resolved, an amend): main moving on is not a change to review, a rewritten
+# commit is.
 head_equiv() { cached "equiv-$1" head_equiv_read "$1"; }
 head_equiv_read() {
   local out eq
@@ -851,11 +851,7 @@ head_equiv_read() {
   out=$(git cherry HEAD "$1" 2>/dev/null) || return 1
   ! printf '%s\n' "$out" | grep -q '^+' || return 1
   eq=$(git cherry "$1" HEAD 2>/dev/null | sed -n 's/^- //p' | tail -n1)
-  if [ -n "$eq" ]; then
-    echo "$eq"
-  else
-    git merge-base HEAD "$1"
-  fi
+  [ -n "$eq" ] && echo "$eq"
 }
 
 # Where a check's review range starts: its marker head, or its equivalent
