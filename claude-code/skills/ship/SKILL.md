@@ -70,7 +70,9 @@ name without `origin/`.
    ship), push the branch with `git push --force-with-lease origin HEAD`, say
    nothing about it when it went through, and run the recheck again. A clean
    rebase keeps every check fresh (kxa-xsh); a commit a conflict rewrote stales
-   `diff-review`, and the gate below stops on it.
+   `diff-review`, and the gate below stops on it. One rebase per ship: when
+   `<default>` moved again by the second recheck (another session shipping),
+   the gate below stops on `behind-default-branch` instead of rebasing again.
 
    Stop unless `uncommitted-changes` is `pass`, `behind-default-branch` is
    `pass`, `diff-review` is `fresh` or `skip`, `findings-leftovers` is `pass`,
@@ -94,9 +96,9 @@ name without `origin/`.
    ```
 
    The push to `<default>` is a fast-forward. If it is rejected, `<default>`
-   moved: back to step 3, which rebases and rechecks without asking. On
-   `<default>` itself (no branch), the push is just `git push`. Report the
-   commits that landed.
+   moved: back to step 3, which rebases and rechecks without asking unless this
+   ship already rebased once. On `<default>` itself (no branch), the push is
+   just `git push`. Report the commits that landed.
 
 ## Common mistakes
 
