@@ -223,7 +223,7 @@ paragraph:
 - **Problem:** <what goes wrong and when — one line>
 - **If left:** <the failure scenario — what breaks, for whom>
 - **Fix (recommended):** <the fix> — <why this one over the others>
-- **Alt — <other fix>:** <what it does, its trade-off>   (one per extra fix)
+- **Fix — <other fix>:** <what it does, its trade-off>   (one per other fix)
 - **Note:** <only what is specific to deferring, discarding or leaving this
   finding, e.g. an existing task that already covers it — omit otherwise>
 ```
@@ -232,9 +232,11 @@ paragraph:
 heading reads `**Finding 6/9**`. The problem and fix come from `summary` (the
 fix inside its `SUGGESTED FIX` fence), **If left** from `failure_scenario`;
 keep each finding's id from the JSON for step 5's `resolve`, without printing
-it. **Problem**, **If left** and **Fix** are always there, even under caveman
-ultra — caveman shortens each bullet to fragments, it never drops a bullet or
-merges them into a paragraph.
+it. List every real fix you see, not only the suggested one: the recommended
+first, labelled so, then each other one with its trade-off. **Problem**, **If
+left** and **Fix** are always there, even under caveman ultra — caveman
+shortens each bullet to fragments, it never drops a bullet or merges them into
+a paragraph.
 
 Wherever a finding is named — a block, a question, a job — give its number out
 of the total: `finding 6/9`.
@@ -245,35 +247,31 @@ Zero findings → go to step 6 (Verdict).
 
 **Every** finding from the report — every check's, `diff-review` and
 `post-landing-steps` alike, and those carried from earlier runs — needs the
-user's decision, all asked at once: the blocks, then one question at the end of
+user's decision, all asked at once: the blocks, then one request at the end of
 the same reply, then the turn ends. Nothing runs before the answer, so the user
 answers in one sitting and walks away while the queue runs:
 
 ```
-**How should I handle each finding?** Answer per finding, e.g.
-`1 fix, 2 alt, 3 task, 4 discard: intended, 5 later` — comments welcome.
-
-- **fix** — the recommended fix.
-- **alt** — the alternative in the block (name it when there are several).
-- **task** — creates a bd task to do it another time; releases the ship after a re-run.
-- **discard: <reason>** — dismisses the finding for good and releases the ship; the reason is required.
-- **later** — no decision yet; keeps the finding open, which blocks the ship until a later preflight resolves it.
+**Please review the findings and tell me what to do with each.** Take a fix —
+the recommended one or another — or describe your own. It's fine to postpone
+any of them (<defer>, or just leave it open) or to discard it; a discard needs
+a short reason why.
 ```
 
-The defer answer goes by repo type: _(Beads)_ **task**; _(Kingdone)_
-**arrival** — "creates an arrival in your inbox (Gates) to do this another
-time; releases the ship after a re-run"; _(Neither)_ none. Leave out **alt**
-when no finding has one. An after-ship finding takes no defer answer — its
-suggested fix already leaves it for later, in the task itself — and its
-**Note** says so.
+`<defer>` goes by repo type: _(Beads)_ "as a bd task"; _(Kingdone)_ "as an
+arrival in your inbox"; _(Neither)_ drop it, leaving "just leave it open". An
+after-ship finding is never deferred to a task — its suggested fix already
+leaves it for later, in the task itself — and its **Note** says so.
 
 Read the answer for meaning: "fix all but 3", "3 is intended" (a discard with
 its reason), a comment that changes a fix. A fix the user describes in their
-own words is theirs: follow it. Every finding needs a decision before step 5:
-when the answer leaves findings out, is unclear about one, or discards one
-without a reason, ask again in one short question naming just those ("Findings
-3/8 and 5/8 — fix, task, discard or later?") and end the turn. Never assume a
-decision: **later** only when the user says so, or says to leave the rest.
+own words is theirs: follow it. Each finding ends with one decision — a fix, a
+defer (task or arrival), a discard with its reason, or **later** (left open,
+which blocks the ship until a later preflight resolves it). Before step 5: when
+the answer leaves findings out, is unclear about one, or discards one without a
+reason, ask again in one short question naming just those, asking for the
+reason where it is missing, and end the turn. Never assume a decision or invent
+a reason: **later** only when the user says so, or says to leave the rest.
 
 ## 5. Run the queue
 
@@ -464,7 +462,7 @@ page when a bead is unreviewed.
   **changed**: say so and ask the rerun question (below).
 
 **Rerun without asking.** A **changed** verdict whose only changes are step 5's
-Fix jobs — each one a **fix** or **alt** the user picked, not a fix they
+Fix jobs — each one a fix from the block the user picked, not a fix they
 described in their own words, and no bead changed but by those jobs — reruns
 `<command>` right away, without the rerun question: link the diff page as
 **Changed** says, say in one line that it reruns to review the fix commits, and
