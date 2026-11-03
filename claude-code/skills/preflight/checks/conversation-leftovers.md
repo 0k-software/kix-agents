@@ -12,8 +12,8 @@ Questions about findings are `findings-leftovers`' job, so nothing is reported
 twice. List:
 
 - things the user asked for that were not done, or were done only in part;
-- questions you asked that the user never answered — an AskUserQuestion the
-  user skipped, dismissed or rejected is unanswered;
+- questions you asked that the user never answered — a reply that moved on
+  without answering leaves the question unanswered;
 - questions the user asked that you never answered, or answered only in part —
   a question buried in a longer message counts;
 - things the user deferred ("later", "tomorrow", "I'll look at it");

@@ -15,8 +15,11 @@ in the `kix:preflight` skill, which `kix:ship` runs; close adds only what comes
 after the ship.
 
 **Language.** Everything you produce follows the language the user is speaking:
-replies, AskUserQuestion questions and option labels, and every commit you
-write.
+replies, questions and their answer words, and every commit you write.
+
+**Questions** are plain text at the end of the reply, never AskUserQuestion: a
+bold question, then each answer as a bullet (`- **<word>** — <what it does>`),
+then the turn ends. Read the answer for meaning.
 
 **No progress lines.**
 
@@ -45,8 +48,8 @@ name without `origin/`.
 Shipping is always the **last** thing a session does: nothing — no fix, no
 arrival, no task, no other work — runs after it. The only exceptions are the
 bookkeeping of step 2 (marking the shipped task done on the user's yes), the
-archive, and a next bead the user picks to "Start here" in `kix:next-up` (2b):
-a new task on a fresh branch, not more work on the shipped one.
+archive, and a next bead the user picks to **start here** in `kix:next-up`
+(2b): a new task on a fresh branch, not more work on the shipped one.
 
 Run the `kix:ship` skill. It runs `kix:preflight` (rebase, the seven checks,
 findings, fixes and deferrals), asks the user to confirm, and pushes. If it
@@ -95,9 +98,9 @@ once the items are done — the rerun ships nothing new and goes straight to
 marking the task done and archiving.
 
 Otherwise run the `kix:title` skill with `📦` — the task's work landed and is
-being delivered — then ask with AskUserQuestion, naming each task: "Mark <task>
-done" (Recommended) — "Its work is now on `<default>`." · "Leave it open".
-Never mark a task done without that yes.
+being delivered — then ask, naming each task: "**Mark <task> done?**" —
+**done** (its work is now on `<default>`) · **leave open**. Never mark a task
+done without that yes.
 
 - _(Beads)_ The task is a bd issue. On yes:
   `bd close <id> --reason="shipped to <default>"`, then `bd dolt push` when the
@@ -128,27 +131,28 @@ First check the session's mode. When the `mcp__ccd_session_mgmt__*` tools are
 not available, the session was started from the phone through a terminal
 `claude remote-control` server: Remote Control is its only transport, so
 turning it off would kill the session, and nothing inside it can archive it.
-There, ask only "Run `/kix:next-up` now?" — "Run it" (Recommended) · "Skip";
-run it on "Run it". Then, unless the user picked "Start here" in it, skip the
-switch and archive entirely — tell the user in one line that the work is
-shipped and the session can be archived from the phone (the session's menu →
-Archive), and stop.
+There, ask only "**Run `/kix:next-up` now?**" — **run** · **skip**; run it on
+yes. Then, unless the user picked **start here** in it, skip the switch and
+archive entirely — tell the user in one line that the work is shipped and the
+session can be archived from the phone (the session's menu → Archive), and
+stop.
 
-Otherwise ask with AskUserQuestion: "Archive this session now?" — "Next-up,
-then archive" (Recommended) — "Run `/kix:next-up` to pick what comes next, then
-archive." · "Archive" · "Leave it open". On "Next-up, then archive", run the
-`kix:next-up` skill, then come back here and archive straight away: that answer
-already said yes, so never ask about the archive again. Next-up goes before the
-archive: after it, nothing in this session runs.
+Otherwise ask "**Archive this session now?**" — **next-up, then archive** (run
+`/kix:next-up` to pick what comes next, then archive) · **archive** · **leave
+open**. On **next-up, then archive**, run the `kix:next-up` skill, then come
+back here and archive straight away: that answer already said yes, so never ask
+about the archive again. Next-up goes before the archive: after it, nothing in
+this session runs.
 
-**Start here.** When the user picked "Start here" in next-up, the session goes
-on with that bead instead of being archived: skip the archive and every item
-under it but **Remote branch** — run that one for the shipped branch now,
+**Start here.** When the user picked **start here** in next-up, the session
+goes on with that bead instead of being archived: skip the archive and every
+item under it but **Remote branch** — run that one for the shipped branch now,
 before anything switches it. Then run next-up's _Start here_ steps with the
 prompt it handed back; close ends there.
 
-On "Archive", or after next-up without "Start here", get this session's state
-with `mcp__ccd_session_mgmt__get_session` (`"self"`), then, before archiving:
+On **archive**, or after next-up without **start here**, get this session's
+state with `mcp__ccd_session_mgmt__get_session` (`"self"`), then, before
+archiving:
 
 - **Remote Control.** When `remoteControlState` is `on` or `connecting`, turn
   it off with `mcp__ccd_session_mgmt__set_remote_control`
@@ -206,8 +210,8 @@ while the task has items left (2a).
 - Asking about next-up and the archive in two questions — a "Skip" on one only
   to be asked the other — or asking about the archive again after "Next-up,
   then archive".
-- Archiving, or asking to, after the user picked "Start here" in next-up.
-- Deleting the remote branch on "Leave it open", or before checking it is in
+- Archiving, or asking to, after the user picked **start here** in next-up.
+- Deleting the remote branch on **leave open**, or before checking it is in
   `<base>`.
 - In a terminal `claude remote-control` session (no `ccd_session_mgmt` tools),
   trying to turn Remote Control off or to archive — it ends the session; point

@@ -519,11 +519,10 @@ fi
 teardown
 
 GATE="$ROOT/claude-code/hooks/diff-link-gate.sh"
-# Run the question gate as Claude Code would, for session s1 in the current
+# Run the turn-end gate as Claude Code would, for session s1 in the current
 # repo, with transcript $1.
-# $2 is the hook event, PreToolUse when left out; $3 the question's text.
 gate() {
-  jq -nc --arg c "$PWD" --arg t "$1" --arg e "${2:-PreToolUse}" --arg q "${3:-Rerun?}" '{session_id: "s1", cwd: $c, transcript_path: $t, hook_event_name: $e, tool_name: "AskUserQuestion", tool_input: {questions: [{question: $q, header: "Rerun", options: []}]}}' |
+  jq -nc --arg c "$PWD" --arg t "$1" '{session_id: "s1", cwd: $c, transcript_path: $t, hook_event_name: "Stop"}' |
     bash "$GATE" 2>"$work/gate.err"
 }
 
@@ -536,24 +535,25 @@ check "pending" "$(cat "$store/diff-page" 2>/dev/null)" "$work/p.html"
 check "cleared" "$([ -e "$store/diff-page" ] && echo yes || echo no)" "no"
 teardown
 
-echo "gate: a question waits until the page is sent"
+echo "gate: the turn can't end before the page is sent"
 setup
 gate "$work/none.jsonl"
-check "no page: allowed" "$?/$(cat "$work/gate.err")" "0/"
+check "no page: ends" "$?/$(cat "$work/gate.err")" "0/"
 mkdir -p "$store" && echo "$work/p.html" >"$store/diff-page"
-jq -nc '{type: "assistant", message: {content: [{type: "text", text: "❓ 12/12 Verdict — rerun?"}]}}' >"$work/t.jsonl"
+jq -nc '{type: "assistant", message: {content: [{type: "text", text: "Run /kix:ship again?"}]}}' >"$work/t.jsonl"
 gate "$work/t.jsonl"
 check "not sent: blocked" "$?" "2"
 check "says what to send" "$(grep -cF "SendUserFile" "$work/gate.err")/$(grep -cF "$work/p.html" "$work/gate.err")/$(grep -cF "caption" "$work/gate.err")" "1/1/1"
+check "says it's the turn's end" "$(grep -cF "ending the turn" "$work/gate.err")" "1"
 jq -nc --arg f "$work/p.html" '{type: "assistant", message: {content: [{type: "tool_use", id: "tu8", name: "SendUserFile", input: {files: [$f], display: "render", status: "normal"}}]}}' >>"$work/t.jsonl"
 gate "$work/t.jsonl"
 check "sent without a caption: blocked" "$?" "2"
 jq -nc --arg f "$work/p.html" '{type: "assistant", message: {content: [{type: "tool_use", id: "tu9", name: "SendUserFile", input: {files: [$f], display: "render", status: "normal", caption: "Diff page"}}]}}' >>"$work/t.jsonl"
 gate "$work/t.jsonl"
-check "sent with a caption: allowed" "$?" "0"
+check "sent with a caption: ends" "$?" "0"
 check "page cleared" "$([ -e "$store/diff-page" ] && echo yes || echo no)" "no"
 echo "garbage" | bash "$GATE" >/dev/null 2>&1
-check "bad input: allowed" "$?" "0"
+check "bad input: ends" "$?" "0"
 teardown
 
 echo "gate: an Artifact publish of the page counts"
@@ -565,21 +565,7 @@ check "read only: blocked" "$?" "2"
 check "says to publish" "$(grep -cF "Artifact tool" "$work/gate.err")" "1"
 jq -nc --arg f "$work/p.html" '{type: "assistant", message: {content: [{type: "tool_use", id: "tu8", name: "Artifact", input: {file_path: $f, icon: "diff"}}]}}' >>"$work/t.jsonl"
 gate "$work/t.jsonl"
-check "published: allowed" "$?" "0"
-teardown
-
-echo "gate: the turn can't end before the page is sent"
-setup
-gate "$work/none.jsonl" Stop
-check "no page: ends" "$?" "0"
-mkdir -p "$store" && echo "$work/p.html" >"$store/diff-page"
-: >"$work/t.jsonl"
-gate "$work/t.jsonl" Stop
-check "not sent: blocked" "$?" "2"
-check "says it's the turn's end" "$(grep -cF "ending the turn" "$work/gate.err")" "1"
-jq -nc --arg f "$work/p.html" '{type: "assistant", message: {content: [{type: "tool_use", id: "tu9", name: "SendUserFile", input: {files: [$f], caption: "Diff page"}}]}}' >"$work/t.jsonl"
-gate "$work/t.jsonl" Stop
-check "sent: ends" "$?" "0"
+check "published: ends" "$?" "0"
 teardown
 
 echo "gate: a path in the reply text also counts (a terminal without SendUserFile)"
@@ -587,7 +573,7 @@ setup
 mkdir -p "$store" && echo "$work/p.html" >"$store/diff-page"
 jq -nc --arg l "Diff page: $work/p.html" '{type: "assistant", message: {content: [{type: "text", text: $l}]}}' >"$work/t.jsonl"
 gate "$work/t.jsonl"
-check "path printed: allowed" "$?" "0"
+check "path printed: ends" "$?" "0"
 teardown
 
 echo "gate: a shared page counts once its url is in the reply"
@@ -597,21 +583,10 @@ jq -nc --arg f "$work/p.html" '{type: "assistant", message: {content: [{type: "t
 gate "$work/t.jsonl"
 check "says to link the url" "$?/$(grep -cF "(https://box.ts.net/d/p.html)" "$work/gate.err")/$(grep -cF "Artifact" "$work/gate.err")" "2/1/0"
 check "keeps the url" "$(sed -n 3p "$store/diff-page")" "https://box.ts.net/d/p.html"
-check "says to put it in the question" "$(grep -cF "in the question text" "$work/gate.err")" "1"
 jq -nc '{type: "assistant", message: {content: [{type: "text", text: "[Diff page](https://box.ts.net/d/p.html)"}]}}' >>"$work/t.jsonl"
 gate "$work/t.jsonl"
-check "in the reply only: question blocked" "$?" "2"
-gate "$work/t.jsonl" PreToolUse "Rerun? Diff page: https://box.ts.net/d/p.html"
-check "in the question: allowed" "$?" "0"
-check "record cleared" "$([ -e "$store/diff-page" ] && echo yes || echo no)" "no"
-teardown
-
-echo "gate: a shared page's url in the reply lets the turn end"
-setup
-mkdir -p "$store" && printf '%s\n\n%s\n' "$work/p.html" "https://box.ts.net/d/p.html" >"$store/diff-page"
-jq -nc '{type: "assistant", message: {content: [{type: "text", text: "[Diff page](https://box.ts.net/d/p.html)"}]}}' >"$work/t.jsonl"
-gate "$work/t.jsonl" Stop
 check "linked: ends" "$?" "0"
+check "record cleared" "$([ -e "$store/diff-page" ] && echo yes || echo no)" "no"
 teardown
 
 echo "gate: never blocks more than twice"

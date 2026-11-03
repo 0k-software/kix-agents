@@ -168,9 +168,9 @@ kix-agents ships a Claude Code marketplace + plugin — no application code:
   the plugin enabled: `title-first-prompt.sh` (SessionStart, asks for
   `kix:title` after the first message), `bead-session-mark.sh` (SessionStart,
   records the beads DB's start mark for `preflight-checks diff`),
-  `diff-link-gate.sh` (PreToolUse on AskUserQuestion and Stop, holds back
-  questions and the turn's end until a changed verdict's diff page is linked
-  (its shared-folder url, else an Artifact), at most twice) and
+  `diff-link-gate.sh` (Stop, holds back the turn's end — a question included,
+  since the skills ask in plain text — until a changed verdict's diff page is
+  linked (its shared-folder url, else an Artifact), at most twice) and
   `allow-remote-control-off.sh` (PreToolUse, lets `kix:close` turn Remote
   Control off without a prompt). `autocommit.sh` sits beside them but is not in
   `hooks.json`: a per-project Stop hook that blocks the turn's end until the

@@ -47,15 +47,17 @@ name without `origin/`.
 
 2. **Confirm.** Show the branch diff from `<base>` the way `kix:preflight`'s
    _Showing the diff_ says — the compare link in the reply, never in the
-   question — say what "Ship" does, then ask with AskUserQuestion: "Reviewed —
-   can I ship?" Options:
+   question — then ask in plain text at the end of the reply, never
+   AskUserQuestion, and end the turn:
 
-   - "Ship" — "Not a merge: no merge commit. The branch was already rebased
-     onto `<default>`, so its commits land on top of it as they are — flat
-     history.";
-   - "Not yet" — "I still have other things to do in this session."
+   ```
+   **Reviewed — can I ship?**
 
-   Anything but "Ship" → stop.
+   - **ship** — not a merge: no merge commit. The branch was already rebased onto `<default>`, so its commits land on top of it as they are — flat history.
+   - **not yet** — you still have other things to do in this session.
+   ```
+
+   Anything but a clear yes to ship → stop.
 
 3. **Gate.** Right before pushing, recheck — the user may have taken a while:
 

@@ -20,16 +20,18 @@ decision ("nothing urgent", an empty category) are not printed at all.
 
 **Writes on yes only.** next-up runs `bd` and `git worktree` commands itself,
 but only the ones the user approved, and only in the queue step, after the last
-answer. It starts the work it recommends only when the user picks "Start here"
-(Step 6) — otherwise that goes to a new session — and never retitles this
-session for the tracker moves it makes.
+answer. It starts the work it recommends only when the user picks **start
+here** (Step 6) — otherwise that goes to a new session — and never retitles
+this session for the tracker moves it makes.
 
 **Names.** Every bead, epics included, is named by its id and its title
 (`kxa-9so "Bar"`), everywhere: the fix list, the fix blocks, the questions, the
 next-up list, the hand-off prompt. Never a bare id.
 
-**Links** (a PR, a compare view) go in the reply text, never inside an
-AskUserQuestion: a link in a question card cannot be opened on mobile.
+**Questions** are plain text at the end of the reply, never AskUserQuestion: a
+bold question, then each answer as a bullet (`- **<word>** — <what it does>`),
+then the turn ends. The user answers in their own words, several questions in
+one message, with comments; read the answer for meaning.
 
 next-up prints no ❓ line.
 
@@ -165,17 +167,15 @@ Tracker fixes (4):
 
 **Order.** Put first the fixes whose answer can change or cancel others (a
 fold, a collision, an epic's status), then the ones they touch, then the rest.
-Fixes so tightly linked that one answer decides the other are asked together:
-one AskUserQuestion call takes up to four questions.
+Fixes so tightly linked that one answer decides the other share one block and
+one answer.
 
 No fixes → one line saying the tracker is clean, and go to Step 5.
 
 ## Step 3 — Decide
 
-Ask one question per fix (or per linked group), in the list's order — no "Apply
-all" question first: the first question is fix 1's. Right before each question,
-print the fix in the reply as a short Markdown block — the card collapses to
-the chosen label once answered, and the block is what the user scrolls back to:
+Print every fix (or linked group) in the list's order as a short Markdown
+block, all in one reply, then one question for all of them at its end:
 
 ```
 **Fix 2/4 — Fold kxa-9so "Bar" into kxa-5l3 "Close rewrite"**
@@ -185,21 +185,28 @@ the chosen label once answered, and the block is what the user scrolls back to:
 - **Command:** `bd …`
 ```
 
-The card: "Apply" (Recommended when it is) · "Skip"; "Other" is always there
-and means change — follow what the user types, and re-propose the changed fix
-(block and card) before moving on.
+```
+**Which fixes should I apply?** Answer per fix, e.g. `1 apply, 2 fold, 3 skip`,
+or change one in your own words.
 
-A collision gets real options instead of Apply: **fold** (the work becomes part
-of the sweeping epic), **hybrid** (do the piece now in the shape the epic
+- **apply** — run the fix as written.
+- **skip** — leave it.
+```
+
+A collision gets real answers instead of **apply**: **fold** (the work becomes
+part of the sweeping epic), **hybrid** (do the piece now in the shape the epic
 wants), **keep both** (with an order: `bd dep add`). Explain each in the block
-with bead titles, recommended first.
+with bead titles, recommended first, and add them to the question's bullets.
 
-Before asking a fix, check the earlier answers: a fix an earlier answer made
-moot is dropped, and one it changed is rewritten — say so in one line
-(`Fix 5/7 dropped — kxa-xyz "Qux" was folded in fix 2`).
+Read the answer in the list's order: a fix an earlier answer made moot is
+dropped, and one it changed is rewritten — say so in one line
+(`Fix 5/7 dropped — kxa-xyz "Qux" was folded in fix 2`). A fix the user
+changed, or one an earlier answer rewrote, is printed again as a block and
+asked again, together with any fix the answer left out or left unclear, in one
+question; end the turn.
 
-**Nothing runs between questions.** An answer only records the decision; the
-queue starts after the last one, so the user answers in one sitting.
+**Nothing runs before every fix has an answer.** The queue starts after the
+last one, so the user answers in one sitting.
 
 ## Step 4 — Run the queue
 
@@ -236,10 +243,10 @@ Only ready beads count; first match wins:
 3. Neither → no session pick; the ranking below picks #1.
 
 A session pick is #1 and the rest keep the ranking's order after it — unless
-the ranking's own #1 is **Urgent** (below) and is another bead. Then ask, with
-AskUserQuestion, which one is #1: each option names the bead by id and title
-and says why it is there (`named in this session`,
-`next child of kxa-5l3 "Close rewrite"`, `P1 bug`). The other one follows it.
+the ranking's own #1 is **Urgent** (below) and is another bead. Then ask which
+one is #1: each answer names the bead by id and title and says why it is there
+(`named in this session`, `next child of kxa-5l3 "Close rewrite"`, `P1 bug`).
+The other one follows it.
 
 Either way, #1's line says which rule picked it: `named in this session`,
 `next ready child of <epic id> "<epic title>"`, or the ranking's own why.
@@ -262,24 +269,32 @@ here. Fewer than five ready → list what there is. None → say so, and stop.
 
 ## Step 6 — Hand off
 
-Ask: "Start #1" (Recommended) · "Start another" · "Not now". "Start another" →
-a second question with the other items (#2–#5) as options. "Not now" → stop.
-
-**Where.** A start runs in a new session or here, in this one. First
+**Where.** A start runs in a new session or here, in this one. Before asking,
 `git fetch origin`: the previous branch may have just gone to `<default>`, and
 every check and branch below must see its tip. Here is possible only when this
 session's own work has landed: the tree is clean (`git status --porcelain`
 prints nothing) and `HEAD` holds no commit missing from `origin/<default>`
 (`git merge-base --is-ancestor HEAD origin/<default>`) — the next bead never
-starts on top of unlanded work. When it is possible, ask "New session" · "Start
-here". Recommend "New session" when `mcp__ccd_session__start_session` exists
-(load it with ToolSearch if it is deferred) — "Its own worktree session; this
-one stays as it is." — and "Start here" when it does not (plain CLI, the
-phone), where a new session means pasting a prompt by hand — "Paste a prompt
-into a new session yourself.". "Start here": "This session moves to a fresh
-branch from `<default>` and starts it, the conversation so far kept." When
-"Start here" is not possible, go to a new session without asking, and say why
-in one line (`Not here: <branch> holds unlanded work — /kix:ship it first`).
+starts on top of unlanded work. When it is not possible, say why in one line
+(`Not here: <branch> holds unlanded work — /kix:ship it first`) and leave
+**start here** out of the question.
+
+Then ask, in one question, which bead and where:
+
+```
+**Start #1?** Answer e.g. `start`, `start 3 here` or `not now`.
+
+- **start** — <new session: its own worktree session; this one stays as it is.>
+- **start here** — this session moves to a fresh branch from `<default>` and starts it, the conversation so far kept.
+- **start <n>** — another item from the list (#2–#5), new session or here as above.
+- **not now** — stop.
+```
+
+**start** means a new session when `mcp__ccd_session__start_session` exists
+(load it with ToolSearch if it is deferred); without it (plain CLI, the phone)
+a new session means pasting a prompt by hand — say so in its bullet ("paste a
+prompt into a new session yourself") and recommend **start here** when it is
+possible. **not now** → stop.
 
 On a start, build the prompt:
 
@@ -297,7 +312,7 @@ the repo's CLAUDE.md or memories, e.g. "commit on the branch, then offer
 ```
 
 **New session, desktop app** (`start_session` exists): start the session — the
-user's "Start" answer is their go-ahead — with `initiation: "user_asked"`,
+user's **start** answer is their go-ahead — with `initiation: "user_asked"`,
 `context: "fresh"`, `use_worktree: true`, a short `title` (`<id> <title>`), the
 prompt as `prompt` and the context paragraph as `background`. Then turn Remote
 Control on for it: `mcp__ccd_session_mgmt__set_remote_control` with the new
@@ -344,7 +359,7 @@ Otherwise, in order:
    session's task: `bd show`, /using-superpowers, the repo's flow (the claim is
    already done).
 
-Outside "Start here", this session stays on planning: never start the work
+Outside **start here**, this session stays on planning: never start the work
 here.
 
 ## Common mistakes
@@ -353,7 +368,7 @@ here.
   list and questions.
 - Running a command between two questions, or one the user did not approve.
 - Naming a bead by its id alone, epics included.
-- A link inside an AskUserQuestion.
+- An AskUserQuestion call, or one question per fix instead of one for all.
 - Emoji or ❓/✅ progress lines.
 - A `gh` call in a PR-less repo.
 - Forcing `in_progress` on an epic that mixes closed and open children instead
@@ -368,8 +383,7 @@ here.
 - Ranking from the tracker alone when the session already named the next bead
   or works under an epic with a ready child — or picking between a session pick
   and an Urgent bead without asking.
-- Starting the recommended work in this session without the user's "Start
-  here", or retitling it for tracker moves.
+- Starting the recommended work in this session without the user's **start
+  here**, or retitling it for tracker moves.
 - Starting here on top of unlanded work, before fetching, or in the main
   checkout's own branch.
-- Clearing the session, or offering `/clear`, when starting here.

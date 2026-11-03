@@ -7,6 +7,15 @@ The format is based on
 
 ## [Unreleased]
 
+### Changed
+
+- The kix skills ask in plain text instead of AskUserQuestion cards (kxa-ay4):
+  a bold question at the end of the reply, each answer a bullet. Answer in your
+  own words, several questions in one message, with comments. `kix:preflight`
+  prints each finding once, as its Problem / If left / Fix block, then asks one
+  question for all of them (`1 fix, 2 task, 3 discard: intended`). The diff
+  link gate now holds only the turn's end.
+
 ### Added
 
 - `kix:preflight` is faster (kxa-4z5): `preflight-checks start` prints a brief
