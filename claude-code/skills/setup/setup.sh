@@ -28,6 +28,10 @@
 # Re-running is safe: existing non-managed files are kept; the shared hook
 # scripts and Claude/Codex hook config entries are upserted.
 #
+# --update is the mode /kix:update runs on a repo that already has Kix: it
+# refuses a repo without .kix/hooks/session-start.sh, runs the same steps, and
+# skips the first-install-only one (step 8, the CLAUDE.md / AGENTS.md layout).
+#
 # Bundled assets are looked up next to this script (./assets); override with
 # KIX_SETUP_ASSETS=/path/to/assets.
 set -euo pipefail
@@ -36,15 +40,31 @@ note() { printf 'kix-setup: %s\n' "$*"; }
 warn() { printf 'kix-setup: WARNING: %s\n' "$*" >&2; }
 die()  { printf 'kix-setup: error: %s\n' "$*" >&2; exit 1; }
 
+MODE=setup
+case "${1:-}" in
+  "") ;;
+  --update) MODE=update ;;
+  *) die "unknown argument: $1 (usage: setup.sh [--update])" ;;
+esac
+[ $# -le 1 ] || die "too many arguments (usage: setup.sh [--update])"
+
 # --- banner ------------------------------------------------------------------
 # Surface what this script does NOT do, so users running it directly know what
 # /kix:setup adds on top. The skill sets KIX_SETUP_QUIET=1 to suppress.
 if [ -z "${KIX_SETUP_QUIET:-}" ]; then
-  cat >&2 <<'BANNER'
+  if [ "$MODE" = update ]; then
+    cat >&2 <<'BANNER'
+kix-setup: running setup.sh --update directly — mechanical file ops only.
+kix-setup: full workflow (branch + commit, then /kix:ship) lives in the
+kix-setup: /kix:update skill. Set KIX_SETUP_QUIET=1 to hide this.
+BANNER
+  else
+    cat >&2 <<'BANNER'
 kix-setup: running setup.sh directly — mechanical file ops only.
 kix-setup: full workflow (branch + `bd init` + CLAUDE.md content + commit + PR)
 kix-setup: lives in the /kix:setup skill. Set KIX_SETUP_QUIET=1 to hide this.
 BANNER
+  fi
 fi
 
 # --- locate bundled assets ---------------------------------------------------
@@ -57,6 +77,9 @@ git rev-parse --git-dir >/dev/null 2>&1 || die "not inside a git repository"
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
 note "target repository: $REPO_ROOT"
+if [ "$MODE" = update ] && [ ! -e .kix/hooks/session-start.sh ]; then
+  die "Kix is not installed here (no .kix/hooks/session-start.sh). Run /kix:setup for a first install."
+fi
 
 needs_attention=()
 
@@ -281,8 +304,11 @@ fi
 # --- 8. AGENTS.md ↔ CLAUDE.md alias -----------------------------------------
 # Mirror kix-agents convention: AGENTS.md is a symlink to CLAUDE.md so agent
 # instructions don't drift between the two files. The skill's Step 6 fills the
-# CLAUDE.md content; this section just enforces the symlink.
-if [ -L AGENTS.md ] && [ "$(readlink AGENTS.md)" = "CLAUDE.md" ]; then
+# CLAUDE.md content; this section just enforces the symlink. First install
+# only: a Kix repo's agent files are its own by now.
+if [ "$MODE" = update ]; then
+  note "update: left CLAUDE.md / AGENTS.md alone"
+elif [ -L AGENTS.md ] && [ "$(readlink AGENTS.md)" = "CLAUDE.md" ]; then
   note "AGENTS.md already symlinked to CLAUDE.md"
 elif [ -f AGENTS.md ] && [ ! -e CLAUDE.md ]; then
   mv -f AGENTS.md CLAUDE.md
@@ -311,9 +337,14 @@ if [ "${#needs_attention[@]}" -gt 0 ]; then
   for item in "${needs_attention[@]}"; do printf 'kix-setup:   - %s\n' "$item"; done
 fi
 echo
-note "not done by this script (the /kix:setup skill handles these):"
-note "  - bd init   (give this repo a beads issue tracker, if it doesn't have one)"
-note "  - add a Beads section to CLAUDE.md (AGENTS.md is now a symlink to it)"
-note "  - enable the kix plugin for the repo ('kix@kix-agents': true under enabledPlugins)"
-note "  - review/trust the repo-local Codex hooks via /hooks on first Codex run"
-note "  - commit, push, open the PR"
+if [ "$MODE" = update ]; then
+  note "not done by this script (the /kix:update skill handles these):"
+  note "  - commit on the update branch, then land it with /kix:ship"
+else
+  note "not done by this script (the /kix:setup skill handles these):"
+  note "  - bd init   (give this repo a beads issue tracker, if it doesn't have one)"
+  note "  - add a Beads section to CLAUDE.md (AGENTS.md is now a symlink to it)"
+  note "  - enable the kix plugin for the repo ('kix@kix-agents': true under enabledPlugins)"
+  note "  - review/trust the repo-local Codex hooks via /hooks on first Codex run"
+  note "  - commit, push, open the PR"
+fi

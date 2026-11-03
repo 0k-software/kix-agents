@@ -48,6 +48,9 @@ runs on SessionStart, then open a PR with the changes:
 - **Optionally** — `bd init` to give the repo a beads issue tracker, and a
   Beads / session-completion / non-interactive-shell section in `CLAUDE.md`.
 
+This is the first install. A repo that already has Kix gets the current tooling
+through `/kix:update`, which runs the same script as `setup.sh --update`.
+
 The mechanical file changes are done by the bundled script `setup.sh` (next to
 this `SKILL.md`); this skill runs it, then handles the merges the script can't
 do safely, the optional `bd init` + `CLAUDE.md` edits, and the commit / push /

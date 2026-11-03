@@ -9,6 +9,12 @@ The format is based on
 
 ### Added
 
+- `/kix:update` brings a repo that already has Kix up to the current tooling:
+  it reruns `setup.sh`'s idempotent steps (`setup.sh --update`) — Prettier
+  gate, pre-commit hook, `.kix/hooks/` scripts, Codex block,
+  `.claude/settings.json` hook entries — on a `kix/update` branch and offers
+  `/kix:ship`. First install (`bd init`, the `CLAUDE.md` section, the PR) stays
+  with `/kix:setup`, and `--update` refuses a repo without Kix.
 - `kix:preflight` is faster (kxa-4z5): `preflight-checks start` prints a brief
   — the rows, then each stale check's instructions and the data it needs
   (range, bead criteria, checkbox candidates, bd updates, prompts since its
