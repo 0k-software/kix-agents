@@ -184,6 +184,11 @@ tx_ask() {
   jq -nc --arg u "$1" --arg t "$2" --arg i "$3" \
     '{type: "assistant", uuid: $u, timestamp: $t, message: {role: "assistant", content: [{type: "tool_use", id: $i, name: "AskUserQuestion", input: {}}]}}' >>"$tx"
 }
+# An assistant reply with text $3.
+tx_say() {
+  jq -nc --arg u "$1" --arg t "$2" --arg x "$3" \
+    '{type: "assistant", uuid: $u, timestamp: $t, message: {role: "assistant", content: [{type: "text", text: $x}]}}' >>"$tx"
+}
 tx_bash() {
   jq -nc --arg u "$1" --arg t "$2" --arg i "$3" \
     '{type: "assistant", uuid: $u, timestamp: $t, message: {role: "assistant", content: [{type: "tool_use", id: $i, name: "Bash", input: {}}]}}' >>"$tx"
@@ -423,6 +428,36 @@ check "excerpt" "$("$BIN" start --no-fetch --format tsv | grep -c "    $T2 · wh
 echo '[]' | "$BIN" mark conversation-leftovers >/dev/null
 tx_answer r2 $T3 q1 "Fix" "and rename it too"
 check "notes" "$(row conversation-leftovers)" "stale/conversation since $T3"
+teardown
+
+echo "conversation: a plain-text answer that is an offered word does not stale"
+setup
+tx_init
+tx_turn u1 $T1 "hello"
+echo '[]' | "$BIN" mark conversation-leftovers >/dev/null
+q=$'Changed.\n\n**Run `/kix:preflight` again?**\n\n- **reviewed** — you skimmed it.\n- **skip review** — rerun now.\n- **not now** — stop.'
+tx_say a1 $T2 "$q"
+tx_turn u2 $T2 "Reviewed."
+check "offered word" "$(row conversation-leftovers | cut -d/ -f1)" "fresh"
+tx_say a2 $T3 "$q"
+tx_turn u3 $T3 "skip review"
+check "two-word answer" "$(row conversation-leftovers | cut -d/ -f1)" "fresh"
+tx_turn u4 $T4 "reviewed"
+check "no reply offered it" "$(row conversation-leftovers)" "stale/conversation since $T4"
+teardown
+
+echo "conversation: more than an offered word, or no bullets, stales"
+setup
+tx_init
+tx_turn u1 $T1 "hello"
+echo '[]' | "$BIN" mark conversation-leftovers >/dev/null
+tx_say a1 $T2 $'**Ship?**\n\n- **ship** — land it.\n- **not yet** — wait.'
+tx_turn u2 $T2 "ship, and rename it too"
+check "extra words" "$(row conversation-leftovers)" "stale/conversation since $T2"
+echo '[]' | "$BIN" mark conversation-leftovers >/dev/null
+tx_say a2 $T3 "**Please review the findings and tell me what to do with each.**"
+tx_turn u3 $T3 "fix all"
+check "decide answer" "$(row conversation-leftovers)" "stale/conversation since $T3"
 teardown
 
 echo "conversation: meta lines do not"

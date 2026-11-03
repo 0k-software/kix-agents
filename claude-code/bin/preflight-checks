@@ -504,38 +504,59 @@ transcript_path() {
 #   u <line> <uuid> <ts>       every entry with a uuid
 #   p <line> <ts> <excerpt>    every entry that starts a turn: a prompt that is
 #                              not injected meta text, or a queued command
-# An AskUserQuestion answer that picks offered options starts nothing: after a
-# marker it answers preflight's own Decide or Verdict question. One typed
-# instead (Other) or with notes is a prompt: it can ask or add anything.
+# An answer that is just one of the words the last reply offered starts
+# nothing: the skills ask in plain text (kxa-ay4), each answer a
+# `- **<word>** — …` bullet, so after a marker such an answer is preflight's
+# own Verdict, rerun or ship question. Anything more ("reviewed, and rename
+# it"), or an answer to a reply without bullets (Decide), is a prompt: it can
+# ask or add anything. The same goes for an AskUserQuestion answer: offered
+# labels start nothing, one typed instead (Other) or with notes is a prompt.
 # Unparseable lines (Claude Code writing) are skipped.
 tx_index() { cached txindex tx_index_read; }
 tx_index_read() {
   local t
   t=$(transcript)
   [ -n "$t" ] || return 0
-  jq -rR '
+  jq -nrR '
     # The answer is offered labels joined by ", " (multiSelect); a label may
     # hold ", " itself.
     def tiled($ls): . as $s | any($ls[] as $l | $s == $l or (($s | startswith($l + ", ")) and ($s[($l | length + 2):] | tiled($ls))); .);
-    fromjson? | select(type == "object") | input_line_number as $n
-    | (if (.uuid | type) == "string" then "u\t\($n)\t\(.uuid)\t\(.timestamp // "" | tostring)" else empty end),
-      (select((.timestamp | type) == "string") | . as $e | (.message.content?) as $c
-        | select((.type == "attachment" and .attachment.type? == "queued_command")
-            or (.type == "user" and .isMeta != true
-                and (($c | type) == "string" or (($c | type) == "array" and $c[0]?.type? != "tool_result"))))
-        | (if $e.type == "attachment" then ($e.attachment.prompt // "" | tostring)
-           elif ($c | type) == "string" then $c
-           else ([$c[]? | select(.type? == "text") | .text] | first // "") end)
-        | gsub("(?s)<system-reminder>.*?</system-reminder>"; "") | gsub("\\s+"; " ") | ltrimstr(" ") | .[0:100]
-        | "p\t\($n)\t\($e.timestamp)\t\(.)"),
-      (select((.timestamp | type) == "string" and (.toolUseResult.answers? | type) == "object")
-        | . as $e | [.toolUseResult.questions[]? | .options[]?.label] as $labels
-        | [(.toolUseResult.answers | to_entries[] | .value | tostring
-             | select((startswith("[User did not answer") or tiled($labels)) | not)),
-           (.toolUseResult.annotations? // {} | to_entries[]? | .value.notes? // empty | tostring)]
-        | map(select(. != "")) | select(length > 0) | join(" · ")
-        | gsub("\\s+"; " ") | ltrimstr(" ") | .[0:100]
-        | "p\t\($n)\t\($e.timestamp)\t\(.)")
+    def unremind: gsub("(?s)<system-reminder>.*?</system-reminder>"; "");
+    def norm: unremind | ascii_downcase | gsub("^\\s+|[\\s.!]+$"; "");
+    def excerpt: unremind | gsub("\\s+"; " ") | ltrimstr(" ") | .[0:100];
+    # The words a reply offers as answers: its `- **<word>** — …` bullets.
+    def offered: [scan("(?m)^[-*] \\*\\*([^*\\n]+)\\*\\*") | .[0] | norm];
+    # The text of an entry that starts a turn, else null.
+    def prompt:
+      (.message.content?) as $c
+      | if .type == "attachment" and .attachment.type? == "queued_command" then .attachment.prompt // "" | tostring
+        elif .type == "user" and .isMeta != true and (($c | type) == "string" or (($c | type) == "array" and $c[0]?.type? != "tool_result"))
+        then (if ($c | type) == "string" then $c else ([$c[]? | select(.type? == "text") | .text] | first // "") end)
+        else null end;
+    foreach (inputs | [input_line_number, (fromjson? // null)]) as [$n, $e] ({offered: []};
+      .out = []
+      | if ($e | type) != "object" then .
+        else
+          (if ($e.uuid | type) == "string" then .out += ["u\t\($n)\t\($e.uuid)\t\($e.timestamp // "" | tostring)"] else . end)
+          | if ($e.timestamp | type) != "string" then .
+            elif $e.type == "assistant" then
+              ([$e.message.content[]? | select(.type? == "text") | .text] | last) as $x
+              | if $x == null then . else .offered = ($x | offered) end
+            elif ($e | prompt) != null then
+              ($e | prompt) as $p
+              | (if ($p | norm) as $a | any(.offered[]; . == $a) then .
+                 else .out += ["p\t\($n)\t\($e.timestamp)\t\($p | excerpt)"] end)
+              | .offered = []
+            elif ($e.toolUseResult.answers? | type) == "object" then
+              ([$e.toolUseResult.questions[]? | .options[]?.label] as $labels
+                | [($e.toolUseResult.answers | to_entries[] | .value | tostring
+                     | select((startswith("[User did not answer") or tiled($labels)) | not)),
+                   ($e.toolUseResult.annotations? // {} | to_entries[]? | .value.notes? // empty | tostring)]
+                | map(select(. != "")) | join(" · ") | excerpt) as $x
+              | if $x == "" then . else .out += ["p\t\($n)\t\($e.timestamp)\t\($x)"] end
+            else . end
+        end;
+      .out[])
   ' "$t" 2>/dev/null
 }
 
