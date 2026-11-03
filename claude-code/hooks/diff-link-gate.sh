@@ -1,22 +1,21 @@
 #!/bin/bash
-# Stop hook for kix:preflight's diff page (kxa-a9i). A changed verdict's status call
-# (`preflight-checks --diff-html`) records the page it wrote in the session
-# store as `diff-page`; the skill then publishes it as an Artifact and links
-# it. Demos showed the model skipping that step and going straight to the
-# rerun question, so the user reviewed with no diff — and a `file://` link in
-# the reply text is no fix: such text never reaches the transcript, nor the
-# user (kxa-bun). The skills ask in the reply text (kxa-ay4), so a question
-# ends the turn: this gate blocks the end of the turn until
-# the transcript shows the page was sent — an Artifact publish of it (a
-# claude.ai page, which the phone opens too; kxa-9bm), else a SendUserFile
-# call naming it with a caption, else its path printed in the reply — and says
-# what to do. Once it sees one, it clears the record. It blocks at most twice
-# per page, then lets the turn end: a gate that can never be satisfied must
-# not lock the session. Blocking is exit 2 with the reason on stderr. Anything
-# it can't read — no jq, bad input, no record — lets the turn end. An interim
-# guard, until Kix checkpoints check the Verdict. When the page went to the
-# user's shared folder (KIX_SHARE_DIR), the record's third line is its url,
-# which must be in the reply.
+# Stop hook for kix:preflight's diff page (kxa-a9i). A changed verdict's status
+# call (`preflight-checks --diff-html`) records the page it wrote in the session
+# store as `diff-page`; the skill then publishes it as an Artifact and links it.
+# Demos showed the model skipping that step and going straight to the rerun
+# question, so the user reviewed with no diff — and a `file://` link in the
+# reply text is no fix: such text never reaches the transcript, nor the user
+# (kxa-bun). The skills ask in the reply text (kxa-ay4), so a question ends the
+# turn: this gate blocks the end of the turn until the transcript shows the page
+# was sent — an Artifact publish of it (a claude.ai page, which the phone opens
+# too; kxa-9bm), else a SendUserFile call naming it with a caption, else its
+# path printed in the reply — and says what to do. Once it sees one, it clears
+# the record. It blocks at most twice per page, then lets the turn end: a gate
+# that can never be satisfied must not lock the session. Blocking is exit 2 with
+# the reason on stderr. Anything it can't read — no jq, bad input, no record —
+# lets the turn end. An interim guard, until Kix checkpoints check the Verdict.
+# When the page went to the user's shared folder (KIX_SHARE_DIR), the record's
+# third line is its url, which must be in the reply.
 
 command -v jq >/dev/null 2>&1 || exit 0
 input=$(cat)
@@ -76,11 +75,11 @@ EOF
   exit 2
 fi
 cat >&2 <<EOF
-Publish the diff page before ending the turn: the user reviews the changes from it.
-Call the Artifact tool with file_path "$page", icon "diff" and a description
-saying what it is, then link its url in your reply as "[Diff page — the
-commits and bead changes to review](<url>)" (in the user's language). Without
-that tool, send it with SendUserFile (display "render", a caption saying what
-it is); without either, print the path. Then end the turn as you meant to.
+Publish the diff page before ending the turn: the user reviews the changes from
+it. Call the Artifact tool with file_path "$page", icon "diff" and a description
+saying what it is, then link its url in your reply as "[Diff page — the commits
+and bead changes to review](<url>)" (in the user's language). Without that tool,
+send it with SendUserFile (display "render", a caption saying what it is);
+without either, print the path. Then end the turn as you meant to.
 EOF
 exit 2
