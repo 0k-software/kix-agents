@@ -30,8 +30,9 @@ next-up list, the hand-off prompt. Never a bare id.
 
 **Questions** are plain text at the end of the reply, never AskUserQuestion: a
 bold question, then each answer as a bullet (`- **<word>** — <what it does>`),
-then the turn ends. The user answers in their own words, several questions in
-one message, with comments; read the answer for meaning.
+the recommended one first, marked `(recommended)` after its word, then the turn
+ends. The user answers in their own words, several questions in one message,
+with comments; read the answer for meaning.
 
 next-up prints no ❓ line.
 
@@ -284,7 +285,7 @@ Then ask, in one question, which bead and where:
 ```
 **Start #1?** Answer e.g. `start`, `start 3 here` or `not now`.
 
-- **start** — <new session: its own worktree session; this one stays as it is.>
+- **start** (recommended) — <new session: its own worktree session; this one stays as it is.>
 - **start here** — this session moves to a fresh branch from `<default>` and starts it, the conversation so far kept.
 - **start <n>** — another item from the list (#2–#5), new session or here as above.
 - **not now** — stop.
@@ -293,8 +294,8 @@ Then ask, in one question, which bead and where:
 **start** means a new session when `mcp__ccd_session__start_session` exists
 (load it with ToolSearch if it is deferred); without it (plain CLI, the phone)
 a new session means pasting a prompt by hand — say so in its bullet ("paste a
-prompt into a new session yourself") and recommend **start here** when it is
-possible. **not now** → stop.
+prompt into a new session yourself"), and when **start here** is possible, list
+it first and mark it `(recommended)` instead of **start**. **not now** → stop.
 
 On a start, build the prompt:
 

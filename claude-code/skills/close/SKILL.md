@@ -19,7 +19,8 @@ replies, questions and their answer words, and every commit you write.
 
 **Questions** are plain text at the end of the reply, never AskUserQuestion: a
 bold question, then each answer as a bullet (`- **<word>** — <what it does>`),
-then the turn ends. Read the answer for meaning.
+the recommended one first, marked `(recommended)` after its word, then the turn
+ends. Read the answer for meaning.
 
 **No progress lines.**
 

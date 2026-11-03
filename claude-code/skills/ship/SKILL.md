@@ -48,12 +48,13 @@ name without `origin/`.
 2. **Confirm.** Show the branch diff from `<base>` the way `kix:preflight`'s
    _Showing the diff_ says — the compare link in the reply, never in the
    question — then ask in plain text at the end of the reply, never
-   AskUserQuestion, and end the turn:
+   AskUserQuestion, the recommended answer first and marked `(recommended)`
+   after its word, and end the turn:
 
    ```
    **Reviewed — can I ship?**
 
-   - **ship** — not a merge: no merge commit. The branch was already rebased onto `<default>`, so its commits land on top of it as they are — flat history.
+   - **ship** (recommended) — not a merge: no merge commit. The branch was already rebased onto `<default>`, so its commits land on top of it as they are — flat history.
    - **not yet** — you still have other things to do in this session.
    ```
 

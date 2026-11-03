@@ -22,8 +22,9 @@ write (labels included — a Portuguese arrival says `Sessão do Claude:`).
 
 **Questions** are plain text at the end of the reply, never AskUserQuestion: a
 bold question, then each answer as a bullet (`- **<word>** — <what it does>`),
-then the turn ends. The user answers in their own words, several questions in
-one message, with comments; read the answer for meaning.
+the recommended one first, marked `(recommended)` after its word, then the turn
+ends. The user answers in their own words, several questions in one message,
+with comments; read the answer for meaning.
 
 **Speed.** Every tool call costs a model turn. Send independent calls together
 in one message — the diff and the files around its hunks, caller greps, test
