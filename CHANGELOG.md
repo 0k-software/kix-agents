@@ -12,9 +12,11 @@ The format is based on
 - The kix skills ask in plain text instead of AskUserQuestion cards (kxa-ay4):
   a bold question at the end of the reply, each answer a bullet. Answer in your
   own words, several questions in one message, with comments. `kix:preflight`
-  prints each finding once, as its Problem / If left / Fix block, then asks one
-  question for all of them (`1 fix, 2 task, 3 discard: intended`). The diff
-  link gate now holds only the turn's end.
+  prints each finding once, as its Problem / If left / Fix block with every fix
+  (recommended first), then asks you to review them all and say what to do with
+  each — postponing or discarding is fine, a discard needs a reason. The diff
+  link gate now holds only the turn's end. The outdated
+  `scripts/bench-preflight.py` is gone.
 
 ### Added
 
