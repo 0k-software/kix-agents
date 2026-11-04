@@ -148,7 +148,10 @@ needs a force — the rebase rewrote the commits it holds; a branch that was
 never pushed gets a plain first push:
 
 ```bash
-if git ls-remote --exit-code --heads origin "$(git branch --show-current)" >/dev/null; then
+b=$(git branch --show-current)
+if [ -z "$b" ]; then
+  echo "detached HEAD: no branch to push"
+elif git ls-remote --exit-code --heads origin "$b" >/dev/null; then
   git push --force-with-lease origin HEAD
 else
   git push -u origin HEAD
