@@ -142,10 +142,22 @@ whatever the user's configured default: a conflict is the user's call, so the
 rebase asks them about each one (keep mine, keep theirs, keep both) instead of
 resolving it on its own. An older `kix:rebase` (its _Invocation modes_ list no
 `?` marker) would read the `?` as part of the branch name: invoke it with just
-`<default>` then. Without it, `git rebase <base>`. Then
-`git push --force-with-lease origin HEAD` (on `<default>` itself there is no
-branch push). Never rebase when `behind-default-branch` reads `pass` — the
-commit of a dirty tree only adds on top of HEAD.
+`<default>` then. Without it, `git rebase <base>`. Then push the branch (on
+`<default>` itself there is no branch push). Only a branch origin already has
+needs a force — the rebase rewrote the commits it holds; a branch that was
+never pushed gets a plain first push:
+
+```bash
+if git ls-remote --exit-code --heads origin "$(git branch --show-current)" >/dev/null; then
+  git push --force-with-lease origin HEAD
+else
+  git push -u origin HEAD
+fi
+```
+
+Never force anywhere else: every other push only adds commits on top. Never
+rebase when `behind-default-branch` reads `pass` — the commit of a dirty tree
+only adds on top of HEAD.
 
 A rebase that went through on its own (no conflict) needs no word to the user:
 `<default>`'s new commits are not theirs to review, and the checks don't count
@@ -374,7 +386,7 @@ its rule names:
 After the last job, one call pushes and reads the state for step 6:
 
 ```bash
-git push --force-with-lease origin HEAD; bd dolt push; preflight-checks --no-fetch --format tsv --diff-html <file> [--from <first step 5 commit>]; preflight-checks findings
+git push -u origin HEAD; bd dolt push; preflight-checks --no-fetch --format tsv --diff-html <file> [--from <first step 5 commit>]; preflight-checks findings
 ```
 
 (`bd dolt push` only when a job touched the tracker and the repo has a Dolt
@@ -536,6 +548,8 @@ ask again.
 - Sending a check or a Fix job to an agent.
 - Reviewing the diff yourself instead of loading `code-review` for
   `diff-review`.
+- A force push anywhere but right after a rebase of a branch origin already
+  has.
 - Reviewing before the rebase, or rebasing when `behind-default-branch` reads
   `pass`.
 - Hardcoding `main` instead of the detected default branch.

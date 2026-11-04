@@ -70,12 +70,13 @@ name without `origin/`.
    preflight: the user doesn't review `<default>`'s commits, so don't ask.
    Rebase with `kix:rebase ? <default>` (the way `kix:preflight`'s step 1 does,
    conflicts included: the user answers each one, and stopping at one ends the
-   ship), push the branch with `git push --force-with-lease origin HEAD`, say
-   nothing about it when it went through, and run the recheck again. A clean
-   rebase keeps every check fresh (kxa-xsh); a commit a conflict rewrote stales
-   `diff-review`, and the gate below stops on it. One rebase per ship: when
-   `<default>` moved again by the second recheck (another session shipping),
-   the gate below stops on `behind-default-branch` instead of rebasing again.
+   ship), push the branch the way `kix:preflight`'s step 1 does (a force only
+   when origin already has the branch), say nothing about it when it went
+   through, and run the recheck again. A clean rebase keeps every check fresh
+   (kxa-xsh); a commit a conflict rewrote stales `diff-review`, and the gate
+   below stops on it. One rebase per ship: when `<default>` moved again by the
+   second recheck (another session shipping), the gate below stops on
+   `behind-default-branch` instead of rebasing again.
 
    Stop unless `uncommitted-changes` is `pass`, `behind-default-branch` is
    `pass`, `diff-review` is `fresh` or `skip`, `findings-leftovers` is `pass`,
@@ -84,16 +85,16 @@ name without `origin/`.
    since the preflight (uncommitted changes / diff not reviewed / open findings
    / bead changes not reviewed) with the branch diff from `<base>` as its link,
    then ask "Run `<command>` again?" with `kix:preflight`'s _Verdict_
-   **changed** rerun options (reviewed · skip my review · not now) — this stop
-   opens no diff page; on "skip my review", the ⚠️ item names the branch range
-   `<base>..HEAD`. `<command>` as _Verdict_ defines it (`/kix:close` when close
-   called ship). Never review here to fix it.
+   **changed** rerun options (**reviewed** · **skip review** · **not now**) —
+   this stop opens no diff page; on **skip review**, the ⚠️ item names the
+   branch range `<base>..HEAD`. `<command>` as _Verdict_ defines it
+   (`/kix:close` when close called ship). Never review here to fix it.
 
 4. **Push and check**, in one call:
 
    ```bash
    old=$(git rev-parse <base>) \
-     && git push origin HEAD:<default> && git push --force-with-lease origin HEAD \
+     && git push origin HEAD:<default> && git push -u origin HEAD \
      && git fetch origin && git merge-base --is-ancestor HEAD <base> && echo IN_DEFAULT \
      && git log --oneline "$old..HEAD"
    ```
