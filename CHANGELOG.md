@@ -10,13 +10,18 @@ The format is based on
 ### Changed
 
 - The kix skills ask in plain text instead of AskUserQuestion cards (kxa-ay4):
-  a bold question at the end of the reply, each answer a bullet. Answer in your
-  own words, several questions in one message, with comments. `kix:preflight`
-  prints each finding once, as its Problem / If left / Fix block with every fix
-  (recommended first), then asks you to review them all and say what to do with
-  each — postponing or discarding is fine, a discard needs a reason. The diff
-  link gate now holds only the turn's end. The outdated
-  `scripts/bench-preflight.py` is gone.
+  a bold question at the end of the reply, each answer a bold word, the
+  recommended one first and marked `(recommended)`. Answer in your own words,
+  several questions in one message, with comments; an answer that is just one
+  of the offered words doesn't make preflight's conversation checks rerun.
+  `kix:preflight` prints each finding once, as its Problem / If left / Fix
+  block with every fix (recommended first), then asks you to review them all
+  and say what to do with each — postponing or discarding is fine, a discard
+  needs a reason. The diff link gate now holds only the turn's end. The
+  outdated `scripts/bench-preflight.py` is gone.
+- `kix:preflight` and `kix:ship` force-push a branch only right after a rebase,
+  and only when origin already has it; every other push is a plain
+  `git push -u origin HEAD`.
 
 ### Added
 
