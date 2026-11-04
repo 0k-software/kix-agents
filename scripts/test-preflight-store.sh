@@ -444,6 +444,10 @@ tx_turn u3 $T3 "skip review"
 check "two-word answer" "$(row conversation-leftovers | cut -d/ -f1)" "fresh"
 tx_turn u4 $T4 "reviewed"
 check "no reply offered it" "$(row conversation-leftovers)" "stale/conversation since $T4"
+echo '[]' | "$BIN" mark conversation-leftovers >/dev/null
+tx_say a3 $T4 'Still open: 2/7. **Rerun `/kix:preflight` to decide them?** — **rerun** · **not now**'
+tx_turn u5 $T4 "rerun"
+check "inline answer" "$(row conversation-leftovers | cut -d/ -f1)" "fresh"
 teardown
 
 echo "conversation: more than an offered word, or no bullets, stales"

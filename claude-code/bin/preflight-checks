@@ -505,12 +505,12 @@ transcript_path() {
 #   p <line> <ts> <excerpt>    every entry that starts a turn: a prompt that is
 #                              not injected meta text, or a queued command
 # An answer that is just one of the words the last reply offered starts
-# nothing: the skills ask in plain text (kxa-ay4), each answer a
-# `- **<word>** — …` bullet, so after a marker such an answer is preflight's
-# own Verdict, rerun or ship question. Anything more ("reviewed, and rename
-# it"), or an answer to a reply without bullets (Decide), is a prompt: it can
-# ask or add anything. The same goes for an AskUserQuestion answer: offered
-# labels start nothing, one typed instead (Other) or with notes is a prompt.
+# nothing: the skills ask in plain text (kxa-ay4), each answer a bold word, so
+# after a marker such an answer is preflight's own Verdict, rerun or ship
+# question. Anything more ("reviewed, and rename it"), or an answer that is no
+# word of the reply (a Decide answer), is a prompt: it can ask or add anything.
+# The same goes for an AskUserQuestion answer: offered labels start nothing,
+# one typed instead (Other) or with notes is a prompt.
 # Unparseable lines (Claude Code writing) are skipped.
 tx_index() { cached txindex tx_index_read; }
 tx_index_read() {
@@ -524,8 +524,9 @@ tx_index_read() {
     def unremind: gsub("(?s)<system-reminder>.*?</system-reminder>"; "");
     def norm: unremind | ascii_downcase | gsub("^\\s+|[\\s.!]+$"; "");
     def excerpt: unremind | gsub("\\s+"; " ") | ltrimstr(" ") | .[0:100];
-    # The words a reply offers as answers: its `- **<word>** — …` bullets.
-    def offered: [scan("(?m)^[-*] \\*\\*([^*\\n]+)\\*\\*") | .[0] | norm];
+    # The words a reply offers as answers: every `**<word>**` in it, bullets
+    # and inline lists (`**rerun** · **not now**`) alike.
+    def offered: [scan("\\*\\*([^*\\n]+)\\*\\*") | .[0] | norm];
     # The text of an entry that starts a turn, else null.
     def prompt:
       (.message.content?) as $c
