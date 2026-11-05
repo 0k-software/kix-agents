@@ -142,15 +142,16 @@ whatever the user's configured default: a conflict is the user's call, so the
 rebase asks them about each one (keep mine, keep theirs, keep both) instead of
 resolving it on its own. An older `kix:rebase` (its _Invocation modes_ list no
 `?` marker) would read the `?` as part of the branch name: invoke it with just
-`<default>` then. Without it, `git rebase <base>`. Then push the branch (on
-`<default>` itself there is no branch push). Only a branch origin already has
-needs a force — the rebase rewrote the commits it holds; a branch that was
-never pushed gets a plain first push:
+`<default>` then. Without it, `git rebase <base>`. Then push the branch. Only a
+branch origin already has needs a force — the rebase rewrote the commits it
+holds; a branch that was never pushed gets a plain first push:
 
 ```bash
 b=$(git branch --show-current)
 if [ -z "$b" ]; then
   echo "detached HEAD: no branch to push"
+elif [ "$b" = "<default>" ]; then
+  echo "on <default>: no branch push"
 elif git ls-remote --exit-code --heads origin "$b" >/dev/null; then
   git push --force-with-lease origin HEAD
 else
