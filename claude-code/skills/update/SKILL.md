@@ -64,6 +64,13 @@ Work through `needs manual attention` the way `kix:setup`'s Step 4 does: a
 script would not touch, a near-duplicate entry in `.claude/settings.json` or
 `.codex/config.toml`. Ask before each in interactive mode.
 
+The script refreshes `.kix/hooks/install-bd.sh`, so the bd pin may move while
+`.beads/PRIME.md` keeps its old `<!-- kix-prime: bd X.Y.Z -->` stamp, and
+`make check` fails on the drift (`.kix/hooks/check-prime.sh`). The script never
+overwrites `PRIME.md`: repos edit it. Re-export with `bd prime --export`, merge
+the changes into `.beads/PRIME.md` by hand, keeping the repo's own edits, then
+bump the stamp to the new pin. Show the merge first in interactive mode.
+
 ## Step 5 — Verify
 
 1. `make autofix`, then `make check`.
