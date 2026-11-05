@@ -85,11 +85,13 @@ Stage everything and commit in one call (the installed `pre-commit` hook
 rejects a dirty tree):
 
 ```bash
-git add -A && git commit -m "chore: update Kix repo tooling"
+git add -A && git commit -m "<message>"
 ```
 
-The message body lists what changed (the scripts refreshed, the settings
-entries added or dropped). No push, no PR.
+Write the message in the repo's commit style (`git log --oneline -10`), naming
+the bead the update is for when there is one; `chore: update Kix repo tooling`
+only when the repo has no style to follow. The body lists what changed (the
+scripts refreshed, the settings entries added or dropped). No push, no PR.
 
 ## Step 7 — Report
 
