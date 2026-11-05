@@ -88,6 +88,15 @@ check "exit status" "$?" "0"
 check "no CLAUDE.md" "$(test -e "$r/CLAUDE.md" && echo yes || echo no)" "no"
 check "no AGENTS.md" "$(test -L "$r/AGENTS.md" && echo yes || echo no)" "no"
 
+echo "Kix repo with its own pre-commit additions: hook kept, merge flagged"
+r=$(kix_repo ownhook)
+echo '# repo-only gate' >>"$r/.beads/hooks/pre-commit"
+commit_all "$r" "own hook"
+out=$(cd "$r" && bash "$SETUP" --update 2>&1)
+check "exit status" "$?" "0"
+check "hook kept" "$(tail -1 "$r/.beads/hooks/pre-commit")" "# repo-only gate"
+check "merge flagged" "$(printf '%s' "$out" | grep -c 'merge .* into .beads/hooks/pre-commit by hand')" "1"
+
 echo "second update run: nothing changes"
 r=$(kix_repo twice)
 setup "$r" --update

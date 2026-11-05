@@ -135,10 +135,19 @@ copy_if_absent check.yml .github/workflows/check.yml || true
 #     hooks (post-merge, pre-push, …) run too.
 #   - otherwise: the hook lives in .git-hooks/ and is copied into the repo's
 #     real hooks dir (the classic `make setup` mechanism).
+#
+# --update keeps a .beads/hooks/pre-commit that differs from the shipped one:
+# a repo may add to it (kix-agents' own test gate), so the merge is a human's.
 if [ -d .beads/hooks ]; then
-  cp -f "$ASSETS_DIR/pre-commit" .beads/hooks/pre-commit
+  if [ "$MODE" = update ] && [ -e .beads/hooks/pre-commit ] \
+    && ! cmp -s "$ASSETS_DIR/pre-commit" .beads/hooks/pre-commit; then
+    warn "kept .beads/hooks/pre-commit — it differs from the kix one"
+    needs_attention+=("merge $ASSETS_DIR/pre-commit into .beads/hooks/pre-commit by hand — the repo's hook differs (an older kix hook, or the repo's own additions)")
+  else
+    cp -f "$ASSETS_DIR/pre-commit" .beads/hooks/pre-commit
+    note "wrote .beads/hooks/pre-commit (beads sync + Prettier gate)"
+  fi
   chmod +x .beads/hooks/* 2>/dev/null || true
-  note "wrote .beads/hooks/pre-commit (beads sync + Prettier gate)"
   current_hp="$(git config --local --get core.hooksPath 2>/dev/null || true)"
   if [ -z "$current_hp" ]; then
     git config core.hooksPath .beads/hooks
