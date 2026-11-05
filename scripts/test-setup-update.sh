@@ -88,6 +88,14 @@ check "exit status" "$?" "0"
 check "no CLAUDE.md" "$(test -e "$r/CLAUDE.md" && echo yes || echo no)" "no"
 check "no AGENTS.md" "$(test -L "$r/AGENTS.md" && echo yes || echo no)" "no"
 
+echo "Kix repo without check.yml: update leaves it out"
+r=$(kix_repo noci)
+git -C "$r" rm -q .github/workflows/check.yml
+commit_all "$r" "drop CI"
+setup "$r" --update
+check "exit status" "$?" "0"
+check "no check.yml" "$(test -e "$r/.github/workflows/check.yml" && echo yes || echo no)" "no"
+
 echo "Kix repo with its own pre-commit additions: hook kept, merge flagged"
 r=$(kix_repo ownhook)
 echo '# repo-only gate' >>"$r/.beads/hooks/pre-commit"

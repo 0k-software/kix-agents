@@ -122,8 +122,13 @@ else
   done < "$ASSETS_DIR/prettierignore"
 fi
 
-# Prettier CI workflow (mirrors the local `make check` gate).
-copy_if_absent check.yml .github/workflows/check.yml || true
+# Prettier CI workflow (mirrors the local `make check` gate). --update leaves a
+# missing one out: a Kix repo without it dropped it on purpose (no GitHub CI).
+if [ "$MODE" = update ] && [ ! -e .github/workflows/check.yml ]; then
+  note "update: no .github/workflows/check.yml — left out"
+else
+  copy_if_absent check.yml .github/workflows/check.yml || true
+fi
 
 # --- 2. pre-commit hook (beads sync + Prettier gate) -------------------------
 # One merged hook: beads' DB→JSONL sync section (managed by beads, between the
